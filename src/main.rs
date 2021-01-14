@@ -1,7 +1,9 @@
 #[macro_use]
 extern crate clap;
 
-use sol2zinc::utils::*;
+mod lib;
+
+use crate::lib::*;
 use std::path::Path;
 
 fn main() {
