@@ -97,7 +97,8 @@ pub fn invoke_solidity(input: &str, options: &str) {
 /// Wrap Zinc generator invocation
 pub fn invoke_codegen(input: &str) {
     let lexemes = get_lexemes(std::fs::read_to_string(input).unwrap().as_str());
-    println!("{:?}", lexemes);
+    let fragments = parse(lexemes.iter());
+    println!("{:?}", fragments);
 }
 
 /// Execute an action by calling corresponding handler
@@ -106,4 +107,188 @@ pub fn execute_action<'a>(action: &Action<'a>) {
         Action::SolidityCompiler(input, options) => invoke_solidity(input, options.as_str()),
         Action::CodeGenerator(input) => invoke_codegen(input.as_str()),
     }
+}
+
+// TODO: move to grammar.rs
+// Block = '{' Statement* '}'
+// Statement =
+//     Block |
+//     FunctionDefinition |
+//     VariableDeclaration |
+//     Assignment |
+//     If |
+//     Expression |
+//     Switch |
+//     ForLoop |
+//     BreakContinue |
+//     Leave
+// FunctionDefinition =
+//     'function' Identifier '(' TypedIdentifierList? ')'
+//     ( '->' TypedIdentifierList )? Block
+// VariableDeclaration =
+//     'let' TypedIdentifierList ( ':=' Expression )?
+// Assignment =
+//     IdentifierList ':=' Expression
+// Expression =
+//     FunctionCall | Identifier | Literal
+// If =
+//     'if' Expression Block
+// Switch =
+//     'switch' Expression ( Case+ Default? | Default )
+// Case =
+//     'case' Literal Block
+// Default =
+//     'default' Block
+// ForLoop =
+//     'for' Block Expression Block Block
+// BreakContinue =
+//     'break' | 'continue'
+// Leave = 'leave'
+// FunctionCall =
+//     Identifier '(' ( Expression ( ',' Expression )* )? ')'
+// Identifier = [a-zA-Z_$] [a-zA-Z_$0-9.]*
+// IdentifierList = Identifier ( ',' Identifier)*
+// TypeName = Identifier
+// TypedIdentifierList = Identifier ( ':' TypeName )? ( ',' Identifier ( ':' TypeName )? )*
+// Literal =
+//     (NumberLiteral | StringLiteral | HexLiteral | TrueLiteral | FalseLiteral) ( ':' TypeName )?
+// NumberLiteral = HexNumber | DecimalNumber
+// HexLiteral = 'hex' ('"' ([0-9a-fA-F]{2})* '"' | '\'' ([0-9a-fA-F]{2})* '\'')
+// StringLiteral = '"' ([^"\r\n\\] | '\\' .)* '"'
+// TrueLiteral = 'true'
+// FalseLiteral = 'false'
+// HexNumber = '0x' [0-9a-fA-F]+
+// DecimalNumber = [0-9]+
+
+/// Datatype for a lexeme for further analysis and translation
+#[derive(Debug)]
+pub enum Type {
+    Bool,
+    Int(u32),
+    UInt(u32),
+    Unknown(String)
+}
+
+/// Represent a literal in yul without differentiating its type
+#[derive(Debug)]
+pub struct Literal {
+    pub value: String
+}
+
+#[derive(Debug)]
+pub struct Identifier {
+    pub name: String,
+    pub yul_type: Option<Type>
+}
+
+#[derive(Debug)]
+pub struct Block {
+    pub statements: Vec<Statement>
+}
+
+#[derive(Debug)]
+pub struct FunctionDefinition {
+    pub name: Identifier,
+    pub parameters: Vec<Identifier>,
+    pub result: Vec<Identifier>, // TODO: investigate
+    pub body: Block
+}
+
+#[derive(Debug)]
+pub struct FunctionCall {
+    pub name: Identifier,
+    pub arguments: Vec<Expression>
+}
+
+#[derive(Debug)]
+pub struct VariableDeclaration {
+    pub names: Vec<Identifier>,
+    pub initializer: Option<Expression>
+}
+
+#[derive(Debug)]
+pub struct Assignment {
+    pub names: Vec<Identifier>,
+    pub initializer: Option<Expression>
+}
+
+#[derive(Debug)]
+pub enum Expression {
+    FunctionCall(FunctionCall),
+    Identifier(Identifier),
+    Literal(Literal)
+}
+
+#[derive(Debug)]
+pub struct IfStatement {
+    pub condition: Expression,
+    pub body: Block
+}
+
+#[derive(Debug)]
+pub struct SwitchCase {
+    pub label: Literal,
+    pub body: Block
+}
+
+#[derive(Debug)]
+pub struct SwitchStatement {
+    pub expression: Expression,
+    pub cases: Vec<SwitchCase>,
+    pub default: Block
+}
+
+#[derive(Debug)]
+pub struct ForLoop {
+    pub initializer: Block,
+    pub condition: Expression,
+    pub finalizer: Block,
+    pub body: Block,
+}
+
+#[derive(Debug)]
+pub enum Statement {
+    Block(Block),
+    FunctionDefinition(FunctionDefinition),
+    VariableDeclaration(VariableDeclaration),
+    Assignment(Assignment),
+    IfStatement(IfStatement),
+    Expression(Expression),
+    SwitchStatement(SwitchStatement),
+    ForLoop(ForLoop),
+    Break,
+    Continue,
+    Leave
+}
+
+/// A comment (any text between /* and */) wich is not defined in yul grammar, but yul
+/// implementation supports them
+#[derive(Debug)]
+pub struct Comment {
+    pub text: String
+}
+
+/// A Yul fragent which is either a piece of Yul or a comment
+#[derive(Debug)]
+pub enum Fragment {
+    Statement(Statement),
+    Comment(Comment),
+    Unparsed(String) // wip temporary accumulator
+}
+
+pub fn parse<'a, I>(mut iter: I) -> Vec<Fragment>
+where
+    I: Iterator<Item = &'a String>
+{
+    let mut result = Vec::new(); //<Fragment>;
+    while (iter.nth(0) != None) {
+        let elem = iter.nth(0).unwrap();
+        if (elem == "/*") {
+            result.push(Fragment::Comment(Comment{text: elem.clone()}));
+        } else {
+            result.push(Fragment::Unparsed(elem.clone()));
+        }
+        iter.next();
+    }
+    result
 }
