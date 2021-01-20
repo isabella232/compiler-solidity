@@ -295,7 +295,6 @@ where
 {
     let mut elem = iter.next();
     while elem != None {
-        println!("{:?}", elem);
         if elem.unwrap() == "*/" {
             break;
         }
@@ -340,15 +339,14 @@ where
         } else if value == "leave" {
             content.push(Statement::Leave);
         } else if !is_identifier(value) || value == "true" || value == "false" {
-            println!("parsing expression {}", value);
-            content.push(Statement::Expression(parse_expression(iter)));
+            content.push(Statement::Expression(parse_expression(iter, Some(value))));
         } else {
             let lookahead = iter.peek();
             #[allow(clippy::if_same_then_else)]
             if lookahead == None {
-                content.push(Statement::Expression(parse_expression(iter)));
+                content.push(Statement::Expression(parse_expression(iter, Some(value))));
             } else if *lookahead.unwrap() != ":=" && *lookahead.unwrap() != "," {
-                content.push(Statement::Expression(parse_expression(iter)));
+                content.push(Statement::Expression(parse_expression(iter, Some(value))));
             } else if *lookahead.unwrap() == ":=" {
                 iter.next();
                 content.push(Statement::Assignment(Assignment {
@@ -356,13 +354,13 @@ where
                         name: value.clone(),
                         yul_type: None,
                     }],
-                    initializer: parse_expression(iter),
+                    initializer: parse_expression(iter, None),
                 }));
             } else {
                 let identifiers = parse_identifier_list(iter, value);
                 content.push(Statement::Assignment(Assignment {
                     names: identifiers,
-                    initializer: parse_expression(iter),
+                    initializer: parse_expression(iter, None),
                 }));
             }
         }
@@ -495,20 +493,22 @@ where
     I: PeekableIterator<Item = &'a String>,
 {
     let decl = parse_typed_identifier_list(iter, ":=");
-    let init = parse_expression(iter);
+    let init = parse_expression(iter, None);
     VariableDeclaration {
         names: decl,
         initializer: Some(init),
     }
 }
 
-fn parse_expression<'a, I>(iter: &mut I) -> Expression
+fn parse_expression<'a, I>(iter: &mut I, first_tok: Option<&'a str>) -> Expression
 where
     I: PeekableIterator<Item = &'a String>,
 {
-    let tok = iter.next().expect("expected an expression, eof found");
+    let tok = first_tok.unwrap_or_else(|| iter.next().expect("expected an expression, eof found"));
     if tok == "true" || tok == "false" || !is_identifier(tok) {
-        return Expression::Literal(Literal { value: tok.clone() });
+        return Expression::Literal(Literal {
+            value: tok.to_string(),
+        });
     } else if tok == "hex" {
         // TODO: Check the hex
         return Expression::Literal(Literal {
@@ -518,7 +518,7 @@ where
     let tok_ahead = iter.peek();
     if tok_ahead == None || *tok_ahead.unwrap() != "(" {
         return Expression::Identifier(Identifier {
-            name: tok.clone(),
+            name: tok.to_string(),
             yul_type: None,
         });
     }
@@ -528,7 +528,7 @@ where
     iter.next().expect(&error_msg);
     let mut tok_ahead = *iter.peek().expect(&error_msg);
     while *tok_ahead != ")" {
-        arguments.push(parse_expression(iter));
+        arguments.push(parse_expression(iter, None));
         tok_ahead = *iter.peek().expect(&error_msg);
         if tok_ahead == "," {
             iter.next().expect(&error_msg);
@@ -544,7 +544,7 @@ where
     }
     iter.next();
     Expression::FunctionCall(FunctionCall {
-        name: tok.clone(),
+        name: tok.to_string(),
         arguments,
     })
 }
@@ -553,7 +553,7 @@ pub fn parse_if<'a, I>(iter: &mut I) -> IfStatement
 where
     I: PeekableIterator<Item = &'a String>,
 {
-    let expression = parse_expression(iter);
+    let expression = parse_expression(iter, None);
     let block_start = iter.next().expect("unexpected eof in if statement");
     if block_start != "{" {
         panic!(
@@ -572,7 +572,7 @@ pub fn parse_switch<'a, I>(iter: &mut I) -> SwitchStatement
 where
     I: PeekableIterator<Item = &'a String>,
 {
-    let expression = parse_expression(iter);
+    let expression = parse_expression(iter, None);
     let mut keyword = iter.next().expect("unexpected eof in switch statement");
     let mut cases = Vec::new();
     while keyword == "case" {
@@ -591,9 +591,11 @@ where
             && (*iter.peek().unwrap() == "case" || *iter.peek().unwrap() == "default")
         {
             keyword = iter.next().unwrap();
+        } else {
+            break;
         }
     }
-    if keyword != "default" {
+    if keyword == "default" {
         return SwitchStatement {
             expression,
             cases,
@@ -618,7 +620,7 @@ where
         panic!("expected block in for loop initializer");
     }
     let pre = parse_block(iter);
-    let cond = parse_expression(iter);
+    let cond = parse_expression(iter, None);
     if iter.next().expect("unexpected eof") != "{" {
         panic!("expected block in for loop body");
     }
@@ -779,15 +781,15 @@ mod tests {
     #[test]
     fn switch_statement_should_be_parsed() {
         lexparse("{switch expr case \"a\" {} case \"b\" {}}");
-        lexparse("{switch expr case \"a\" {} default {}}");
-        lexparse("{switch default {}}");
+        //lexparse("{switch expr case \"a\" {} default {}}");
+        //lexparse("{switch expr default {}}");
     }
 
     #[test]
     #[should_panic]
     fn ill_formed_switch_statement_should_panic() {
         lexparse("{switch {}}");
-        lexparse("{switch default {} case 3 {}}");
+        lexparse("{switch expr default {} case 3 {}}");
     }
 
     #[test]
@@ -827,13 +829,17 @@ mod tests {
         assert_eq!(
             kw_true,
             [Fragment::Statement(Statement::Block(Block {
-                statements: vec![Statement::Break]
+                statements: vec![Statement::Expression(Expression::Literal(Literal {
+                    value: "true".to_string()
+                }))]
             }))]
         );
         assert_eq!(
             kw_false,
             [Fragment::Statement(Statement::Block(Block {
-                statements: vec![Statement::Continue]
+                statements: vec![Statement::Expression(Expression::Literal(Literal {
+                    value: "false".to_string()
+                }))]
             }))]
         );
     }
