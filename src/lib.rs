@@ -624,11 +624,11 @@ where
     if iter.next().expect("unexpected eof") != "{" {
         panic!("expected block in for loop body");
     }
-    let body = parse_block(iter);
+    let post = parse_block(iter);
     if iter.next().expect("unexpected eof") != "{" {
         panic!("expected block in for loop finalizer");
     }
-    let post = parse_block(iter);
+    let body = parse_block(iter);
     ForLoop {
         initializer: pre,
         condition: cond,
