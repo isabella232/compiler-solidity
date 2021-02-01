@@ -419,7 +419,13 @@ where
         }
         elem = iter.next();
         let value = elem.expect("unexpected end for typed paramater list");
-        if value == "," {
+        if value == terminator {
+            result.push(Identifier {
+                name: name.clone(),
+                yul_type: None,
+            });
+            break;
+        } else if value == "," {
             elem = iter.next();
             result.push(Identifier {
                 name: name.clone(),
@@ -596,6 +602,9 @@ where
         }
     }
     if keyword == "default" {
+        if iter.next().expect("unexpected eof in switch statement") != "{" {
+            panic!("expected block in switch case");
+        }
         return SwitchStatement {
             expression,
             cases,
@@ -781,8 +790,8 @@ mod tests {
     #[test]
     fn switch_statement_should_be_parsed() {
         lexparse("{switch expr case \"a\" {} case \"b\" {}}");
-        //lexparse("{switch expr case \"a\" {} default {}}");
-        //lexparse("{switch expr default {}}");
+        lexparse("{switch expr case \"a\" {} default {}}");
+        lexparse("{switch expr default {}}");
     }
 
     #[test]
