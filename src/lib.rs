@@ -1,9 +1,19 @@
 use rand::Rng;
 use regex::Regex;
 
+fn remove_comments(src: &mut String) {
+    let mut comment = src.find("//");
+    while comment != None {
+        let pos = comment.unwrap();
+        let eol = src[pos..].find("\n").unwrap_or(src.len() - pos - 1);
+        src.replace_range(pos..eol, "");
+        comment = src.find("//");
+    }
+}
+
 // TODO: move to lexer.rs
 /// Provide vector of tokens for a given source
-pub fn get_lexemes(src: &str) -> Vec<String> {
+pub fn get_lexemes(src: &mut String) -> Vec<String> {
     let mut result = Vec::new();
     let mut index = 0;
     // TODO: Check if we can rely on regexp to guarantee that in case of ':=' it will always be
@@ -101,7 +111,7 @@ pub fn invoke_solidity(input: &str, options: &str) {
 
 /// Wrap Zinc generator invocation
 pub fn invoke_codegen(input: &str) {
-    let lexemes = get_lexemes(std::fs::read_to_string(input).unwrap().as_str());
+    let lexemes = get_lexemes(&mut std::fs::read_to_string(input).unwrap());
     let fragments = parse(lexemes.iter());
     println!("{:?}", fragments);
 }
@@ -762,7 +772,12 @@ fn translate_builtin(call: &FunctionCall) -> Option<String> {
         "add" => Some(translate_binary_operation(&call.arguments, "+")),
         "sub" => Some(translate_binary_operation(&call.arguments, "-")),
         "mul" => Some(translate_binary_operation(&call.arguments, "*")),
+        // TODO: YUL semantic is more complex, '/' returns 0 if the divider is 0
         "div" => Some(translate_binary_operation(&call.arguments, "/")),
+        "sdiv" => Some(translate_binary_operation(&call.arguments, "/")),
+        // TODO: YUL semantic is more complex, '%' returns 0 if the divider is 0
+        "mod" => Some(translate_binary_operation(&call.arguments, "%")),
+        "smod" => Some(translate_binary_operation(&call.arguments, "%")),
         // Comparison
         "lt" => Some(translate_binary_operation(&call.arguments, "<")),
         "slt" => Some(translate_binary_operation(&call.arguments, "<")),
@@ -772,6 +787,10 @@ fn translate_builtin(call: &FunctionCall) -> Option<String> {
         // Bitwise
         "and" => Some(translate_binary_operation(&call.arguments, "&")),
         "or" => Some(translate_binary_operation(&call.arguments, "|")),
+        "xor" => Some(translate_binary_operation(&call.arguments, "^")),
+        "shl" => Some(translate_binary_operation(&call.arguments, "<<")),
+        "shr" => Some(translate_binary_operation(&call.arguments, ">>")),
+        "sar" => Some(translate_binary_operation(&call.arguments, ">>")),
         _ => None,
     }
 }
@@ -942,21 +961,12 @@ mod tests {
 
     static YUL: &'static str = "/*123 comment ***/{}";
 
-    #[test]
-    fn whitespaces_should_be_ignored() {
-        assert_eq!(get_lexemes("   a    b c\td"), ["a", "b", "c", "d"]);
-    }
-
-    #[test]
-    fn comment_should_be_tokenized() {
-        assert_eq!(
-            get_lexemes(YUL),
-            ["/*", "123", "comment", "**", "*/", "{", "}"]
-        );
+    fn get_lexemes_str(input: &str) -> Vec<String> {
+        get_lexemes(&mut String::from(input))
     }
 
     fn lexparse(input: &str) -> Vec<Fragment> {
-        parse(get_lexemes(input).iter())
+        parse(get_lexemes_str(input).iter())
     }
 
     fn compile(input: &str) -> String {
@@ -969,6 +979,24 @@ mod tests {
             _ => unreachable!(),
         };
         translate(program)
+    }
+
+
+    #[test]
+    fn whitespaces_should_be_ignored() {
+        assert_eq!(get_lexemes_str("   a    b c\td"), ["a", "b", "c", "d"]);
+    }
+
+    fn single_line_comments_should_be_ignored() {
+        assert_eq!(get_lexemes_str("   a////comment\nb c\td//comment"), ["a", "b", "c", "d"]);
+    }
+
+    #[test]
+    fn multi_line_comments_should_be_tokenized() {
+        assert_eq!(
+            get_lexemes_str(YUL),
+            ["/*", "123", "comment", "**", "*/", "{", "}"]
+        );
     }
 
     #[test]
