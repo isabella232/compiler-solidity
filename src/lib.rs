@@ -5,7 +5,7 @@ fn remove_comments(src: &mut String) {
     let mut comment = src.find("//");
     while comment != None {
         let pos = comment.unwrap();
-        let eol = src[pos..].find("\n").unwrap_or(src.len() - pos - 1);
+        let eol = src[pos..].find('\n').unwrap_or(src.len() - pos - 1);
         src.replace_range(pos..eol, "");
         comment = src.find("//");
     }
@@ -84,7 +84,7 @@ fn tmp_yul(input: &str) -> String {
 }
 
 /// Produce sequence of actions required to compile file with specified options
-pub fn generate_actions<'a>(file: &'a str, options: &'a str) -> std::vec::Vec<Action<'a>> {
+pub fn generate_actions<'a>(file: &'a str, options: &'a str) -> Vec<Action<'a>> {
     match file_type(file) {
         FileType::Yul => vec![Action::CodeGenerator(String::from(file))],
         FileType::Solidity => {
@@ -732,13 +732,63 @@ fn translate_id_type(id: &Identifier) -> String {
     }
 }
 
+fn default_value_for(yul_type: &Option<Type>) -> String {
+    String::from(match yul_type {
+        // assume u256 as the default type, maybe we'd need type inference later.
+        None => "0",
+        Some(Type::Bool) => "false",
+        Some(Type::Int(_)) => "0",
+        Some(Type::UInt(_)) => "0",
+        Some(Type::Unknown(_)) => unreachable!(),
+    })
+}
+
+fn define_ret_values(ret_values: &[Identifier], indent: usize) -> String {
+    let mut result = String::from("");
+    for value in ret_values {
+        result += indented("let mut ", indent).as_str();
+        result += value.name.as_str();
+        result += " = ";
+        result += default_value_for(&value.yul_type).as_str();
+        result += ";\n";
+    }
+    result
+}
+
+fn return_for(ret_values: &[Identifier], indent: usize, is_return: bool) -> String {
+    if ret_values.is_empty() {
+        return String::from("");
+    }
+    let mut result = indented("", indent);
+    if is_return {
+        result += "return ";
+    }
+    if ret_values.len() > 1 {
+        result += "(";
+    }
+    for ret in ret_values {
+        result += ret.name.as_str();
+        result += ", ";
+    }
+    result.truncate(result.len() - 2);
+    if ret_values.len() > 1 {
+        result += ")";
+    }
+    if is_return {
+        result += ";"
+    }
+    result + "\n"
+}
+
 fn translate_function_definition(fundef: &FunctionDefinition, indent: usize) -> String {
     let mut result = indented(format!("fn {}(", fundef.name).as_str(), indent);
     for par in &fundef.parameters {
         result += translate_id_with_type(par).as_str();
         result += ", ";
     }
-    result.truncate(result.len() - 2);
+    if !fundef.parameters.is_empty() {
+        result.truncate(result.len() - 2);
+    }
     result += ")";
     if !result.is_empty() {
         result += " -> ";
@@ -749,7 +799,9 @@ fn translate_function_definition(fundef: &FunctionDefinition, indent: usize) -> 
         result.truncate(result.len() - 2);
     }
     result += " {\n";
+    result += define_ret_values(&fundef.result, indent + 1).as_str();
     result += translate_block(&fundef.body, indent + 1).as_str();
+    result += return_for(&fundef.result, indent + 1, false).as_str();
     result += indented("}\n", indent).as_str();
     result
 }
@@ -835,16 +887,6 @@ fn default_initialize(_variables: &[Identifier]) -> String {
 }
 
 /*
-fn default_value_for(yul_type: &Type) -> String {
-    String::from(
-    match yul_type {
-        Type::Bool => "false",
-        Type::Int(_) => "0",
-        Type::UInt(_) => "0",
-        Type::Unknown(_) => unreachable!(),
-    })
-}
-
 fn default_initialize(variables: &[Identifier]) -> String {
     let mut types = variables.iter().map(|var| match &var.yul_type {
         None => Type::UInt(256),
@@ -981,14 +1023,16 @@ mod tests {
         translate(program)
     }
 
-
     #[test]
     fn whitespaces_should_be_ignored() {
         assert_eq!(get_lexemes_str("   a    b c\td"), ["a", "b", "c", "d"]);
     }
 
     fn single_line_comments_should_be_ignored() {
-        assert_eq!(get_lexemes_str("   a////comment\nb c\td//comment"), ["a", "b", "c", "d"]);
+        assert_eq!(
+            get_lexemes_str("   a////comment\nb c\td//comment"),
+            ["a", "b", "c", "d"]
+        );
     }
 
     #[test]
@@ -1266,5 +1310,13 @@ mod tests {
         // Bitwise
         assert_eq!(compile("{and(a, b)}"), "(a & b);\n");
         assert_eq!(compile("{or(a, b)}"), "(a | b);\n");
+    }
+
+    #[test]
+    fn return_should_be_compiled_correctly() {
+        assert_eq!(
+            compile("{function zero() -> ret {ret :=0 }}"),
+            "fn zero() -> u256 {\n    let mut ret = 0;\n    ret = 0;\n    ret\n}\n"
+        );
     }
 }
