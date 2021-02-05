@@ -691,13 +691,13 @@ fn indented(value: &str, indent: usize) -> String {
     indentation + value
 }
 
-fn translate_block(block: &Block, indent: usize) -> String {
+fn translate_block(block: &Block, indent: usize, return_values: &mut Vec<Identifier>) -> String {
     let mut result = String::from("");
     for stmt in &block.statements {
         result += match stmt {
             Statement::Block(b) => {
                 indented("{", indent)
-                    + translate_block(&b, indent + 1).as_str()
+                    + translate_block(&b, indent + 1, return_values).as_str()
                     + "\n"
                     + indented("}", indent).as_str()
             }
@@ -707,8 +707,15 @@ fn translate_block(block: &Block, indent: usize) -> String {
             }
             Statement::Assignment(assign) => translate_assignment(&assign, indent),
             Statement::Expression(expr) => translate_expression(&expr, indent, true),
-            Statement::IfStatement(ifstmt) => translate_if_statement(&ifstmt, indent),
-            Statement::SwitchStatement(switch) => translate_switch_statement(&switch, indent),
+            Statement::IfStatement(ifstmt) => {
+                translate_if_statement(&ifstmt, indent, return_values)
+            }
+            Statement::SwitchStatement(switch) => {
+                translate_switch_statement(&switch, indent, return_values)
+            }
+            Statement::Break => indented("break", indent),
+            Statement::Continue => indented("continue", indent),
+            Statement::Leave => return_for(return_values, indent, true),
             _ => unreachable!(),
         }
         .as_str();
@@ -739,7 +746,7 @@ fn default_value_for(yul_type: &Option<Type>) -> String {
         Some(Type::Bool) => "false",
         Some(Type::Int(_)) => "0",
         Some(Type::UInt(_)) => "0",
-        Some(Type::Unknown(_)) => unreachable!(),
+        Some(Type::Unknown(_)) => "0", // TODO: Support UDT?
     })
 }
 
@@ -800,7 +807,7 @@ fn translate_function_definition(fundef: &FunctionDefinition, indent: usize) -> 
     }
     result += " {\n";
     result += define_ret_values(&fundef.result, indent + 1).as_str();
-    result += translate_block(&fundef.body, indent + 1).as_str();
+    result += translate_block(&fundef.body, indent + 1, &mut fundef.result.clone()).as_str();
     result += return_for(&fundef.result, indent + 1, false).as_str();
     result += indented("}\n", indent).as_str();
     result
@@ -957,29 +964,37 @@ fn translate_assignment(assignment: &Assignment, indent: usize) -> String {
     )
 }
 
-fn translate_if_statement(ifstmt: &IfStatement, indent: usize) -> String {
+fn translate_if_statement(
+    ifstmt: &IfStatement,
+    indent: usize,
+    return_values: &mut Vec<Identifier>,
+) -> String {
     let mut result = indented("if ", indent);
     result += translate_expression(&ifstmt.condition, 0, false).as_str();
     result += " {\n";
-    result += translate_block(&ifstmt.body, indent + 1).as_str();
+    result += translate_block(&ifstmt.body, indent + 1, return_values).as_str();
     result += indented("}\n", indent).as_str();
     result
 }
 
-fn translate_switch_statement(switch: &SwitchStatement, indent: usize) -> String {
+fn translate_switch_statement(
+    switch: &SwitchStatement,
+    indent: usize,
+    return_values: &mut Vec<Identifier>,
+) -> String {
     let mut result = indented("match ", indent);
     result += translate_expression(&switch.expression, 0, false).as_str();
     result += " {\n";
     for case in &switch.cases {
         result += indented(case.label.value.as_str(), indent + 1).as_str();
         result += " => {\n";
-        result += translate_block(&case.body, indent + 2).as_str();
+        result += translate_block(&case.body, indent + 2, return_values).as_str();
         result += indented("},\n", indent + 1).as_str();
     }
     if let Some(default) = &switch.default {
         result += indented("_", indent + 1).as_str();
         result += " => {\n";
-        result += translate_block(&default, indent + 2).as_str();
+        result += translate_block(&default, indent + 2, return_values).as_str();
         result += indented("},\n", indent + 1).as_str();
     }
     result += indented("};\n", indent).as_str();
@@ -990,7 +1005,7 @@ pub fn translate(statement: &Statement) -> String {
     let mut result = "".to_string();
     match statement {
         Statement::Block(block) => {
-            result += translate_block(block, 0).as_str();
+            result += translate_block(block, 0, &mut Vec::new()).as_str();
         }
         _ => unreachable!(),
     }
@@ -1236,11 +1251,11 @@ mod tests {
     fn function_definition_should_compile() {
         assert_eq!(
             compile("{function foo(a : A) -> x: T, z: Y {}}"),
-            "fn foo(a: A) -> T, Y {\n}\n"
+            "fn foo(a: A) -> T, Y {\n    let mut x = 0;\n    let mut z = 0;\n    (x, z)\n}\n"
         );
         assert_eq!(
             compile("{function foo(a: A, b) -> x: T, z: Y {}}"),
-            "fn foo(a: A, b: u256) -> T, Y {\n}\n"
+            "fn foo(a: A, b: u256) -> T, Y {\n    let mut x = 0;\n    let mut z = 0;\n    (x, z)\n}\n"
         );
     }
 
@@ -1316,6 +1331,13 @@ mod tests {
     fn return_should_be_compiled_correctly() {
         assert_eq!(
             compile("{function zero() -> ret {ret :=0 }}"),
+            "fn zero() -> u256 {\n    let mut ret = 0;\n    ret = 0;\n    ret\n}\n"
+        );
+    }
+    #[test]
+    fn leave_should_be_compiled_correctly() {
+        assert_eq!(
+            compile("{function foo(y) -> x {if y {x:=y leave} x:=1}}"),
             "fn zero() -> u256 {\n    let mut ret = 0;\n    ret = 0;\n    ret\n}\n"
         );
     }
