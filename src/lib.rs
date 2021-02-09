@@ -1334,11 +1334,12 @@ mod tests {
             "fn zero() -> u256 {\n    let mut ret = 0;\n    ret = 0;\n    ret\n}\n"
         );
     }
+
     #[test]
     fn leave_should_be_compiled_correctly() {
         assert_eq!(
             compile("{function foo(y) -> x {if y {x:=y leave} x:=1}}"),
-            "fn zero() -> u256 {\n    let mut ret = 0;\n    ret = 0;\n    ret\n}\n"
+            "fn foo(y: u256) -> u256 {\n    let mut x = 0;\n    if y {\n        x = y;\n        return x;\n    }\n    x = 1;\n    x\n}\n"
         );
     }
 }
