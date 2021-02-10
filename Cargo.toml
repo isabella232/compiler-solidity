@@ -10,4 +10,4 @@ edition = "2018"
 clap = "2.33"
 rand = "0.8.2"
 regex = "1.4.3"
-inkwell = "0.0.0"
+inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm10-0"] }
