@@ -377,7 +377,7 @@ where
         elem = iter.next();
     }
     if elem == None {
-        panic!("Can't find matching '}', Yul input is ill-formed");
+        panic!("{}", "Can't find matching '}', Yul input is ill-formed");
     }
     Block {
         statements: content,
@@ -682,6 +682,535 @@ where
 //------------------------------------ YUL to Zinc -----------------------------------
 pub mod yul2zinc;
 
+//------------------------------- YUL to LLVM IR -------------------------------
+use inkwell::basic_block::BasicBlock;
+use inkwell::builder::Builder;
+use inkwell::context::Context;
+use inkwell::module::Module;
+use inkwell::types::AnyTypeEnum;
+use inkwell::types::BasicTypeEnum;
+use inkwell::types::FunctionType;
+use inkwell::types::IntType;
+use inkwell::types::StringRadix;
+use inkwell::values::BasicValue;
+use inkwell::values::BasicValueEnum;
+use inkwell::values::FunctionValue;
+use inkwell::values::IntValue;
+use inkwell::values::PointerValue;
+use inkwell::IntPredicate;
+use std::collections::HashMap;
+
+pub struct Compiler<'a, 'ctx> {
+    pub context: &'ctx Context,
+    pub builder: &'a Builder<'ctx>,
+    pub module: &'a Module<'ctx>,
+    pub function: Option<FunctionValue<'ctx>>,
+    pub leave_bb: Option<BasicBlock<'ctx>>,
+    pub break_bb: Option<BasicBlock<'ctx>>,
+    pub continue_bb: Option<BasicBlock<'ctx>>,
+    pub variables: HashMap<String, PointerValue<'ctx>>,
+}
+
+impl<'a, 'ctx> Compiler<'a, 'ctx> {
+    fn translate_type(&self, t: &Option<Type>) -> BasicTypeEnum<'ctx> {
+        match t {
+            Some(Type::Bool) => BasicTypeEnum::IntType(self.context.bool_type()),
+            Some(Type::Int(n)) => BasicTypeEnum::IntType(self.context.custom_width_int_type(*n)),
+            Some(Type::UInt(n)) => BasicTypeEnum::IntType(self.context.custom_width_int_type(*n)),
+            _ => BasicTypeEnum::IntType(self.context.custom_width_int_type(256)),
+        }
+    }
+
+    fn translate_fn_type(
+        &self,
+        ret_values: &Vec<Identifier>,
+        par_types: &Vec<BasicTypeEnum<'ctx>>,
+    ) -> FunctionType<'ctx> {
+        if ret_values.len() == 0 {
+            self.context.void_type().fn_type(&par_types[..], false)
+        } else if ret_values.len() == 1 {
+            match ret_values[0].yul_type {
+                Some(Type::Bool) => self.context.bool_type().fn_type(&par_types[..], false),
+                Some(Type::Int(n)) => self
+                    .context
+                    .custom_width_int_type(n)
+                    .fn_type(&par_types[..], false),
+                Some(Type::UInt(n)) => self
+                    .context
+                    .custom_width_int_type(n)
+                    .fn_type(&par_types[..], false),
+                Some(Type::UInt(n)) => self
+                    .context
+                    .custom_width_int_type(n)
+                    .fn_type(&par_types[..], false),
+                _ => self
+                    .context
+                    .custom_width_int_type(256)
+                    .fn_type(&par_types[..], false),
+            }
+        } else {
+            unreachable!();
+        }
+    }
+
+    fn translate_builtin(&self, call: &FunctionCall) -> Option<BasicValueEnum> {
+        // TODO: Figure out how to use high-order functions to reduce code duplication.
+        match call.name.as_str() {
+            "add" => {
+                let val = self.builder.build_int_add(
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "sub" => {
+                let val = self.builder.build_int_sub(
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "mul" => {
+                let val = self.builder.build_int_mul(
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "div" => {
+                let val = self.builder.build_int_unsigned_div(
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "sdiv" => {
+                let val = self.builder.build_int_signed_div(
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "mod" => {
+                let val = self.builder.build_int_unsigned_rem(
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "smod" => {
+                let val = self.builder.build_int_signed_rem(
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "lt" => {
+                let val = self.builder.build_int_compare(
+                    IntPredicate::ULT,
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "slt" => {
+                let val = self.builder.build_int_compare(
+                    IntPredicate::SLT,
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "gt" => {
+                let val = self.builder.build_int_compare(
+                    IntPredicate::UGT,
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "sgt" => {
+                let val = self.builder.build_int_compare(
+                    IntPredicate::SGT,
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "eq" => {
+                let val = self.builder.build_int_compare(
+                    IntPredicate::EQ,
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "and" => {
+                let val = self.builder.build_and(
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "or" => {
+                let val = self.builder.build_or(
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "xor" => {
+                let val = self.builder.build_xor(
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "shl" => {
+                let val = self.builder.build_left_shift(
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "shr" => {
+                let val = self.builder.build_right_shift(
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    false,
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            "sar" => {
+                let val = self.builder.build_right_shift(
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.translate_expression(&call.arguments[1])
+                        .into_int_value(),
+                    true,
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
+            _ => None,
+        }
+    }
+
+    fn translate_expression(&self, e: &Expression) -> BasicValueEnum {
+        match e {
+            Expression::Literal(l) => self
+                .context
+                .custom_width_int_type(256)
+                .const_int_from_string(l.value.as_str(), StringRadix::Decimal)
+                .unwrap()
+                .as_basic_value_enum(),
+            Expression::Identifier(var) => self.builder.build_load(self.variables[&var.name], ""),
+            Expression::FunctionCall(call) => match self.translate_builtin(call) {
+                Some(expr) => expr,
+                None => unreachable!(),
+            },
+        }
+    }
+
+    fn translate_variable_declaration(&mut self, vd: &VariableDeclaration) {
+        assert!(!vd.names.is_empty());
+        if vd.names.len() > 1 {
+            // TODO: implement
+            unreachable!();
+        }
+        for name in &vd.names {
+            let val = self
+                .builder
+                .build_alloca(self.translate_type(&name.yul_type), name.name.as_str());
+            self.variables.insert(name.name.clone(), val);
+        }
+
+        match &vd.initializer {
+            Some(init) => {
+                self.builder.build_store(
+                    self.variables[&vd.names[0].name],
+                    self.translate_expression(&init),
+                );
+            }
+            _ => (),
+        };
+    }
+
+    fn translate_if_statement(&mut self, ifstmt: &IfStatement) {
+        let cond = self.builder.build_int_cast(
+            self.translate_expression(&ifstmt.condition)
+                .into_int_value(),
+            self.context.bool_type(),
+            "",
+        );
+        let then = self
+            .context
+            .append_basic_block(self.function.unwrap(), "if.then");
+        let join = self
+            .context
+            .append_basic_block(self.function.unwrap(), "if.join");
+        self.builder.build_conditional_branch(cond, then, join);
+        self.builder.position_at_end(then);
+        self.translate_function_body(&ifstmt.body);
+        self.builder.build_unconditional_branch(join);
+        self.builder.position_at_end(join);
+    }
+
+    fn translate_switch_statement(&mut self, switchstmt: &SwitchStatement) {
+        let default = self
+            .context
+            .append_basic_block(self.function.unwrap(), "switch.default");
+        let join = self
+            .context
+            .append_basic_block(self.function.unwrap(), "switch.join");
+        let cases: Vec<(IntValue<'ctx>, BasicBlock<'ctx>)> = switchstmt
+            .cases
+            .iter()
+            .map(|case| {
+                let lit = self
+                    .context
+                    .custom_width_int_type(256)
+                    .const_int_from_string(case.label.value.as_str(), StringRadix::Decimal)
+                    .unwrap();
+                let bb = self
+                    .context
+                    .append_basic_block(self.function.unwrap(), "switch.case");
+                (lit, bb)
+            })
+            .collect();
+        self.builder.build_switch(
+            self.translate_expression(&switchstmt.expression)
+                .into_int_value(),
+            default,
+            &cases,
+        );
+        for idx in 0..cases.len() {
+            self.builder.position_at_end(cases[idx].1);
+            self.translate_function_body(&switchstmt.cases[idx].body);
+            self.builder.build_unconditional_branch(join);
+        }
+        self.builder.position_at_end(default);
+        match &switchstmt.default {
+            Some(bb) => self.translate_function_body(&bb),
+            None => (),
+        }
+        self.builder.build_unconditional_branch(join);
+        self.builder.position_at_end(join);
+    }
+
+    fn translate_for_loop(&mut self, forloop: &ForLoop) {
+        self.translate_function_body(&forloop.initializer);
+        let cond = self
+            .context
+            .append_basic_block(self.function.unwrap(), "for.cond");
+        let body = self
+            .context
+            .append_basic_block(self.function.unwrap(), "for.body");
+        let inc = self
+            .context
+            .append_basic_block(self.function.unwrap(), "for.inc");
+        let exit = self
+            .context
+            .append_basic_block(self.function.unwrap(), "for.exit");
+        self.builder.build_unconditional_branch(cond);
+        self.builder.position_at_end(cond);
+        let condition = self.builder.build_int_cast(
+            self.translate_expression(&forloop.condition)
+                .into_int_value(),
+            self.context.bool_type(),
+            "",
+        );
+        self.builder.build_conditional_branch(condition, body, exit);
+        self.break_bb = Some(exit);
+        self.continue_bb = Some(inc);
+        self.builder.position_at_end(body);
+        self.translate_function_body(&forloop.body);
+        self.builder.build_unconditional_branch(inc);
+        self.builder.position_at_end(inc);
+        self.translate_function_body(&forloop.finalizer);
+        self.break_bb = None;
+        self.continue_bb = None;
+        self.builder.position_at_end(exit);
+    }
+
+    fn translate_function_body(&mut self, body: &Block) {
+        for stmt in &body.statements {
+            match stmt {
+                // The scope can be cleaned up on exit, but let's LLVM do the job. We can also rely
+                // on YUL renaming so we don't need to track scope.
+                Statement::Block(b) => self.translate_function_body(&b),
+                Statement::VariableDeclaration(vd) => self.translate_variable_declaration(&vd),
+                // TODO: support tuples
+                Statement::Assignment(var) => {
+                    self.builder.build_store(
+                        self.variables[&var.names[0].name],
+                        self.translate_expression(&var.initializer),
+                    );
+                }
+                Statement::Expression(expr) => {
+                    self.translate_expression(&expr);
+                }
+                Statement::IfStatement(ifstmt) => self.translate_if_statement(&ifstmt),
+                Statement::SwitchStatement(switchstmt) => {
+                    self.translate_switch_statement(&switchstmt)
+                }
+                Statement::ForLoop(forloop) => self.translate_for_loop(&forloop),
+                Statement::Leave => {
+                    self.builder
+                        .build_unconditional_branch(self.leave_bb.unwrap());
+                }
+                Statement::Break => {
+                    self.builder
+                        .build_unconditional_branch(self.break_bb.unwrap());
+                }
+                Statement::Continue => {
+                    self.builder
+                        .build_unconditional_branch(self.continue_bb.unwrap());
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    fn translate_function_definition(&mut self, fd: &FunctionDefinition) {
+        let name = fd.name.as_str();
+        let mut par_types: Vec<BasicTypeEnum<'ctx>> = fd
+            .parameters
+            .iter()
+            .map(|par| self.translate_type(&par.yul_type).into())
+            .collect();
+        let fn_t = self.translate_fn_type(&fd.result, &par_types);
+        let function = self.module.add_function(name, fn_t, None);
+        self.function = Some(function);
+        let entry = self.context.append_basic_block(function, "entry");
+        self.builder.position_at_end(entry);
+
+        for idx in 0..fd.parameters.len() {
+            let par = self
+                .builder
+                .build_alloca(par_types[idx], fd.parameters[idx].name.as_str());
+            self.variables.insert(fd.parameters[idx].name.clone(), par);
+            let par = self
+                .builder
+                .build_store(par, function.get_nth_param(idx as u32).unwrap());
+        }
+
+        let ret_ptr = match fd.result.len() {
+            0 => None,
+            1 => {
+                let val = self.builder.build_alloca(
+                    self.translate_type(&fd.result[0].yul_type),
+                    fd.result[0].name.as_str(),
+                );
+                self.variables.insert(fd.result[0].name.clone(), val);
+                Some(val)
+            }
+            _ => unreachable!(),
+        };
+
+        let exit = self.context.append_basic_block(function, "exit");
+        self.leave_bb = Some(exit);
+
+        self.translate_function_body(&fd.body);
+
+        self.builder.build_unconditional_branch(exit);
+        self.builder.position_at_end(exit);
+
+        match ret_ptr {
+            None => self.builder.build_return(None),
+            Some(val) => self
+                .builder
+                .build_return(Some(&self.builder.build_load(val, ""))),
+        };
+    }
+
+    fn translate_module(&mut self, block: &Block) {
+        for stmt in &block.statements {
+            match stmt {
+                Statement::FunctionDefinition(fd) => self.translate_function_definition(fd),
+                Statement::VariableDeclaration(vd) => (),
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    pub fn compile(statement: &Statement) {
+        let mut context = Context::create();
+        let mut module = context.create_module("module");
+        let mut builder = context.create_builder();
+
+        let mut compiler = Compiler {
+            context: &context,
+            builder: &builder,
+            module: &module,
+            function: None,
+            leave_bb: None,
+            break_bb: None,
+            continue_bb: None,
+            variables: HashMap::new(),
+        };
+
+        match statement {
+            Statement::Block(block) => {
+                compiler.translate_module(&block);
+            }
+            _ => unreachable!(),
+        }
+        println!("{}", module.print_to_string().to_string());
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::*;
@@ -705,8 +1234,8 @@ mod tests {
             Fragment::Statement(s) => s,
             _ => unreachable!(),
         };
+        Compiler::compile(program);
         "".to_string()
-        //translate(program)
     }
 
     #[test]
@@ -911,5 +1440,50 @@ mod tests {
     #[should_panic]
     fn id_list_wo_assignment_should_panic() {
         lexparse("{x,y}");
+    }
+
+    #[test]
+    fn void_function_should_compile() {
+        compile("{function foo() {}}");
+    }
+
+    #[test]
+    fn i256_function_should_compile() {
+        compile("{function foo() -> x {}}");
+    }
+
+    #[test]
+    fn literal_initialization_should_compile() {
+        compile("{function foo() -> x {let y := 5}}");
+    }
+
+    #[test]
+    fn variable_initialization_should_compile() {
+        compile("{function foo() -> x {let y := x}}");
+    }
+
+    #[test]
+    fn builtin_call_should_compile() {
+        compile("{function foo() -> x {let y := 3 x := add(3, y)}}");
+    }
+
+    #[test]
+    fn function_parameter_should_compile() {
+        compile("{function foo(z) -> x {let y := 3 x := add(3, y)}}");
+    }
+
+    #[test]
+    fn if_statement_should_compile() {
+        compile("{function foo(x) -> y {y := 1 if x {y := add(y, 1)}}}");
+    }
+
+    #[test]
+    fn switch_statement_should_compile() {
+        compile("{function foo(x) -> y {switch x case 1 {y := 5} default {y := 42}}}");
+    }
+
+    #[test]
+    fn for_statement_should_compile() {
+        compile("{function foo(x) -> y {for { let i := 0} lt(i, 10) { i := add(i, 1) } { y := add(y, x)}}}");
     }
 }

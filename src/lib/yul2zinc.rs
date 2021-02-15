@@ -312,8 +312,8 @@ pub fn translate(statement: &Statement) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
     use crate::yul2zinc::translate;
+    use crate::*;
 
     fn get_lexemes_str(input: &str) -> Vec<String> {
         get_lexemes(&mut String::from(input))
