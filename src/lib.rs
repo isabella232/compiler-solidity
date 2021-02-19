@@ -1,7 +1,8 @@
 use rand::Rng;
 use regex::Regex;
+use std::fs::metadata;
 
-fn remove_comments(src: &mut String) {
+pub fn remove_comments(src: &mut String) {
     let mut comment = src.find("//");
     while comment != None {
         let pos = comment.unwrap();
@@ -65,7 +66,7 @@ pub fn file_type(file: &str) -> FileType {
 #[derive(Debug)]
 pub enum Action<'a> {
     SolidityCompiler(&'a str, String),
-    CodeGenerator(String),
+    CodeGenerator(String, &'a Option<&'a str>),
 }
 
 /// Generate temporary output directory for a given solidity input
@@ -84,16 +85,20 @@ fn tmp_yul(input: &str) -> String {
 }
 
 /// Produce sequence of actions required to compile file with specified options
-pub fn generate_actions<'a>(file: &'a str, options: &'a str) -> Vec<Action<'a>> {
+pub fn generate_actions<'a>(
+    file: &'a str,
+    options: &'a str,
+    run: &'a Option<&'a str>,
+) -> Vec<Action<'a>> {
     match file_type(file) {
-        FileType::Yul => vec![Action::CodeGenerator(String::from(file))],
+        FileType::Yul => vec![Action::CodeGenerator(String::from(file), run)],
         FileType::Solidity => {
             let tmp_file = tmp_yul(file);
             let options_string = String::from(options) + " --ir -o " + tmp_file.as_str();
             let options_string = String::from(options_string.trim());
             vec![
                 Action::SolidityCompiler(file, options_string),
-                Action::CodeGenerator(tmp_file),
+                Action::CodeGenerator(tmp_file, run),
             ]
         }
         _ => vec![],
@@ -102,25 +107,49 @@ pub fn generate_actions<'a>(file: &'a str, options: &'a str) -> Vec<Action<'a>> 
 
 /// Wrap Solidity compiler invocation
 pub fn invoke_solidity(input: &str, options: &str) {
-    std::process::Command::new("solc")
+    let mut child = std::process::Command::new("solc")
         .arg(input)
         .args(options.split(' ').collect::<Vec<&str>>())
         .spawn()
         .expect("Unable to run solidity. Ensure it's in PATH");
+    let ecode = child
+        .wait()
+        .expect("failed to wait on Solidity compiler run");
+    if !ecode.success() {
+        panic!("{}", "Solidity compiler terminated with a failure");
+    }
 }
 
 /// Wrap Zinc generator invocation
-pub fn invoke_codegen(input: &str) {
-    let lexemes = get_lexemes(&mut std::fs::read_to_string(input).unwrap());
-    let fragments = parse(lexemes.iter());
-    println!("{:?}", fragments);
+pub fn invoke_codegen<'a>(input: &str, run: &'a Option<&'a str>) {
+    let meta = metadata(input).unwrap();
+    let filenames = if meta.is_file() {
+        vec![input.to_string()]
+    } else {
+        std::fs::read_dir(input)
+            .unwrap()
+            .map(|x| x.unwrap().path().to_str().unwrap().to_string())
+            .collect()
+    };
+    for in_file in filenames {
+        let mut src = std::fs::read_to_string(in_file.as_str()).unwrap();
+        remove_comments(&mut src);
+        let lexemes = get_lexemes(&mut src);
+        let fragments = parse(lexemes.iter());
+        println!("{:?}", fragments);
+        let stmt = match &fragments[0] {
+            Fragment::Statement(s) => s,
+            _ => unreachable!(),
+        };
+        Compiler::compile(&stmt, run);
+    }
 }
 
 /// Execute an action by calling corresponding handler
-pub fn execute_action<'a>(action: &Action<'a>) {
+pub fn execute_action(action: &Action) {
     match action {
         Action::SolidityCompiler(input, options) => invoke_solidity(input, options.as_str()),
-        Action::CodeGenerator(input) => invoke_codegen(input.as_str()),
+        Action::CodeGenerator(input, run) => invoke_codegen(input.as_str(), run),
     }
 }
 
@@ -680,6 +709,7 @@ where
 }
 
 //------------------------------------ YUL to Zinc -----------------------------------
+#[allow(dead_code)]
 pub mod yul2zinc;
 
 //------------------------------- YUL to LLVM IR -------------------------------
@@ -687,10 +717,8 @@ use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
-use inkwell::types::AnyTypeEnum;
 use inkwell::types::BasicTypeEnum;
 use inkwell::types::FunctionType;
-use inkwell::types::IntType;
 use inkwell::types::StringRadix;
 use inkwell::values::BasicValue;
 use inkwell::values::BasicValueEnum;
@@ -723,10 +751,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
     fn translate_fn_type(
         &self,
-        ret_values: &Vec<Identifier>,
-        par_types: &Vec<BasicTypeEnum<'ctx>>,
+        ret_values: &[Identifier],
+        par_types: &[BasicTypeEnum<'ctx>],
     ) -> FunctionType<'ctx> {
-        if ret_values.len() == 0 {
+        if ret_values.is_empty() {
             self.context.void_type().fn_type(&par_types[..], false)
         } else if ret_values.len() == 1 {
             match ret_values[0].yul_type {
@@ -976,14 +1004,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             self.variables.insert(name.name.clone(), val);
         }
 
-        match &vd.initializer {
-            Some(init) => {
-                self.builder.build_store(
-                    self.variables[&vd.names[0].name],
-                    self.translate_expression(&init),
-                );
-            }
-            _ => (),
+        if let Some(init) = &vd.initializer {
+            self.builder.build_store(
+                self.variables[&vd.names[0].name],
+                self.translate_expression(&init),
+            );
         };
     }
 
@@ -1035,8 +1060,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             default,
             &cases,
         );
-        for idx in 0..cases.len() {
-            self.builder.position_at_end(cases[idx].1);
+        for (idx, case) in cases.iter().enumerate() {
+            self.builder.position_at_end(case.1);
             self.translate_function_body(&switchstmt.cases[idx].body);
             self.builder.build_unconditional_branch(join);
         }
@@ -1125,10 +1150,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
     fn translate_function_definition(&mut self, fd: &FunctionDefinition) {
         let name = fd.name.as_str();
-        let mut par_types: Vec<BasicTypeEnum<'ctx>> = fd
+        let par_types: Vec<BasicTypeEnum<'ctx>> = fd
             .parameters
             .iter()
-            .map(|par| self.translate_type(&par.yul_type).into())
+            .map(|par| self.translate_type(&par.yul_type))
             .collect();
         let fn_t = self.translate_fn_type(&fd.result, &par_types);
         let function = self.module.add_function(name, fn_t, None);
@@ -1136,12 +1161,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
 
-        for idx in 0..fd.parameters.len() {
+        for (idx, param) in fd.parameters.iter().enumerate() {
             let par = self
                 .builder
-                .build_alloca(par_types[idx], fd.parameters[idx].name.as_str());
-            self.variables.insert(fd.parameters[idx].name.clone(), par);
-            let par = self
+                .build_alloca(par_types[idx], param.name.as_str());
+            self.variables.insert(param.name.clone(), par);
+            self
                 .builder
                 .build_store(par, function.get_nth_param(idx as u32).unwrap());
         }
@@ -1179,16 +1204,16 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         for stmt in &block.statements {
             match stmt {
                 Statement::FunctionDefinition(fd) => self.translate_function_definition(fd),
-                Statement::VariableDeclaration(vd) => (),
+                Statement::VariableDeclaration(_) => unreachable!(),
                 _ => unreachable!(),
             }
         }
     }
 
-    pub fn compile(statement: &Statement) {
-        let mut context = Context::create();
-        let mut module = context.create_module("module");
-        let mut builder = context.create_builder();
+    pub fn compile(statement: &Statement, run: &Option<&str>) {
+        let context = Context::create();
+        let module = context.create_module("module");
+        let builder = context.create_builder();
 
         let mut compiler = Compiler {
             context: &context,
@@ -1208,6 +1233,16 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             _ => unreachable!(),
         }
         println!("{}", module.print_to_string().to_string());
+        println!("{:?}", run);
+        match run {
+            Some(name) => {
+                let execution_engine = module.create_execution_engine().unwrap();
+                let entry = module.get_function(name).unwrap();
+                let result = unsafe { execution_engine.run_function(entry, &[]) };
+                println!("Result: {:?}", result);
+            }
+            None => (),
+        }
     }
 }
 
@@ -1218,14 +1253,16 @@ mod tests {
     static YUL: &'static str = "/*123 comment ***/{}";
 
     fn get_lexemes_str(input: &str) -> Vec<String> {
-        get_lexemes(&mut String::from(input))
+        let mut input = input.to_string();
+        remove_comments(&mut input);
+        get_lexemes(&mut input)
     }
 
     fn lexparse(input: &str) -> Vec<Fragment> {
         parse(get_lexemes_str(input).iter())
     }
 
-    fn compile(input: &str) -> String {
+    fn compile(input: &str, run: &Option<&str>) -> String {
         let parsed = lexparse(input);
         if parsed.len() != 1 {
             panic!("Unparsed parts exist");
@@ -1234,7 +1271,7 @@ mod tests {
             Fragment::Statement(s) => s,
             _ => unreachable!(),
         };
-        Compiler::compile(program);
+        Compiler::compile(program, run);
         "".to_string()
     }
 
@@ -1243,6 +1280,7 @@ mod tests {
         assert_eq!(get_lexemes_str("   a    b c\td"), ["a", "b", "c", "d"]);
     }
 
+    #[test]
     fn single_line_comments_should_be_ignored() {
         assert_eq!(
             get_lexemes_str("   a////comment\nb c\td//comment"),
@@ -1444,46 +1482,52 @@ mod tests {
 
     #[test]
     fn void_function_should_compile() {
-        compile("{function foo() {}}");
-    }
-
-    #[test]
-    fn i256_function_should_compile() {
-        compile("{function foo() -> x {}}");
+        compile("{function foo() {}}", &None);
     }
 
     #[test]
     fn literal_initialization_should_compile() {
-        compile("{function foo() -> x {let y := 5}}");
+        compile("{function foo() -> x {let y := 5}}", &None);
     }
 
     #[test]
     fn variable_initialization_should_compile() {
-        compile("{function foo() -> x {let y := x}}");
+        compile("{function foo() -> x {let y := x}}", &None);
     }
 
     #[test]
     fn builtin_call_should_compile() {
-        compile("{function foo() -> x {let y := 3 x := add(3, y)}}");
+        compile("{function foo() -> x {let y := 3 x := add(3, y)}}", &None);
     }
 
     #[test]
     fn function_parameter_should_compile() {
-        compile("{function foo(z) -> x {let y := 3 x := add(3, y)}}");
+        compile("{function foo(z) -> x {let y := 3 x := add(3, y)}}", &None);
     }
 
     #[test]
     fn if_statement_should_compile() {
-        compile("{function foo(x) -> y {y := 1 if x {y := add(y, 1)}}}");
+        compile(
+            "{function foo(x) -> y {y := 1 if x {y := add(y, 1)}}}",
+            &None,
+        );
     }
 
     #[test]
     fn switch_statement_should_compile() {
-        compile("{function foo(x) -> y {switch x case 1 {y := 5} default {y := 42}}}");
+        compile(
+            "{function foo(x) -> y {switch x case 1 {y := 5} default {y := 42}}}",
+            &None,
+        );
     }
 
     #[test]
     fn for_statement_should_compile() {
-        compile("{function foo(x) -> y {for { let i := 0} lt(i, 10) { i := add(i, 1) } { y := add(y, x)}}}");
+        compile("{function foo(x) -> y {for { let i := 0} lt(i, 10) { i := add(i, 1) } { y := add(y, x)}}}", &None);
+    }
+
+    #[test]
+    fn i256_function_should_compile() {
+        compile("{function foo() -> x {}}", &None);
     }
 }

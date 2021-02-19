@@ -12,6 +12,7 @@ fn main() {
         (author: "MatterLabs")
         (about: "Solidity to Zinc translator")
         (@arg INPUT: +takes_value +required "Input file")
+        (@arg RUN: -r +takes_value "function to run")
         (@arg XSOL: +takes_value "Command line options to pass to Solidity compiler")
     )
     .get_matches();
@@ -25,12 +26,10 @@ fn main() {
     let file_type = file_type(file_name);
     println!("{:?}", file_type);
 
-    let opts = match matches.value_of("XSOL") {
-        None => "",
-        Some(val) => val,
-    };
+    let opts = matches.value_of("XSOL").unwrap_or("");
 
-    let actions = generate_actions(file_name, opts);
+    let run = matches.value_of("RUN");
+    let actions = generate_actions(file_name, opts, &run);
     println!("{:?}", actions);
 
     for a in actions.iter() {
