@@ -737,6 +737,7 @@ pub struct Compiler<'a, 'ctx> {
     pub break_bb: Option<BasicBlock<'ctx>>,
     pub continue_bb: Option<BasicBlock<'ctx>>,
     pub variables: HashMap<String, PointerValue<'ctx>>,
+    pub functions: HashMap<String, FunctionValue<'ctx>>,
 }
 
 impl<'a, 'ctx> Compiler<'a, 'ctx> {
@@ -986,7 +987,21 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             Expression::Identifier(var) => self.builder.build_load(self.variables[&var.name], ""),
             Expression::FunctionCall(call) => match self.translate_builtin(call) {
                 Some(expr) => expr,
-                None => unreachable!(),
+                None => {
+                    let args: Vec<BasicValueEnum> = call
+                        .arguments
+                        .iter()
+                        .map(|arg| self.translate_expression(&arg))
+                        .collect();
+                    let function = self
+                        .module
+                        .get_function(call.name.as_str())
+                        .unwrap_or_else(|| panic!("Undeclared function {}", call.name));
+                    self.builder
+                        .build_call(function, &args, "")
+                        .try_as_basic_value()
+                        .expect_left("Unexpected call")
+                }
             },
         }
     }
@@ -1104,6 +1119,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.builder.build_unconditional_branch(inc);
         self.builder.position_at_end(inc);
         self.translate_function_body(&forloop.finalizer);
+        self.builder.build_unconditional_branch(cond);
         self.break_bb = None;
         self.continue_bb = None;
         self.builder.position_at_end(exit);
@@ -1148,15 +1164,20 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
+    fn create_function(&mut self, name: &str, fn_t: FunctionType<'ctx>) -> FunctionValue<'ctx> {
+        let function = self.module.add_function(name, fn_t, None);
+        self.functions.insert(name.to_string(), function);
+        function
+    }
+
     fn translate_function_definition(&mut self, fd: &FunctionDefinition) {
-        let name = fd.name.as_str();
         let par_types: Vec<BasicTypeEnum<'ctx>> = fd
             .parameters
             .iter()
             .map(|par| self.translate_type(&par.yul_type))
             .collect();
-        let fn_t = self.translate_fn_type(&fd.result, &par_types);
-        let function = self.module.add_function(name, fn_t, None);
+        let name = fd.name.as_str();
+        let function = self.module.get_function(name).unwrap();
         self.function = Some(function);
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
@@ -1166,8 +1187,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 .builder
                 .build_alloca(par_types[idx], param.name.as_str());
             self.variables.insert(param.name.clone(), par);
-            self
-                .builder
+            self.builder
                 .build_store(par, function.get_nth_param(idx as u32).unwrap());
         }
 
@@ -1200,7 +1220,25 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         };
     }
 
+    fn translate_function_declaration(&mut self, fd: &FunctionDefinition) {
+        let name = fd.name.as_str();
+        let par_types: Vec<BasicTypeEnum<'ctx>> = fd
+            .parameters
+            .iter()
+            .map(|par| self.translate_type(&par.yul_type))
+            .collect();
+        let fn_t = self.translate_fn_type(&fd.result, &par_types);
+        self.create_function(name, fn_t);
+    }
+
     fn translate_module(&mut self, block: &Block) {
+        for stmt in &block.statements {
+            match stmt {
+                Statement::FunctionDefinition(fd) => self.translate_function_declaration(fd),
+                Statement::VariableDeclaration(_) => unreachable!(),
+                _ => unreachable!(),
+            }
+        }
         for stmt in &block.statements {
             match stmt {
                 Statement::FunctionDefinition(fd) => self.translate_function_definition(fd),
@@ -1210,7 +1248,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
-    pub fn compile(statement: &Statement, run: &Option<&str>) {
+    pub fn compile(statement: &Statement, run: &Option<&str>) -> u64 {
         let context = Context::create();
         let module = context.create_module("module");
         let builder = context.create_builder();
@@ -1224,6 +1262,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             break_bb: None,
             continue_bb: None,
             variables: HashMap::new(),
+            functions: HashMap::new(),
         };
 
         match statement {
@@ -1236,12 +1275,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         println!("{:?}", run);
         match run {
             Some(name) => {
-                let execution_engine = module.create_execution_engine().unwrap();
+                let execution_engine = module.create_interpreter_execution_engine().unwrap();
                 let entry = module.get_function(name).unwrap();
-                let result = unsafe { execution_engine.run_function(entry, &[]) };
+                let result = unsafe { execution_engine.run_function(entry, &[]) }.as_int(false);
                 println!("Result: {:?}", result);
+                result
             }
-            None => (),
+            None => 0,
         }
     }
 }
@@ -1262,7 +1302,7 @@ mod tests {
         parse(get_lexemes_str(input).iter())
     }
 
-    fn compile(input: &str, run: &Option<&str>) -> String {
+    fn compile(input: &str, run: &Option<&str>) -> u64 {
         let parsed = lexparse(input);
         if parsed.len() != 1 {
             panic!("Unparsed parts exist");
@@ -1271,8 +1311,7 @@ mod tests {
             Fragment::Statement(s) => s,
             _ => unreachable!(),
         };
-        Compiler::compile(program, run);
-        "".to_string()
+        Compiler::compile(program, run)
     }
 
     #[test]
@@ -1486,8 +1525,14 @@ mod tests {
     }
 
     #[test]
+    fn i256_function_should_compile() {
+        compile("{function foo() -> x {}}", &None);
+    }
+
+    #[test]
     fn literal_initialization_should_compile() {
-        compile("{function foo() -> x {let y := 5}}", &None);
+        let result = compile("{function foo() -> x {let y := 5 x :=y }}", &Some("foo"));
+        assert_eq!(result, 5);
     }
 
     #[test]
@@ -1497,7 +1542,41 @@ mod tests {
 
     #[test]
     fn builtin_call_should_compile() {
-        compile("{function foo() -> x {let y := 3 x := add(3, y)}}", &None);
+        let result = compile(
+            "{function foo() -> x {let y := 3 x := add(3, y)}}",
+            &Some("foo"),
+        );
+        assert_eq!(result, 6);
+        let result = compile(
+            "{function foo() -> x {let y := 3 x := sub(3, y)}}",
+            &Some("foo"),
+        );
+        assert_eq!(result, 0);
+        let result = compile(
+            "{function foo() -> x {let y := 3 x := mul(3, y)}}",
+            &Some("foo"),
+        );
+        assert_eq!(result, 9);
+        let result = compile(
+            "{function foo() -> x {let y := 3 x := div(3, y)}}",
+            &Some("foo"),
+        );
+        assert_eq!(result, 1);
+        let result = compile(
+            "{function foo() -> x {let y := 3 x := sdiv(3, y)}}",
+            &Some("foo"),
+        );
+        assert_eq!(result, 1);
+        let result = compile(
+            "{function foo() -> x {let y := 3 x := mod(3, y)}}",
+            &Some("foo"),
+        );
+        assert_eq!(result, 0);
+        let result = compile(
+            "{function foo() -> x {let y := 3 x := smod(3, y)}}",
+            &Some("foo"),
+        );
+        assert_eq!(result, 0);
     }
 
     #[test]
@@ -1507,27 +1586,65 @@ mod tests {
 
     #[test]
     fn if_statement_should_compile() {
-        compile(
-            "{function foo(x) -> y {y := 1 if x {y := add(y, 1)}}}",
-            &None,
+        let result = compile(
+            "{function foo() -> x {x := 42 let y := 1 if lt(x, y) {x := add(y, 1)}}}",
+            &Some("foo"),
         );
+        assert_eq!(result, 42);
+        let result = compile(
+            "{function foo() -> x {x := 42 let y := 1 if gt(x, y) {x := add(y, 1)}}}",
+            &Some("foo"),
+        );
+        assert_eq!(result, 2);
+        let result = compile(
+            "{function foo() -> x {x := 42 let y := 1 if eq(x, y) {x := add(y, 1)}}}",
+            &Some("foo"),
+        );
+        assert_eq!(result, 42);
     }
 
     #[test]
     fn switch_statement_should_compile() {
-        compile(
-            "{function foo(x) -> y {switch x case 1 {y := 5} default {y := 42}}}",
-            &None,
+        let result = compile(
+            "{function foo() -> x {x := 42 switch x case 1 {x := 22} default {x := 17}}}",
+            &Some("foo"),
         );
+        assert_eq!(result, 17);
+    }
+
+    #[test]
+    fn leave_should_compile() {
+        let result = compile(
+            "{function foo() -> x {x := 42 if lt(x, 55) {leave} x := 43}}",
+            &Some("foo"),
+        );
+        assert_eq!(result, 42);
     }
 
     #[test]
     fn for_statement_should_compile() {
-        compile("{function foo(x) -> y {for { let i := 0} lt(i, 10) { i := add(i, 1) } { y := add(y, x)}}}", &None);
+        let result = compile("{function foo() -> x { x:= 0 for { let i := 0} lt(i, 10) { i := add(i, 1) } { x := add(i, x)}}}", &Some("foo"));
+        assert_eq!(result, 45);
     }
 
     #[test]
-    fn i256_function_should_compile() {
-        compile("{function foo() -> x {}}", &None);
+    fn continue_should_compile() {
+        let result = compile("{function foo() -> x { x:= 0 for { let i := 0} lt(i, 10) { i := add(i, 1) } { if mod(i, 2) { continue } x := add(i, x) }}}", &Some("foo"));
+        assert_eq!(result, 20);
+    }
+
+    #[test]
+    fn break_should_compile() {
+        let result = compile("{function foo() -> x { x:= 0 for { let i := 0} lt(i, 10) { i := add(i, 1) } { if gt(x, 18) { break } x := add(i, x) }}}", &Some("foo"));
+        assert_eq!(result, 21);
+    }
+
+    #[test]
+    fn call_should_compile() {
+        let result = compile(
+            "{function bar() -> x { x:= 42 } function foo() -> x { x := bar()}}",
+            &Some("foo"),
+        );
+        assert_eq!(result, 42);
     }
 }
