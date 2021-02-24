@@ -6,7 +6,7 @@ pub fn remove_comments(src: &mut String) {
     let mut comment = src.find("//");
     while comment != None {
         let pos = comment.unwrap();
-        let eol = src[pos..].find('\n').unwrap_or(src.len() - pos - 1);
+        let eol = src[pos..].find('\n').unwrap_or(src.len() - pos) + pos;
         src.replace_range(pos..eol, "");
         comment = src.find("//");
     }
