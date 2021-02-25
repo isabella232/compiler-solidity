@@ -998,19 +998,29 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 Some(self.context.custom_width_int_type(256).const_int(0, false).as_basic_value_enum()),
             "mstore" =>
                 Some(self.context.custom_width_int_type(256).const_int(0, false).as_basic_value_enum()),
+            "mload" =>
+                Some(self.context.custom_width_int_type(256).const_int(0, false).as_basic_value_enum()),
             _ => None,
         }
     }
 
+    fn translate_literal(&self, lit: &Literal) -> BasicValueEnum {
+        let i256_ty = self.context.custom_width_int_type(256);
+        let decimal = Regex::new("^[0-9]+$").unwrap();
+        let hex = Regex::new("^0x[0-9a-fA-F]+$").unwrap();
+        let lit = lit.value.as_str();
+        if decimal.is_match(lit) {
+            i256_ty.const_int_from_string(lit, StringRadix::Decimal).unwrap().as_basic_value_enum()
+        } else if hex.is_match(lit) {
+            i256_ty.const_int_from_string(&lit[2..], StringRadix::Hexadecimal).unwrap().as_basic_value_enum()
+        } else {
+            unreachable!();
+        }
+    }
+
     fn translate_expression(&self, e: &Expression) -> BasicValueEnum {
-        println!("Expr: {:?}", e);
         match e {
-            Expression::Literal(l) => self
-                .context
-                .custom_width_int_type(256)
-                .const_int_from_string(l.value.as_str(), StringRadix::Decimal)
-                .unwrap()
-                .as_basic_value_enum(),
+            Expression::Literal(l) => self.translate_literal(&l),
             Expression::Identifier(var) => self.builder.build_load(self.variables[&var.name], ""),
             Expression::FunctionCall(call) => match self.translate_builtin(call) {
                 Some(expr) => expr,
@@ -1160,7 +1170,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     }
 
     fn translate_function_body(&mut self, body: &Block) {
-        println!("Bdy: {:?}", body);
         for stmt in &body.statements {
             match stmt {
                 // The scope can be cleaned up on exit, but let's LLVM do the job. We can also rely
@@ -1567,6 +1576,12 @@ mod tests {
     fn literal_initialization_should_compile() {
         let result = compile("{function foo() -> x {let y := 5 x :=y }}", &Some("foo"));
         assert_eq!(result, 5);
+        let result = compile("{function foo() -> x {let y := 1234567890123456789012345678 let z := 1234567890123456789012345679 x := sub(z, y) }}", &Some("foo"));
+        assert_eq!(result, 1);
+        let result = compile("{function foo() -> x {let y := 0x2a x := y }}", &Some("foo"));
+        assert_eq!(result, 42);
+        let result = compile("{function foo() -> x {let y := 0xffffffffffffffff let z := 0xfffffffffffffffe x := sub(y, z) }}", &Some("foo"));
+        assert_eq!(result, 1);
     }
 
     #[test]
