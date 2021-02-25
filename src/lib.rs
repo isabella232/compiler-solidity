@@ -120,6 +120,27 @@ pub fn invoke_solidity(input: &str, options: &str) {
     }
 }
 
+fn extract_sol_functions(lexemes: &mut Vec<String>) {
+    let pos = lexemes.iter().position(|x| *x == "function");
+    if pos == None {
+        return;
+    }
+    let pos = pos.unwrap();
+    if lexemes.len() < pos + 2 {
+        return;
+    }
+    let name = &lexemes[pos + 1];
+    if !name.starts_with("constructor") {
+        return;
+    }
+    lexemes.drain(0 .. pos + 1);
+    let pos = lexemes.iter().position(|x| *x == "function")
+        .unwrap_or_else(|| panic!("Expected at least one function in the contract"));
+    lexemes.drain(0 .. pos);
+    lexemes.drain(lexemes.len() - 2 ..);
+    lexemes.insert(0, "{".to_string());
+}
+
 /// Wrap Zinc generator invocation
 pub fn invoke_codegen<'a>(input: &str, run: &'a Option<&'a str>) {
     let meta = metadata(input).unwrap();
@@ -134,9 +155,9 @@ pub fn invoke_codegen<'a>(input: &str, run: &'a Option<&'a str>) {
     for in_file in filenames {
         let mut src = std::fs::read_to_string(in_file.as_str()).unwrap();
         remove_comments(&mut src);
-        let lexemes = get_lexemes(&mut src);
+        let mut lexemes = get_lexemes(&mut src);
+        extract_sol_functions(&mut lexemes);
         let fragments = parse(lexemes.iter());
-        println!("{:?}", fragments);
         let stmt = match &fragments[0] {
             Fragment::Statement(s) => s,
             _ => unreachable!(),
@@ -972,11 +993,17 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 );
                 Some(val.as_basic_value_enum())
             }
+            //TODO: implement once we support it
+            "revert" =>
+                Some(self.context.custom_width_int_type(256).const_int(0, false).as_basic_value_enum()),
+            "mstore" =>
+                Some(self.context.custom_width_int_type(256).const_int(0, false).as_basic_value_enum()),
             _ => None,
         }
     }
 
     fn translate_expression(&self, e: &Expression) -> BasicValueEnum {
+        println!("Expr: {:?}", e);
         match e {
             Expression::Literal(l) => self
                 .context
@@ -997,10 +1024,17 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .module
                         .get_function(call.name.as_str())
                         .unwrap_or_else(|| panic!("Undeclared function {}", call.name));
-                    self.builder
-                        .build_call(function, &args, "")
-                        .try_as_basic_value()
-                        .expect_left("Unexpected call")
+                    function.print_to_stderr();
+                    let ret =
+                        self.builder
+                            .build_call(function, &args, "")
+                            .try_as_basic_value();
+                    if ret.is_left() {
+                        ret.expect_left("Unexpected call")
+                    } else {
+                        // Void function call. Just return any value for consistensy
+                        self.context.custom_width_int_type(256).const_int(0, false).as_basic_value_enum()
+                    }
                 }
             },
         }
@@ -1126,6 +1160,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     }
 
     fn translate_function_body(&mut self, body: &Block) {
+        println!("Bdy: {:?}", body);
         for stmt in &body.statements {
             match stmt {
                 // The scope can be cleaned up on exit, but let's LLVM do the job. We can also rely
@@ -1272,7 +1307,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             _ => unreachable!(),
         }
         println!("{}", module.print_to_string().to_string());
-        println!("{:?}", run);
         match run {
             Some(name) => {
                 let execution_engine = module.create_interpreter_execution_engine().unwrap();
@@ -1643,6 +1677,15 @@ mod tests {
     fn call_should_compile() {
         let result = compile(
             "{function bar() -> x { x:= 42 } function foo() -> x { x := bar()}}",
+            &Some("foo"),
+        );
+        assert_eq!(result, 42);
+    }
+
+    #[test]
+    fn call_void_should_compile() {
+        let result = compile(
+            "{function bar() {} function foo() -> x { x := 42 bar()}}",
             &Some("foo"),
         );
         assert_eq!(result, 42);
