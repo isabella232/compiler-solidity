@@ -1,8 +1,8 @@
-mod lib;
 pub mod arguments;
+mod lib;
 
-use crate::lib::*;
 use self::arguments::Arguments;
+use crate::lib::*;
 
 fn main() {
     let args = Arguments::new();
@@ -26,6 +26,4 @@ fn main() {
     for a in actions.iter() {
         execute_action(a);
     }
-
-    println!("Input: {}", file_name);
 }

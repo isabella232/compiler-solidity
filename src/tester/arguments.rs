@@ -1,28 +1,22 @@
 //!
-//! Solidity to SyncVM compiler arguments.
+//! The Solidity tester arguments.
 //!
 
 use std::path::PathBuf;
 use structopt::StructOpt;
 
 ///
-/// Solidity to SyncVM compiler arguments.
+/// The Solidity tester arguments.
 ///
-
 #[derive(Debug, StructOpt)]
-#[structopt(name = "Solidity compiler for SyncVM")]
+#[structopt(
+    name = "Solidity tester",
+    about = "The integration test runner for Solidity to SyncVM compiler"
+)]
 pub struct Arguments {
-    /// Input file
+    /// Input file or directory
     #[structopt(parse(from_os_str))]
     pub input: PathBuf,
-
-    /// Function to run
-    #[structopt(short, long, default_value = "")]
-    pub run: String,
-
-    /// Options to pass to solidity compiler
-    #[structopt(long = "Xsol", default_value = "")]
-    pub xsol: String,
 }
 
 impl Arguments {

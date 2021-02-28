@@ -1,6 +1,7 @@
 use rand::Rng;
 use regex::Regex;
 use std::fs::metadata;
+use std::path::PathBuf;
 
 pub fn remove_comments(src: &mut String) {
     let mut comment = src.find("//");
@@ -49,10 +50,8 @@ pub enum FileType {
 }
 
 /// Provide FileType for a given file based on its extension
-pub fn file_type(file: &str) -> FileType {
-    let extension = std::path::Path::new(file)
-        .extension()
-        .and_then(std::ffi::OsStr::to_str);
+pub fn file_type(file: &PathBuf) -> FileType {
+    let extension = file.extension().and_then(std::ffi::OsStr::to_str);
     match extension {
         None => FileType::Unknown,
         Some("sol") => FileType::Solidity,
@@ -86,18 +85,21 @@ fn tmp_yul(input: &str) -> String {
 
 /// Produce sequence of actions required to compile file with specified options
 pub fn generate_actions<'a>(
-    file: &'a str,
+    file: &'a PathBuf,
     options: &'a str,
     run: &'a Option<&'a str>,
 ) -> Vec<Action<'a>> {
     match file_type(file) {
-        FileType::Yul => vec![Action::CodeGenerator(String::from(file), run)],
+        FileType::Yul => vec![Action::CodeGenerator(
+            String::from(file.to_str().unwrap()),
+            run,
+        )],
         FileType::Solidity => {
-            let tmp_file = tmp_yul(file);
+            let tmp_file = tmp_yul(file.to_str().unwrap());
             let options_string = String::from(options) + " --ir -o " + tmp_file.as_str();
             let options_string = String::from(options_string.trim());
             vec![
-                Action::SolidityCompiler(file, options_string),
+                Action::SolidityCompiler(file.to_str().unwrap(), options_string),
                 Action::CodeGenerator(tmp_file, run),
             ]
         }
@@ -133,11 +135,13 @@ fn extract_sol_functions(lexemes: &mut Vec<String>) {
     if !name.starts_with("constructor") {
         return;
     }
-    lexemes.drain(0 .. pos + 1);
-    let pos = lexemes.iter().position(|x| *x == "function")
+    lexemes.drain(0..pos + 1);
+    let pos = lexemes
+        .iter()
+        .position(|x| *x == "function")
         .unwrap_or_else(|| panic!("Expected at least one function in the contract"));
-    lexemes.drain(0 .. pos);
-    lexemes.drain(lexemes.len() - 2 ..);
+    lexemes.drain(0..pos);
+    lexemes.drain(lexemes.len() - 2..);
     lexemes.insert(0, "{".to_string());
 }
 
@@ -994,12 +998,24 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 Some(val.as_basic_value_enum())
             }
             //TODO: implement once we support it
-            "revert" =>
-                Some(self.context.custom_width_int_type(256).const_int(0, false).as_basic_value_enum()),
-            "mstore" =>
-                Some(self.context.custom_width_int_type(256).const_int(0, false).as_basic_value_enum()),
-            "mload" =>
-                Some(self.context.custom_width_int_type(256).const_int(0, false).as_basic_value_enum()),
+            "revert" => Some(
+                self.context
+                    .custom_width_int_type(256)
+                    .const_int(0, false)
+                    .as_basic_value_enum(),
+            ),
+            "mstore" => Some(
+                self.context
+                    .custom_width_int_type(256)
+                    .const_int(0, false)
+                    .as_basic_value_enum(),
+            ),
+            "mload" => Some(
+                self.context
+                    .custom_width_int_type(256)
+                    .const_int(0, false)
+                    .as_basic_value_enum(),
+            ),
             _ => None,
         }
     }
@@ -1010,9 +1026,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let hex = Regex::new("^0x[0-9a-fA-F]+$").unwrap();
         let lit = lit.value.as_str();
         if decimal.is_match(lit) {
-            i256_ty.const_int_from_string(lit, StringRadix::Decimal).unwrap().as_basic_value_enum()
+            i256_ty
+                .const_int_from_string(lit, StringRadix::Decimal)
+                .unwrap()
+                .as_basic_value_enum()
         } else if hex.is_match(lit) {
-            i256_ty.const_int_from_string(&lit[2..], StringRadix::Hexadecimal).unwrap().as_basic_value_enum()
+            i256_ty
+                .const_int_from_string(&lit[2..], StringRadix::Hexadecimal)
+                .unwrap()
+                .as_basic_value_enum()
         } else {
             unreachable!();
         }
@@ -1035,15 +1057,18 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .get_function(call.name.as_str())
                         .unwrap_or_else(|| panic!("Undeclared function {}", call.name));
                     function.print_to_stderr();
-                    let ret =
-                        self.builder
-                            .build_call(function, &args, "")
-                            .try_as_basic_value();
+                    let ret = self
+                        .builder
+                        .build_call(function, &args, "")
+                        .try_as_basic_value();
                     if ret.is_left() {
                         ret.expect_left("Unexpected call")
                     } else {
                         // Void function call. Just return any value for consistensy
-                        self.context.custom_width_int_type(256).const_int(0, false).as_basic_value_enum()
+                        self.context
+                            .custom_width_int_type(256)
+                            .const_int(0, false)
+                            .as_basic_value_enum()
                     }
                 }
             },
@@ -1271,6 +1296,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .iter()
             .map(|par| self.translate_type(&par.yul_type))
             .collect();
+        println!("{:?}", fd);
         let fn_t = self.translate_fn_type(&fd.result, &par_types);
         self.create_function(name, fn_t);
     }
@@ -1578,7 +1604,10 @@ mod tests {
         assert_eq!(result, 5);
         let result = compile("{function foo() -> x {let y := 1234567890123456789012345678 let z := 1234567890123456789012345679 x := sub(z, y) }}", &Some("foo"));
         assert_eq!(result, 1);
-        let result = compile("{function foo() -> x {let y := 0x2a x := y }}", &Some("foo"));
+        let result = compile(
+            "{function foo() -> x {let y := 0x2a x := y }}",
+            &Some("foo"),
+        );
         assert_eq!(result, 42);
         let result = compile("{function foo() -> x {let y := 0xffffffffffffffff let z := 0xfffffffffffffffe x := sub(y, z) }}", &Some("foo"));
         assert_eq!(result, 1);

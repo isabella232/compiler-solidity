@@ -11,3 +11,13 @@ structopt = { version = "0.3", default-features = false }
 rand = "0.8.2"
 regex = "1.4.3"
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm10-0"] }
+rayon = "1.5"
+colored = "2.0"
+
+[[bin]]
+name = "sol2zinc"
+path = "src/main.rs"
+
+[[bin]]
+name = "sol2zinc-test"
+path = "src/tester/main.rs"
