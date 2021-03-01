@@ -110,7 +110,12 @@ fn main() {
     for run in runs {
         let result = handle_test(&run);
         match result {
-            Ok(_) => println!("[{}] {} ({})", "INTEGRATION".green(), "PASSED".green(), run.unwrap().source.to_str().unwrap()),
+            Ok(_) => println!(
+                "[{}] {} ({})",
+                "INTEGRATION".green(),
+                "PASSED".green(),
+                run.unwrap().source.to_str().unwrap()
+            ),
             Err(msg) => println!(
                 "[{}] {} ({})",
                 "INTEGRATION".bright_red(),

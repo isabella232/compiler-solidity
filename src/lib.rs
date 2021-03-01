@@ -744,6 +744,7 @@ use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::types::BasicTypeEnum;
 use inkwell::types::FunctionType;
+use inkwell::types::IntType;
 use inkwell::types::StringRadix;
 use inkwell::values::BasicValue;
 use inkwell::values::BasicValueEnum;
@@ -766,12 +767,12 @@ pub struct Compiler<'a, 'ctx> {
 }
 
 impl<'a, 'ctx> Compiler<'a, 'ctx> {
-    fn translate_type(&self, t: &Option<Type>) -> BasicTypeEnum<'ctx> {
+    fn translate_type(&self, t: &Option<Type>) -> IntType<'ctx> {
         match t {
-            Some(Type::Bool) => BasicTypeEnum::IntType(self.context.bool_type()),
-            Some(Type::Int(n)) => BasicTypeEnum::IntType(self.context.custom_width_int_type(*n)),
-            Some(Type::UInt(n)) => BasicTypeEnum::IntType(self.context.custom_width_int_type(*n)),
-            _ => BasicTypeEnum::IntType(self.context.custom_width_int_type(256)),
+            Some(Type::Bool) => self.context.bool_type(),
+            Some(Type::Int(n)) => self.context.custom_width_int_type(*n),
+            Some(Type::UInt(n)) => self.context.custom_width_int_type(*n),
+            _ => self.context.custom_width_int_type(256),
         }
     }
 
@@ -783,25 +784,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         if ret_values.is_empty() {
             self.context.void_type().fn_type(&par_types[..], false)
         } else if ret_values.len() == 1 {
-            match ret_values[0].yul_type {
-                Some(Type::Bool) => self.context.bool_type().fn_type(&par_types[..], false),
-                Some(Type::Int(n)) => self
-                    .context
-                    .custom_width_int_type(n)
-                    .fn_type(&par_types[..], false),
-                Some(Type::UInt(n)) => self
-                    .context
-                    .custom_width_int_type(n)
-                    .fn_type(&par_types[..], false),
-                Some(Type::UInt(n)) => self
-                    .context
-                    .custom_width_int_type(n)
-                    .fn_type(&par_types[..], false),
-                _ => self
-                    .context
-                    .custom_width_int_type(256)
-                    .fn_type(&par_types[..], false),
-            }
+            self.translate_type(&ret_values[0].yul_type)
+                .fn_type(&par_types[..], false)
         } else {
             unreachable!();
         }
@@ -1240,7 +1224,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     }
 
     fn translate_function_definition(&mut self, fd: &FunctionDefinition) {
-        let par_types: Vec<BasicTypeEnum<'ctx>> = fd
+        let par_types: Vec<_> = fd
             .parameters
             .iter()
             .map(|par| self.translate_type(&par.yul_type))
@@ -1291,12 +1275,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
     fn translate_function_declaration(&mut self, fd: &FunctionDefinition) {
         let name = fd.name.as_str();
-        let par_types: Vec<BasicTypeEnum<'ctx>> = fd
+        let par_types: Vec<_> = fd
             .parameters
             .iter()
-            .map(|par| self.translate_type(&par.yul_type))
+            .map(|par| BasicTypeEnum::IntType(self.translate_type(&par.yul_type)))
             .collect();
-        println!("{:?}", fd);
         let fn_t = self.translate_fn_type(&fd.result, &par_types);
         self.create_function(name, fn_t);
     }
@@ -1733,5 +1716,10 @@ mod tests {
             &Some("foo"),
         );
         assert_eq!(result, 42);
+    }
+
+    #[test]
+    fn tuples_should_compile() {
+        compile("{ function foo() -> x, y { }}", &Some("foo"));
     }
 }
