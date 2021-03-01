@@ -787,7 +787,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             self.translate_type(&ret_values[0].yul_type)
                 .fn_type(&par_types[..], false)
         } else {
-            unreachable!();
+            let ret_types: Vec<_> = ret_values.iter()
+                .map(|v| BasicTypeEnum::IntType(self.translate_type(&v.yul_type)))
+                .collect();
+            let ret_type = self.context.struct_type(&ret_types[..], false);
+            ret_type.fn_type(&par_types[..], false)
         }
     }
 
@@ -981,6 +985,18 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 );
                 Some(val.as_basic_value_enum())
             }
+            "iszero" => {
+                let val = self.builder.build_right_shift(
+                    self.translate_expression(&call.arguments[0])
+                        .into_int_value(),
+                    self.context
+                        .custom_width_int_type(256)
+                        .const_int(0, false),
+                    true,
+                    "",
+                );
+                Some(val.as_basic_value_enum())
+            }
             //TODO: implement once we support it
             "revert" => Some(
                 self.context
@@ -995,6 +1011,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     .as_basic_value_enum(),
             ),
             "mload" => Some(
+                self.context
+                    .custom_width_int_type(256)
+                    .const_int(0, false)
+                    .as_basic_value_enum(),
+            ),
+            "calldataload" => Some(
                 self.context
                     .custom_width_int_type(256)
                     .const_int(0, false)
@@ -1040,7 +1062,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .module
                         .get_function(call.name.as_str())
                         .unwrap_or_else(|| panic!("Undeclared function {}", call.name));
-                    function.print_to_stderr();
                     let ret = self
                         .builder
                         .build_call(function, &args, "")
@@ -1231,6 +1252,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .collect();
         let name = fd.name.as_str();
         let function = self.module.get_function(name).unwrap();
+        let ret_ty = function.get_type().get_return_type();
         self.function = Some(function);
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
@@ -1244,6 +1266,22 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 .build_store(par, function.get_nth_param(idx as u32).unwrap());
         }
 
+        let ret_ptr = match ret_ty {
+            None => None,
+            Some(t) => Some(self.builder.build_alloca(t, "result"))
+        };
+
+        let ret_values: Vec<_> = fd.result.iter()
+            .map(|v| {
+                let val = self.builder.build_alloca(
+                    self.translate_type(&v.yul_type),
+                    v.name.as_str(),
+                );
+                self.variables.insert(v.name.clone(), val);
+                val
+            }).collect();
+
+        /*
         let ret_ptr = match fd.result.len() {
             0 => None,
             1 => {
@@ -1256,6 +1294,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             }
             _ => unreachable!(),
         };
+        */
 
         let exit = self.context.append_basic_block(function, "exit");
         self.leave_bb = Some(exit);
@@ -1267,9 +1306,21 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         match ret_ptr {
             None => self.builder.build_return(None),
-            Some(val) => self
-                .builder
-                .build_return(Some(&self.builder.build_load(val, ""))),
+            Some(ret_ptr) => {
+                if ret_values.len() == 1 {
+                    self.builder
+                        .build_return(Some(&self.builder.build_load(ret_values[0], "")))
+                } else {
+                    for (idx, val) in ret_values.iter().enumerate() {
+                        self.builder
+                            .build_store(self.builder.build_struct_gep(ret_ptr, idx as u32, "").unwrap(),
+                                         self.builder.build_load(*val, ""));
+                    }
+                    let ret = self.builder.build_load(ret_ptr, "");
+                    self.builder
+                        .build_return(Some(&ret))
+                }
+            }
         };
     }
 
@@ -1720,6 +1771,6 @@ mod tests {
 
     #[test]
     fn tuples_should_compile() {
-        compile("{ function foo() -> x, y { }}", &Some("foo"));
+        compile("{ function foo() -> x, y { }}", &None);
     }
 }
