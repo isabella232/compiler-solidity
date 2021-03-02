@@ -749,6 +749,7 @@ use inkwell::types::StringRadix;
 use inkwell::values::BasicValue;
 use inkwell::values::BasicValueEnum;
 use inkwell::values::FunctionValue;
+use inkwell::values::InstructionOpcode;
 use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
 use inkwell::IntPredicate;
@@ -787,7 +788,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             self.translate_type(&ret_values[0].yul_type)
                 .fn_type(&par_types[..], false)
         } else {
-            let ret_types: Vec<_> = ret_values.iter()
+            let ret_types: Vec<_> = ret_values
+                .iter()
                 .map(|v| BasicTypeEnum::IntType(self.translate_type(&v.yul_type)))
                 .collect();
             let ret_type = self.context.struct_type(&ret_types[..], false);
@@ -877,6 +879,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .into_int_value(),
                     "",
                 );
+                let val =
+                    self.builder
+                        .build_int_cast(val, self.context.custom_width_int_type(256), "");
                 Some(val.as_basic_value_enum())
             }
             "slt" => {
@@ -888,6 +893,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .into_int_value(),
                     "",
                 );
+                let val =
+                    self.builder
+                        .build_int_cast(val, self.context.custom_width_int_type(256), "");
                 Some(val.as_basic_value_enum())
             }
             "gt" => {
@@ -899,6 +907,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .into_int_value(),
                     "",
                 );
+                let val =
+                    self.builder
+                        .build_int_cast(val, self.context.custom_width_int_type(256), "");
                 Some(val.as_basic_value_enum())
             }
             "sgt" => {
@@ -910,6 +921,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .into_int_value(),
                     "",
                 );
+                let val =
+                    self.builder
+                        .build_int_cast(val, self.context.custom_width_int_type(256), "");
                 Some(val.as_basic_value_enum())
             }
             "eq" => {
@@ -921,6 +935,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .into_int_value(),
                     "",
                 );
+                let val =
+                    self.builder
+                        .build_int_cast(val, self.context.custom_width_int_type(256), "");
                 Some(val.as_basic_value_enum())
             }
             "and" => {
@@ -989,12 +1006,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 let val = self.builder.build_right_shift(
                     self.translate_expression(&call.arguments[0])
                         .into_int_value(),
-                    self.context
-                        .custom_width_int_type(256)
-                        .const_int(0, false),
+                    self.context.custom_width_int_type(256).const_int(0, false),
                     true,
                     "",
                 );
+                let val =
+                    self.builder
+                        .build_int_cast(val, self.context.custom_width_int_type(256), "");
                 Some(val.as_basic_value_enum())
             }
             //TODO: implement once we support it
@@ -1268,40 +1286,45 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         let ret_ptr = match ret_ty {
             None => None,
-            Some(t) => Some(self.builder.build_alloca(t, "result"))
+            Some(t) => Some(self.builder.build_alloca(t, "result")),
         };
 
-        let ret_values: Vec<_> = fd.result.iter()
+        let ret_values: Vec<_> = fd
+            .result
+            .iter()
             .map(|v| {
-                let val = self.builder.build_alloca(
-                    self.translate_type(&v.yul_type),
-                    v.name.as_str(),
-                );
+                let val = self
+                    .builder
+                    .build_alloca(self.translate_type(&v.yul_type), v.name.as_str());
                 self.variables.insert(v.name.clone(), val);
                 val
-            }).collect();
-
-        /*
-        let ret_ptr = match fd.result.len() {
-            0 => None,
-            1 => {
-                let val = self.builder.build_alloca(
-                    self.translate_type(&fd.result[0].yul_type),
-                    fd.result[0].name.as_str(),
-                );
-                self.variables.insert(fd.result[0].name.clone(), val);
-                Some(val)
-            }
-            _ => unreachable!(),
-        };
-        */
+            })
+            .collect();
 
         let exit = self.context.append_basic_block(function, "exit");
         self.leave_bb = Some(exit);
 
         self.translate_function_body(&fd.body);
 
-        self.builder.build_unconditional_branch(exit);
+        let last_instr = self
+            .builder
+            .get_insert_block()
+            .unwrap()
+            .get_last_instruction();
+
+        match last_instr {
+            None => {
+                self.builder.build_unconditional_branch(exit);
+            }
+            Some(i) => match i.get_opcode() {
+                InstructionOpcode::Br => (),
+                InstructionOpcode::Switch => (),
+                _ => {
+                    self.builder.build_unconditional_branch(exit);
+                }
+            },
+        };
+
         self.builder.position_at_end(exit);
 
         match ret_ptr {
@@ -1312,13 +1335,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .build_return(Some(&self.builder.build_load(ret_values[0], "")))
                 } else {
                     for (idx, val) in ret_values.iter().enumerate() {
-                        self.builder
-                            .build_store(self.builder.build_struct_gep(ret_ptr, idx as u32, "").unwrap(),
-                                         self.builder.build_load(*val, ""));
+                        self.builder.build_store(
+                            self.builder
+                                .build_struct_gep(ret_ptr, idx as u32, "")
+                                .unwrap(),
+                            self.builder.build_load(*val, ""),
+                        );
                     }
                     let ret = self.builder.build_load(ret_ptr, "");
-                    self.builder
-                        .build_return(Some(&ret))
+                    self.builder.build_return(Some(&ret))
                 }
             }
         };
