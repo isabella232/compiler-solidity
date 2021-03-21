@@ -1,5 +1,6 @@
 // RUN: fun_main_69
 // EXPECT: 5050
+
 pragma solidity >0.7.0;
 
 contract MyContract {
@@ -16,6 +17,7 @@ contract MyContract {
         }
         return result;
     }
+
     function main() public pure returns(uint256) {
         return sum(100, true) + sum(100, false);
     }

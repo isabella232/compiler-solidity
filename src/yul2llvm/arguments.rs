@@ -1,16 +1,15 @@
 //!
-//! Solidity to SyncVM compiler arguments.
+//! YUL to LLVM compiler arguments.
 //!
 
 use std::path::PathBuf;
 use structopt::StructOpt;
 
 ///
-/// Solidity to SyncVM compiler arguments.
+/// YUL to LLVM compiler arguments.
 ///
-
 #[derive(Debug, StructOpt)]
-#[structopt(name = "Solidity compiler for SyncVM")]
+#[structopt(name = "YUL compiler for LLVM")]
 pub struct Arguments {
     /// Input file
     #[structopt(parse(from_os_str))]

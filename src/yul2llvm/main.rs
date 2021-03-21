@@ -1,8 +1,10 @@
+//!
+//! YUL to LLVM compiler binary.
+//!
+
 pub mod arguments;
-mod lib;
 
 use self::arguments::Arguments;
-use crate::lib::*;
 
 fn main() {
     let args = Arguments::new();
@@ -21,9 +23,9 @@ fn main() {
         v => Some(v),
     };
 
-    let actions = generate_actions(&file_name, opts, &run);
+    let actions = yul2llvm::generate_actions(&file_name, opts, &run);
 
     for a in actions.iter() {
-        execute_action(a);
+        yul2llvm::execute_action(a);
     }
 }

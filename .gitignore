@@ -1,1 +1,6 @@
-/target
+# IDE
+/.idea/
+/.vscode/
+
+# Rust build
+/target/

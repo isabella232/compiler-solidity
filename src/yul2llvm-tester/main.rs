@@ -1,5 +1,5 @@
 //!
-//! The Solidity tester binary.
+//! The YUL to LLVM tester binary.
 //!
 
 pub mod arguments;
@@ -45,7 +45,7 @@ fn read_test_config(file: &PathBuf) -> Result<TestRun, &'static str> {
 }
 
 fn run_test(run: &TestRun) -> Result<(), String> {
-    let invocation = std::process::Command::new("sol2zinc")
+    let invocation = std::process::Command::new("yul2llvm")
         .arg(run.source.to_str().unwrap())
         .arg("-r")
         .arg(run.function.as_str())

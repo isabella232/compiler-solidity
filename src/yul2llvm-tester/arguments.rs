@@ -1,12 +1,12 @@
 //!
-//! The Solidity tester arguments.
+//! The YUL to LLVM tester arguments.
 //!
 
 use std::path::PathBuf;
 use structopt::StructOpt;
 
 ///
-/// The Solidity tester arguments.
+/// The YUL to LLVM tester arguments.
 ///
 #[derive(Debug, StructOpt)]
 #[structopt(

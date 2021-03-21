@@ -1,23 +1,28 @@
 [package]
-name = "sol2zinc"
+name = "yul2llvm"
 version = "0.1.0"
-authors = ["Dmitry Borisenkov <dmitry.borisenkov89@gmail.com>"]
+authors = [
+    "Dmitry Borisenkov <dmitry.borisenkov89@gmail.com>",
+    "Alex Zarudnyy <a.zarudnyy@matterlabs.dev>",
+]
 edition = "2018"
+description = "The YUL to LLVM compiler"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "yul2llvm"
+path = "src/yul2llvm/main.rs"
+
+[[bin]]
+name = "yul2llvm-test"
+path = "src/yul2llvm-tester/main.rs"
 
 [dependencies]
 structopt = { version = "0.3", default-features = false }
-rand = "0.8.2"
-regex = "1.4.3"
-inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm10-0"] }
-rayon = "1.5"
 colored = "2.0"
 
-[[bin]]
-name = "sol2zinc"
-path = "src/main.rs"
+rand = "0.8"
+regex = "1.4"
 
-[[bin]]
-name = "sol2zinc-test"
-path = "src/tester/main.rs"
+rayon = "1.5"
+
+inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm11-0"] }
