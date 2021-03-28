@@ -6,6 +6,9 @@ pub mod arguments;
 
 use self::arguments::Arguments;
 
+///
+/// The application entry point.
+///
 fn main() {
     let args = Arguments::new();
 

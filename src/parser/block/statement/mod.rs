@@ -1,3 +1,7 @@
+//!
+//! The block statement.
+//!
+
 pub mod assignment;
 pub mod expression;
 pub mod for_loop;
@@ -6,7 +10,7 @@ pub mod if_conditional;
 pub mod switch;
 pub mod variable_declaration;
 
-use crate::tree::block::Block;
+use crate::parser::block::Block;
 
 use self::assignment::Assignment;
 use self::expression::Expression;
@@ -16,6 +20,9 @@ use self::if_conditional::IfConditional;
 use self::switch::Switch;
 use self::variable_declaration::VariableDeclaration;
 
+///
+/// The block statement.
+///
 #[derive(Debug, PartialEq)]
 pub enum Statement {
     Block(Block),

@@ -149,7 +149,7 @@ dependencies = [
 [[package]]
 name = "inkwell"
 version = "0.1.0"
-source = "git+https://github.com/TheDan64/inkwell?branch=master#1c5e323dc185310741dc9c52f78490505b5298c8"
+source = "git+https://github.com/matter-labs-forks/inkwell?branch=master#ffd3ab81b2fc5a33112a4b10e86ff600933fe62c"
 dependencies = [
  "either",
  "inkwell_internals",
@@ -163,7 +163,7 @@ dependencies = [
 [[package]]
 name = "inkwell_internals"
 version = "0.3.0"
-source = "git+https://github.com/TheDan64/inkwell?branch=master#1c5e323dc185310741dc9c52f78490505b5298c8"
+source = "git+https://github.com/matter-labs-forks/inkwell?branch=master#ffd3ab81b2fc5a33112a4b10e86ff600933fe62c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -187,15 +187,14 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.90"
+version = "0.2.91"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba4aede83fc3617411dc6993bc8c70919750c1c257c6ca6a502aed6e0e2394ae"
+checksum = "8916b1f6ca17130ec6568feccee27c156ad12037880833a3b842a823236502e7"
 
 [[package]]
 name = "llvm-sys"
-version = "110.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21ede189444b8c78907e5d36da5dabcf153170fcff9c1dba48afc4b33c7e19f0"
+version = "110.0.0"
+source = "git+https://github.com/matter-labs-forks/llvm-sys.rs#7b251a5e3cc1070c727fb5984bf87ab96d308d7b"
 dependencies = [
  "cc",
  "lazy_static",
@@ -221,9 +220,9 @@ checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
 
 [[package]]
 name = "memoffset"
-version = "0.6.1"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "157b4208e3059a8f9e78d559edc658e13df41410cb3ae03979c83130067fdd87"
+checksum = "f83fb6581e8ed1f85fd45c116db8405483899489e38406156c25eb743554361d"
 dependencies = [
  "autocfg",
 ]
@@ -473,9 +472,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.64"
+version = "1.0.65"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fd9d1e9976102a03c542daa2eff1b43f9d72306342f3f8b3ed5fb8908195d6f"
+checksum = "f3a1d708c221c5a612956ef9f75b37e454e88d1f7b899fbd3a18d4252012d663"
 dependencies = [
  "proc-macro2",
  "quote",

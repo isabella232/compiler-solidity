@@ -21,18 +21,18 @@ use inkwell::values::PointerValue;
 use inkwell::IntPredicate;
 use regex::Regex;
 
-use crate::r#type::Type;
-use crate::tree::block::statement::expression::function_call::FunctionCall;
-use crate::tree::block::statement::expression::Expression;
-use crate::tree::block::statement::for_loop::ForLoop;
-use crate::tree::block::statement::function_definition::FunctionDefinition;
-use crate::tree::block::statement::if_conditional::IfConditional;
-use crate::tree::block::statement::switch::Switch;
-use crate::tree::block::statement::variable_declaration::VariableDeclaration;
-use crate::tree::block::statement::Statement;
-use crate::tree::block::Block;
-use crate::tree::identifier::Identifier;
-use crate::tree::literal::Literal;
+use crate::parser::block::statement::expression::function_call::FunctionCall;
+use crate::parser::block::statement::expression::Expression;
+use crate::parser::block::statement::for_loop::ForLoop;
+use crate::parser::block::statement::function_definition::FunctionDefinition;
+use crate::parser::block::statement::if_conditional::IfConditional;
+use crate::parser::block::statement::switch::Switch;
+use crate::parser::block::statement::variable_declaration::VariableDeclaration;
+use crate::parser::block::statement::Statement;
+use crate::parser::block::Block;
+use crate::parser::identifier::Identifier;
+use crate::parser::literal::Literal;
+use crate::parser::r#type::Type;
 
 pub struct Compiler<'a, 'ctx> {
     pub context: &'ctx Context,
@@ -62,17 +62,17 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         par_types: &[BasicTypeEnum<'ctx>],
     ) -> FunctionType<'ctx> {
         if ret_values.is_empty() {
-            self.context.void_type().fn_type(&par_types[..], false)
+            self.context.void_type().fn_type(par_types, false)
         } else if ret_values.len() == 1 {
             self.translate_type(&ret_values[0].yul_type)
-                .fn_type(&par_types[..], false)
+                .fn_type(par_types, false)
         } else {
             let ret_types: Vec<_> = ret_values
                 .iter()
                 .map(|v| BasicTypeEnum::IntType(self.translate_type(&v.yul_type)))
                 .collect();
             let ret_type = self.context.struct_type(&ret_types[..], false);
-            ret_type.fn_type(&par_types[..], false)
+            ret_type.fn_type(par_types, false)
         }
     }
 

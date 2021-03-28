@@ -4,11 +4,13 @@
 
 pub mod arguments;
 
-use self::arguments::Arguments;
+use std::fs;
+use std::path::Path;
+
 use colored::Colorize;
 use regex::Regex;
-use std::fs::metadata;
-use std::path::PathBuf;
+
+use self::arguments::Arguments;
 
 ///
 /// Arguments and expected result for a single test run.
@@ -16,15 +18,15 @@ use std::path::PathBuf;
 #[derive(Debug)]
 struct TestRun<'a> {
     /// Test to compile
-    source: &'a PathBuf,
+    source: &'a Path,
     /// Function to run after the test compilation
     function: String,
     /// Expected result
     result: u64,
 }
 
-fn read_test_config(file: &PathBuf) -> Result<TestRun, &'static str> {
-    let source = std::fs::read_to_string(file).unwrap();
+fn read_test_config(file: &Path) -> Result<TestRun, &'static str> {
+    let source = fs::read_to_string(file).unwrap();
     let run_rx = Regex::new(r"RUN:\s*(\w*)").unwrap();
     let result_rx = Regex::new(r"EXPECT:\s*([0-9]*)").unwrap();
     let function = match run_rx.captures(source.as_str()) {
@@ -79,6 +81,9 @@ fn handle_test(run: &Result<TestRun, &'static str>) -> Result<(), String> {
     }
 }
 
+///
+/// The application entry point.
+///
 fn main() {
     let args = Arguments::new();
 
@@ -86,7 +91,7 @@ fn main() {
     if !path.exists() {
         panic!("{} does not exist", path.to_str().unwrap());
     }
-    let meta = metadata(path.clone()).unwrap();
+    let meta = fs::metadata(path.clone()).unwrap();
 
     let filenames = if meta.is_file() {
         vec![path]

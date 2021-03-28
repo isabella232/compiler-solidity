@@ -2,21 +2,25 @@
 //! YUL to LLVM compiler library.
 //!
 
-#[cfg(test)]
-mod tests;
-
-pub mod file_type;
-pub mod lexer;
-pub mod llvm;
-pub mod tree;
-pub mod r#type;
-
-use std::fs::metadata;
-use std::path::PathBuf;
+use std::fs;
+use std::path::Path;
 
 use rand::Rng;
 
 use self::file_type::FileType;
+use self::lexer::lexeme::keyword::Keyword;
+use self::lexer::lexeme::symbol::Symbol;
+use self::lexer::lexeme::Lexeme;
+use self::lexer::Lexer;
+use self::parser::Parser;
+
+#[cfg(test)]
+mod tests;
+
+pub mod file_type;
+pub mod generator;
+pub mod lexer;
+pub mod parser;
 
 /// Abstract compilation step
 #[derive(Debug)]
@@ -42,7 +46,7 @@ fn tmp_yul(input: &str) -> String {
 
 /// Produce sequence of actions required to compile file with specified options
 pub fn generate_actions<'a>(
-    file: &'a PathBuf,
+    file: &'a Path,
     options: &'a str,
     run: &'a Option<&'a str>,
 ) -> Vec<Action<'a>> {
@@ -79,8 +83,10 @@ pub fn invoke_solidity(input: &str, options: &str) {
     }
 }
 
-fn extract_sol_functions(lexemes: &mut Vec<String>) {
-    let pos = lexemes.iter().position(|x| *x == "function");
+fn extract_sol_functions(lexemes: &mut Vec<Lexeme>) {
+    let pos = lexemes
+        .iter()
+        .position(|x| matches!(x, Lexeme::Keyword(Keyword::Function)));
     if pos == None {
         return;
     }
@@ -88,23 +94,24 @@ fn extract_sol_functions(lexemes: &mut Vec<String>) {
     if lexemes.len() < pos + 2 {
         return;
     }
-    let name = &lexemes[pos + 1];
-    if !name.starts_with("constructor") {
-        return;
+    if let Lexeme::Identifier(identifier) = &lexemes[pos + 1] {
+        if !identifier.starts_with("constructor") {
+            return;
+        }
     }
     lexemes.drain(0..pos + 1);
     let pos = lexemes
         .iter()
-        .position(|x| *x == "function")
+        .position(|x| matches!(x, Lexeme::Keyword(Keyword::Function)))
         .unwrap_or_else(|| panic!("Expected at least one function in the contract"));
     lexemes.drain(0..pos);
     lexemes.drain(lexemes.len() - 2..);
-    lexemes.insert(0, "{".to_string());
+    lexemes.insert(0, Lexeme::Symbol(Symbol::BracketCurlyLeft));
 }
 
 /// Wrap Zinc generator invocation
 pub fn invoke_codegen<'a>(input: &str, run: &'a Option<&'a str>) {
-    let meta = metadata(input).unwrap();
+    let meta = fs::metadata(input).unwrap();
     let filenames = if meta.is_file() {
         vec![input.to_string()]
     } else {
@@ -114,16 +121,12 @@ pub fn invoke_codegen<'a>(input: &str, run: &'a Option<&'a str>) {
             .collect()
     };
     for in_file in filenames {
-        let mut src = std::fs::read_to_string(in_file.as_str()).unwrap();
-        lexer::remove_comments(&mut src);
-        let mut lexemes = lexer::get_lexemes(&mut src);
+        let input = std::fs::read_to_string(in_file.as_str()).unwrap();
+        let mut lexer = Lexer::new(input);
+        let mut lexemes = lexer.get_lexemes();
         extract_sol_functions(&mut lexemes);
-        let fragments = tree::parse(lexemes.iter());
-        let stmt = match &fragments[0] {
-            tree::Fragment::Statement(s) => s,
-            _ => unreachable!(),
-        };
-        llvm::Compiler::compile(&stmt, run);
+        let statements = Parser::parse(lexemes.into_iter());
+        generator::Compiler::compile(&statements[0], run);
     }
 }
 

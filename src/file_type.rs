@@ -2,25 +2,29 @@
 //! File type for input and output files.
 //!
 
-use std::path::PathBuf;
+use std::path::Path;
 
 ///
 /// File type for input and output files.
 ///
 #[derive(Debug)]
 pub enum FileType {
+    /// A `*.sol` file.
     Solidity,
+    /// A `*.yul` file.
     Yul,
+    /// A `*.zn` file.
     Zinc,
+    /// A file with unknown extension.
     Unknown,
 }
 
 impl FileType {
     ///
-    /// Provide FileType for a given file based on its extension.
+    /// Extracts the file type from the file `path` based on its extension.
     ///
-    pub fn new(file: &PathBuf) -> Self {
-        let extension = file.extension().and_then(std::ffi::OsStr::to_str);
+    pub fn new(path: &Path) -> Self {
+        let extension = path.extension().and_then(std::ffi::OsStr::to_str);
         match extension {
             Some("sol") => FileType::Solidity,
             Some("yul") => FileType::Yul,

@@ -1,1 +1,1 @@
-{function foo() -> x {x := 42}}
+{function bar() {} function foo() -> x { x := 42 bar()}}

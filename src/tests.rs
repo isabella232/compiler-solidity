@@ -1,51 +1,71 @@
-use crate::tree::block::statement::expression::Expression;
-use crate::tree::block::statement::Statement;
-use crate::tree::block::Block;
-use crate::tree::literal::Literal;
-use crate::tree::Fragment;
+use crate::lexer::lexeme::symbol::Symbol;
+use crate::lexer::lexeme::Lexeme;
+use crate::lexer::Lexer;
+use crate::parser::block::statement::expression::Expression;
+use crate::parser::block::statement::Statement;
+use crate::parser::block::Block;
+use crate::parser::literal::Literal;
+use crate::parser::Parser;
 
 static YUL: &'static str = "/*123 comment ***/{}";
 
-fn get_lexemes_str(input: &str) -> Vec<String> {
-    let mut input = input.to_string();
-    crate::lexer::remove_comments(&mut input);
-    crate::lexer::get_lexemes(&mut input)
+fn get_lexemes(input: &str) -> Vec<Lexeme> {
+    let input = input.to_string();
+    let mut lexer = Lexer::new(input);
+    lexer.get_lexemes()
 }
 
-fn lexparse(input: &str) -> Vec<Fragment> {
-    crate::tree::parse(get_lexemes_str(input).iter())
+fn lexparse(input: &str) -> Vec<Statement> {
+    Parser::parse(get_lexemes(input).into_iter())
 }
 
 fn compile(input: &str, run: &Option<&str>) -> u64 {
-    let parsed = lexparse(input);
-    if parsed.len() != 1 {
+    let statements = lexparse(input);
+    if statements.len() != 1 {
         panic!("Unparsed parts exist");
     }
-    let program = match &parsed[0] {
-        Fragment::Statement(s) => s,
-        _ => unreachable!(),
-    };
-    crate::llvm::Compiler::compile(program, run)
+    crate::generator::Compiler::compile(&statements[0], run)
 }
 
 #[test]
 fn whitespaces_should_be_ignored() {
-    assert_eq!(get_lexemes_str("   a    b c\td"), ["a", "b", "c", "d"]);
+    assert_eq!(
+        get_lexemes("   a    b c\td"),
+        [
+            Lexeme::Identifier("a".to_owned()),
+            Lexeme::Identifier("b".to_owned()),
+            Lexeme::Identifier("c".to_owned()),
+            Lexeme::Identifier("d".to_owned()),
+        ]
+    );
 }
 
 #[test]
 fn single_line_comments_should_be_ignored() {
     assert_eq!(
-        get_lexemes_str("   a////comment\nb c\td//comment"),
-        ["a", "b", "c", "d"]
+        get_lexemes("   a////comment\nb c\td//comment"),
+        [
+            Lexeme::Identifier("a".to_owned()),
+            Lexeme::Identifier("b".to_owned()),
+            Lexeme::Identifier("c".to_owned()),
+            Lexeme::Identifier("d".to_owned()),
+        ]
     );
 }
 
 #[test]
 fn multi_line_comments_should_be_tokenized() {
     assert_eq!(
-        get_lexemes_str(YUL),
-        ["/*", "123", "comment", "**", "*/", "{", "}"]
+        get_lexemes(YUL),
+        [
+            Lexeme::Symbol(Symbol::CommentStart),
+            Lexeme::Identifier("123".to_owned()),
+            Lexeme::Identifier("comment".to_owned()),
+            Lexeme::Identifier("**".to_owned()),
+            Lexeme::Symbol(Symbol::CommentEnd),
+            Lexeme::Symbol(Symbol::BracketCurlyLeft),
+            Lexeme::Symbol(Symbol::BracketCurlyRight),
+        ]
     );
 }
 
@@ -53,9 +73,7 @@ fn multi_line_comments_should_be_tokenized() {
 fn comment_should_not_be_parsed() {
     assert_eq!(
         lexparse(YUL),
-        [Fragment::Statement(Statement::Block(Block {
-            statements: vec![]
-        }))]
+        [Statement::Block(Block { statements: vec![] })]
     );
 }
 
@@ -69,9 +87,9 @@ fn ill_formed_comment_should_panic() {
 fn nested_blocks_should_be_parsed() {
     assert_eq!(
         lexparse("{{}}"),
-        [Fragment::Statement(Statement::Block(Block {
+        [Statement::Block(Block {
             statements: vec![Statement::Block(Block { statements: vec![] })]
-        }))]
+        })]
     );
 }
 
@@ -171,21 +189,21 @@ fn keywords_should_not_be_parsed_as_identifiers() {
     let kw_leave = lexparse("{leave}");
     assert_eq!(
         kw_break,
-        [Fragment::Statement(Statement::Block(Block {
+        [Statement::Block(Block {
             statements: vec![Statement::Break]
-        }))]
+        })]
     );
     assert_eq!(
         kw_continue,
-        [Fragment::Statement(Statement::Block(Block {
+        [Statement::Block(Block {
             statements: vec![Statement::Continue]
-        }))]
+        })]
     );
     assert_eq!(
         kw_leave,
-        [Fragment::Statement(Statement::Block(Block {
+        [Statement::Block(Block {
             statements: vec![Statement::Leave]
-        }))]
+        })]
     );
 }
 
@@ -195,19 +213,19 @@ fn true_false_should_be_parsed_as_literals() {
     let kw_false = lexparse("{false}");
     assert_eq!(
         kw_true,
-        [Fragment::Statement(Statement::Block(Block {
+        [Statement::Block(Block {
             statements: vec![Statement::Expression(Expression::Literal(Literal {
                 value: "true".to_string()
             }))]
-        }))]
+        })]
     );
     assert_eq!(
         kw_false,
-        [Fragment::Statement(Statement::Block(Block {
+        [Statement::Block(Block {
             statements: vec![Statement::Expression(Expression::Literal(Literal {
                 value: "false".to_string()
             }))]
-        }))]
+        })]
     );
 }
 #[test]
