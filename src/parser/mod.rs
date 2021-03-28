@@ -4,8 +4,6 @@
 
 pub mod block;
 pub mod comment;
-pub mod identifier;
-pub mod literal;
 pub mod r#type;
 
 use crate::lexer::lexeme::symbol::Symbol;
@@ -36,7 +34,7 @@ impl Parser {
                     Comment::parse(peekable);
                 }
                 Lexeme::Symbol(Symbol::BracketCurlyLeft) => {
-                    result.push(Statement::Block(Block::parse(peekable)));
+                    result.push(Statement::Block(Block::parse(peekable, None)));
                 }
                 lexeme => panic!("expected /* or {{, got {}", lexeme),
             }

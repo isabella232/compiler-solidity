@@ -9,7 +9,6 @@ use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::block::Block;
-use crate::parser::literal::Literal;
 
 use self::case::Case;
 
@@ -18,64 +17,119 @@ use self::case::Case;
 ///
 #[derive(Debug, PartialEq)]
 pub struct Switch {
+    /// The expression being matched.
     pub expression: Expression,
+    /// The non-default cases.
     pub cases: Vec<Case>,
+    /// The optional default case, if `cases` do not cover all possible values.
     pub default: Option<Block>,
 }
 
+///
+/// The parsing state.
+///
+pub enum State {
+    /// After match expression.
+    CaseOrDefaultKeyword,
+    /// After `case`.
+    CaseBlock,
+    /// After `default`.
+    DefaultBlock,
+}
+
 impl Switch {
-    pub fn parse<I>(iter: &mut I) -> Self
+    pub fn parse<I>(iter: &mut I, _initial: Option<Lexeme>) -> Self
     where
         I: crate::PeekableIterator<Item = Lexeme>,
     {
+        let mut state = State::CaseOrDefaultKeyword;
+
         let expression = Expression::parse(iter, None);
         let mut cases = Vec::new();
+        let mut default = None;
 
-        while let Lexeme::Keyword(Keyword::Case) =
-            iter.peek().expect("unexpected eof in switch statement")
-        {
-            iter.next();
-
-            // TODO: Check literal
-            let literal = iter.next().expect("unexpected eof in switch statement");
-            if iter.next().expect("unexpected eof in switch statement")
-                != Lexeme::Symbol(Symbol::BracketCurlyLeft)
-            {
-                panic!("expected block in switch case");
-            }
-            cases.push(Case {
-                label: Literal {
-                    value: literal.to_string(),
+        loop {
+            match state {
+                State::CaseOrDefaultKeyword => match iter.peek().unwrap() {
+                    Lexeme::Keyword(Keyword::Case) => state = State::CaseBlock,
+                    Lexeme::Keyword(Keyword::Default) => state = State::DefaultBlock,
+                    _ => break,
                 },
-                body: Block::parse(iter),
-            });
-        }
-
-        if let Lexeme::Keyword(Keyword::Default) =
-            iter.peek().expect("unexpected eof in switch statement")
-        {
-            iter.next();
-
-            if iter.next().expect("unexpected eof in switch statement")
-                != Lexeme::Symbol(Symbol::BracketCurlyLeft)
-            {
-                panic!("expected block in switch case");
+                State::CaseBlock => {
+                    iter.next();
+                    cases.push(Case::parse(iter));
+                    state = State::CaseOrDefaultKeyword;
+                }
+                State::DefaultBlock => {
+                    iter.next();
+                    match iter.next().expect("unexpected eof in switch statement") {
+                        Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
+                        lexeme => panic!("expected `{{`, got {}", lexeme),
+                    }
+                    default = Some(Block::parse(iter, None));
+                    break;
+                }
             }
-            return Self {
-                expression,
-                cases,
-                default: Some(Block::parse(iter)),
-            };
         }
 
-        if cases.is_empty() {
-            panic!("expected either 'default' or at least one 'case' in switch statemet");
+        if cases.is_empty() && default.is_none() {
+            panic!(
+                "expected either the 'default' block or at least one 'case' in switch statement"
+            );
         }
 
         Self {
             expression,
             cases,
-            default: None,
+            default,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn ok_single_case() {
+        let input = r#"{
+            switch expr case \"a\" {}
+        }"#;
+
+        crate::tests::parse(input);
+    }
+
+    #[test]
+    fn ok_single_case_default() {
+        let input = r#"{
+            switch expr case \"a\" {} default {}
+        }"#;
+
+        crate::tests::parse(input);
+    }
+
+    #[test]
+    fn ok_multiple_cases() {
+        let input = r#"{
+            switch expr case \"a\" {} case \"b\" {} case \"c\" {}
+        }"#;
+
+        crate::tests::parse(input);
+    }
+
+    #[test]
+    fn ok_multiple_cases_default() {
+        let input = r#"{
+            switch expr case \"a\" {} case \"b\" {} case \"c\" {} default {}
+        }"#;
+
+        crate::tests::parse(input);
+    }
+
+    #[test]
+    fn ok_default() {
+        let input = r#"{
+            switch expr default {}
+        }"#;
+
+        crate::tests::parse(input);
     }
 }

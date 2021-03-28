@@ -3,14 +3,16 @@
 //!
 
 pub mod function_call;
+pub mod identifier;
+pub mod literal;
 
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
-use crate::parser::identifier::Identifier;
-use crate::parser::literal::Literal;
 
 use self::function_call::FunctionCall;
+use self::identifier::Identifier;
+use self::literal::Literal;
 
 ///
 /// The expression statement.
@@ -30,8 +32,10 @@ impl Expression {
     where
         I: crate::PeekableIterator<Item = Lexeme>,
     {
-        let lexeme =
-            initial.unwrap_or_else(|| iter.next().expect("expected an expression, eof found"));
+        let lexeme = match initial {
+            Some(lexeme) => lexeme,
+            None => iter.next().unwrap(),
+        };
         match lexeme {
             Lexeme::Keyword(Keyword::True) | Lexeme::Keyword(Keyword::False) => {
                 return Expression::Literal(Literal {
@@ -51,40 +55,12 @@ impl Expression {
         match iter.peek().unwrap() {
             Lexeme::Symbol(Symbol::ParenthesisLeft) => {
                 iter.next();
+                Expression::FunctionCall(FunctionCall::parse(iter, Some(lexeme)))
             }
-            _ => {
-                return Expression::Identifier(Identifier {
-                    name: lexeme.to_string(),
-                    yul_type: None,
-                })
-            }
+            _ => Expression::Identifier(Identifier {
+                name: lexeme.to_string(),
+                yul_type: None,
+            }),
         }
-
-        // function call
-        let mut arguments = Vec::new();
-        while let Some(lexeme) = iter.next() {
-            if lexeme == Lexeme::Symbol(Symbol::ParenthesisRight) {
-                break;
-            }
-
-            arguments.push(Expression::parse(iter, Some(lexeme)));
-
-            match iter.peek().unwrap() {
-                Lexeme::Symbol(Symbol::Comma) => {
-                    iter.next();
-                    continue;
-                }
-                Lexeme::Symbol(Symbol::ParenthesisRight) => {
-                    iter.next();
-                    break;
-                }
-                _ => break,
-            }
-        }
-
-        Self::FunctionCall(FunctionCall {
-            name: lexeme.to_string(),
-            arguments,
-        })
     }
 }

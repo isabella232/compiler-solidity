@@ -1,26 +1,27 @@
-use crate::lexer::lexeme::symbol::Symbol;
+//!
+//! The compiler test tools.
+//!
+
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
+use crate::parser::block::statement::expression::literal::Literal;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::block::statement::Statement;
 use crate::parser::block::Block;
-use crate::parser::literal::Literal;
 use crate::parser::Parser;
 
-static YUL: &'static str = "/*123 comment ***/{}";
-
-fn get_lexemes(input: &str) -> Vec<Lexeme> {
+pub(crate) fn tokenize(input: &str) -> Vec<Lexeme> {
     let input = input.to_string();
     let mut lexer = Lexer::new(input);
     lexer.get_lexemes()
 }
 
-fn lexparse(input: &str) -> Vec<Statement> {
-    Parser::parse(get_lexemes(input).into_iter())
+pub(crate) fn parse(input: &str) -> Vec<Statement> {
+    Parser::parse(tokenize(input).into_iter())
 }
 
-fn compile(input: &str, run: &Option<&str>) -> u64 {
-    let statements = lexparse(input);
+pub(crate) fn compile(input: &str, run: &Option<&str>) -> u64 {
+    let statements = parse(input);
     if statements.len() != 1 {
         panic!("Unparsed parts exist");
     }
@@ -28,51 +29,9 @@ fn compile(input: &str, run: &Option<&str>) -> u64 {
 }
 
 #[test]
-fn whitespaces_should_be_ignored() {
-    assert_eq!(
-        get_lexemes("   a    b c\td"),
-        [
-            Lexeme::Identifier("a".to_owned()),
-            Lexeme::Identifier("b".to_owned()),
-            Lexeme::Identifier("c".to_owned()),
-            Lexeme::Identifier("d".to_owned()),
-        ]
-    );
-}
-
-#[test]
-fn single_line_comments_should_be_ignored() {
-    assert_eq!(
-        get_lexemes("   a////comment\nb c\td//comment"),
-        [
-            Lexeme::Identifier("a".to_owned()),
-            Lexeme::Identifier("b".to_owned()),
-            Lexeme::Identifier("c".to_owned()),
-            Lexeme::Identifier("d".to_owned()),
-        ]
-    );
-}
-
-#[test]
-fn multi_line_comments_should_be_tokenized() {
-    assert_eq!(
-        get_lexemes(YUL),
-        [
-            Lexeme::Symbol(Symbol::CommentStart),
-            Lexeme::Identifier("123".to_owned()),
-            Lexeme::Identifier("comment".to_owned()),
-            Lexeme::Identifier("**".to_owned()),
-            Lexeme::Symbol(Symbol::CommentEnd),
-            Lexeme::Symbol(Symbol::BracketCurlyLeft),
-            Lexeme::Symbol(Symbol::BracketCurlyRight),
-        ]
-    );
-}
-
-#[test]
 fn comment_should_not_be_parsed() {
     assert_eq!(
-        lexparse(YUL),
+        parse("/*123 comment ***/{}"),
         [Statement::Block(Block { statements: vec![] })]
     );
 }
@@ -80,113 +39,90 @@ fn comment_should_not_be_parsed() {
 #[test]
 #[should_panic]
 fn ill_formed_comment_should_panic() {
-    lexparse("/* xxx yyy");
-}
-
-#[test]
-fn nested_blocks_should_be_parsed() {
-    assert_eq!(
-        lexparse("{{}}"),
-        [Statement::Block(Block {
-            statements: vec![Statement::Block(Block { statements: vec![] })]
-        })]
-    );
-}
-
-#[test]
-#[should_panic]
-fn ill_formed_block_should_panic() {
-    lexparse("{{}{}{{}");
+    parse("/* xxx yyy");
 }
 
 #[test]
 #[should_panic]
 fn badly_named_function_should_panic() {
-    lexparse("{ function 42(){}}");
+    parse("{ function 42(){}}");
 }
 
 #[test]
 #[should_panic]
 fn function_with_bad_parameter_list_should_panic() {
-    lexparse("{ function 42){}}");
+    parse("{ function 42){}}");
 }
 
 #[test]
 fn well_formed_void_function_should_be_parsed() {
-    lexparse("{function foo(a : A, b){}}");
+    parse("{function foo(a : A, b){}}");
 }
 
 #[test]
 fn well_formed_non_void_function_should_be_parsed() {
-    lexparse("{function foo(a : A, b) -> x: T, z: Y {}}");
+    parse("{function foo(a : A, b) -> x: T, z: Y {}}");
 }
 
 #[test]
 fn vardecl_true_should_be_parsed() {
-    lexparse("{let x := true}");
+    parse("{let x := true}");
 }
 
 #[test]
 fn vardecl_false_should_be_parsed() {
-    lexparse("{let x := false}");
+    parse("{let x := false}");
 }
 
 #[test]
 fn vardecl_string_should_be_parsed() {
-    lexparse("{let x := \"abc\"}");
+    parse("{let x := \"abc\"}");
 }
 
 #[test]
 fn vardecl_dec_number_should_be_parsed() {
-    lexparse("{let x := 42}");
+    parse("{let x := 42}");
 }
 
 #[test]
 fn vardecl_hex_number_should_be_parsed() {
-    lexparse("{let x := 0x42}");
+    parse("{let x := 0x42}");
 }
 
 #[test]
 fn vardecl_identifier_should_be_parsed() {
-    lexparse("{let x := y}");
+    parse("{let x := y}");
 }
 
 #[test]
 fn vardecl_function_call_should_be_parsed() {
-    lexparse("{let x := foo()}");
-    lexparse("{let x := foo(x, y)}");
-    lexparse("{let x := foo(bar(x, baz()))}");
+    parse("{let x := foo()}");
+    parse("{let x := foo(x, y)}");
+    parse("{let x := foo(bar(x, baz()))}");
 }
 
 #[test]
 fn if_statement_should_be_parsed() {
-    lexparse("{if expr {}}");
-}
-
-#[test]
-fn switch_statement_should_be_parsed() {
-    lexparse("{switch expr case \"a\" {} case \"b\" {}}");
-    lexparse("{switch expr case \"a\" {} default {}}");
-    lexparse("{switch expr default {}}");
+    parse("{if expr {}}");
 }
 
 #[test]
 #[should_panic]
 fn ill_formed_switch_statement_should_panic() {
-    lexparse("{switch {}}");
-    lexparse("{switch expr default {} case 3 {}}");
+    parse("{switch {}}");
+    parse("{switch expr default {} case 3 {}}");
 }
 
 #[test]
 fn for_loop_should_be_parsed() {
-    lexparse("{for {} expr {}{}}");
+    parse("{for {} expr {}{}}");
 }
 
 #[test]
 fn keywords_should_not_be_parsed_as_identifiers() {
-    let kw_break = lexparse("{break}");
-    let kw_continue = lexparse("{continue}");
-    let kw_leave = lexparse("{leave}");
+    let kw_break = parse("{break}");
+    let kw_continue = parse("{continue}");
+    let kw_leave = parse("{leave}");
     assert_eq!(
         kw_break,
         [Statement::Block(Block {
@@ -209,8 +145,8 @@ fn keywords_should_not_be_parsed_as_identifiers() {
 
 #[test]
 fn true_false_should_be_parsed_as_literals() {
-    let kw_true = lexparse("{true}");
-    let kw_false = lexparse("{false}");
+    let kw_true = parse("{true}");
+    let kw_false = parse("{false}");
     assert_eq!(
         kw_true,
         [Statement::Block(Block {
@@ -230,25 +166,25 @@ fn true_false_should_be_parsed_as_literals() {
 }
 #[test]
 fn expressions_should_be_parsed() {
-    lexparse("{id 3 foo(x, y)}");
+    parse("{id 3 foo(x, y)}");
 }
 
 #[test]
 fn assignments_should_be_parsed() {
-    lexparse("{x := foo(x)}");
-    lexparse("{x,y := foo(x)}");
+    parse("{x := foo(x)}");
+    parse("{x,y := foo(x)}");
 }
 
 #[test]
 #[should_panic]
 fn ill_formed_assignment_should_panic() {
-    lexparse("{x := }");
+    parse("{x := }");
 }
 
 #[test]
 #[should_panic]
 fn id_list_wo_assignment_should_panic() {
-    lexparse("{x,y}");
+    parse("{x,y}");
 }
 
 #[test]

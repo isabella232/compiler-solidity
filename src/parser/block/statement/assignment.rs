@@ -4,8 +4,8 @@
 
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
+use crate::parser::block::statement::expression::identifier::Identifier;
 use crate::parser::block::statement::expression::Expression;
-use crate::parser::identifier::Identifier;
 
 ///
 /// The assignment expression statement.

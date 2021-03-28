@@ -22,6 +22,8 @@ use inkwell::IntPredicate;
 use regex::Regex;
 
 use crate::parser::block::statement::expression::function_call::FunctionCall;
+use crate::parser::block::statement::expression::identifier::Identifier;
+use crate::parser::block::statement::expression::literal::Literal;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::block::statement::for_loop::ForLoop;
 use crate::parser::block::statement::function_definition::FunctionDefinition;
@@ -30,8 +32,6 @@ use crate::parser::block::statement::switch::Switch;
 use crate::parser::block::statement::variable_declaration::VariableDeclaration;
 use crate::parser::block::statement::Statement;
 use crate::parser::block::Block;
-use crate::parser::identifier::Identifier;
-use crate::parser::literal::Literal;
 use crate::parser::r#type::Type;
 
 pub struct Compiler<'a, 'ctx> {
@@ -378,21 +378,21 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     }
 
     fn translate_variable_declaration(&mut self, vd: &VariableDeclaration) {
-        assert!(!vd.names.is_empty());
-        if vd.names.len() > 1 {
+        assert!(!vd.bindings.is_empty());
+        if vd.bindings.len() > 1 {
             // TODO: implement
             unreachable!();
         }
-        for name in &vd.names {
+        for name in &vd.bindings {
             let val = self
                 .builder
                 .build_alloca(self.translate_type(&name.yul_type), name.name.as_str());
             self.variables.insert(name.name.clone(), val);
         }
 
-        if let Some(init) = &vd.initializer {
+        if let Some(init) = &vd.expression {
             self.builder.build_store(
-                self.variables[&vd.names[0].name],
+                self.variables[&vd.bindings[0].name],
                 self.translate_expression(&init),
             );
         };
@@ -413,7 +413,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             .append_basic_block(self.function.unwrap(), "if.join");
         self.builder.build_conditional_branch(cond, then, join);
         self.builder.position_at_end(then);
-        self.translate_function_body(&ifstmt.body);
+        self.translate_function_body(&ifstmt.block);
         self.builder.build_unconditional_branch(join);
         self.builder.position_at_end(join);
     }

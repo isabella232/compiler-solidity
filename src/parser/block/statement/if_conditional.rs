@@ -13,27 +13,23 @@ use crate::parser::block::Block;
 #[derive(Debug, PartialEq)]
 pub struct IfConditional {
     pub condition: Expression,
-    pub body: Block,
+    pub block: Block,
 }
 
 impl IfConditional {
-    pub fn parse<I>(iter: &mut I) -> Self
+    pub fn parse<I>(iter: &mut I, _initial: Option<Lexeme>) -> Self
     where
         I: crate::PeekableIterator<Item = Lexeme>,
     {
-        let expression = Expression::parse(iter, None);
-        let block_start = iter.next().expect("unexpected eof in if statement");
-        if block_start != Lexeme::Symbol(Symbol::BracketCurlyLeft) {
-            panic!(
-                "unexpected token {} followed after the condition in if statement",
-                block_start
-            );
-        }
-        let block = Block::parse(iter);
+        let condition = Expression::parse(iter, None);
 
-        Self {
-            condition: expression,
-            body: block,
+        match iter.next().unwrap() {
+            Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
+            lexeme => panic!("expected `{{`, found {}", lexeme),
         }
+
+        let block = Block::parse(iter, None);
+
+        Self { condition, block }
     }
 }

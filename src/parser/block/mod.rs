@@ -7,7 +7,7 @@ pub mod statement;
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
-use crate::parser::identifier::Identifier;
+use statement::expression::identifier::Identifier;
 
 use self::statement::assignment::Assignment;
 use self::statement::expression::Expression;
@@ -31,29 +31,33 @@ impl Block {
     ///
     /// Parses a block, panic if a block is ill-formed.
     ///
-    pub fn parse<I>(iter: &mut I) -> Self
+    pub fn parse<I>(iter: &mut I, mut initial: Option<Lexeme>) -> Self
     where
         I: crate::PeekableIterator<Item = Lexeme>,
     {
         let mut statements = Vec::new();
 
         loop {
-            let lexeme = iter.next().expect("unexpected eof");
+            let lexeme = match initial.take() {
+                Some(lexeme) => lexeme,
+                None => iter.next().expect("unexpected eof"),
+            };
+
             match lexeme {
                 Lexeme::Keyword(Keyword::Function) => statements.push(
-                    Statement::FunctionDefinition(FunctionDefinition::parse(iter)),
+                    Statement::FunctionDefinition(FunctionDefinition::parse(iter, None)),
                 ),
                 Lexeme::Keyword(Keyword::Let) => statements.push(Statement::VariableDeclaration(
-                    VariableDeclaration::parse(iter),
+                    VariableDeclaration::parse(iter, None),
                 )),
                 Lexeme::Keyword(Keyword::If) => {
-                    statements.push(Statement::IfConditional(IfConditional::parse(iter)))
+                    statements.push(Statement::IfConditional(IfConditional::parse(iter, None)))
                 }
                 Lexeme::Keyword(Keyword::Switch) => {
-                    statements.push(Statement::Switch(Switch::parse(iter)))
+                    statements.push(Statement::Switch(Switch::parse(iter, None)))
                 }
                 Lexeme::Keyword(Keyword::For) => {
-                    statements.push(Statement::ForLoop(ForLoop::parse(iter)))
+                    statements.push(Statement::ForLoop(ForLoop::parse(iter, None)))
                 }
                 Lexeme::Keyword(Keyword::Break) => statements.push(Statement::Break),
                 Lexeme::Keyword(Keyword::Continue) => statements.push(Statement::Continue),
@@ -85,14 +89,51 @@ impl Block {
                     }
                 }
                 Lexeme::Symbol(Symbol::BracketCurlyLeft) => {
-                    statements.push(Statement::Block(Block::parse(iter)))
+                    statements.push(Statement::Block(Block::parse(iter, None)))
                 }
-                Lexeme::Symbol(Symbol::ParenthesisRight) => break,
-                Lexeme::Symbol(Symbol::BracketCurlyRight) => break,
+                Lexeme::Symbol(Symbol::BracketCurlyRight) => {
+                    dbg!("FUCK");
+                    break;
+                }
                 _ => panic!("YUL is malformed"),
             }
         }
 
         Self { statements }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::parser::block::statement::Statement;
+    use crate::parser::block::Block;
+
+    #[test]
+    fn ok_nested() {
+        let input = r#"{
+            {}
+        }"#;
+
+        let expected = Block {
+            statements: vec![Statement::Block(Block { statements: vec![] })],
+        };
+
+        assert_eq!(
+            expected,
+            Block::parse(
+                &mut crate::tests::tokenize(input).into_iter().skip(1).peekable(),
+                None
+            )
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn error_expected_bracket_curly_right() {
+        let input = r#"{
+            {}{}{{
+        }"#;
+
+        crate::tests::parse(input);
     }
 }

@@ -2,6 +2,9 @@
 //! The compiler lexer.
 //!
 
+#[cfg(test)]
+mod tests;
+
 pub mod lexeme;
 
 use std::convert::TryFrom;

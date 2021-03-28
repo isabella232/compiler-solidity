@@ -83,17 +83,6 @@ impl Identifier {
                 }
                 _lexeme => {}
             }
-
-            // let r#type = match iter.peek().expect("unexpected end for typed parameter list") {
-            //     Lexeme::Symbol(Symbol::Colon) => {
-            //         iter.next();
-            //         match iter.next().expect("expected identifier") {
-            //             Lexeme::Identifier(_) => true,
-            //             _lexeme => panic!("expected identifier"),
-            //         }
-            //     },
-            //     _ => false,
-            // };
         }
 
         result

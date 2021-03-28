@@ -4,22 +4,26 @@
 
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
+use crate::parser::block::statement::expression::identifier::Identifier;
 use crate::parser::block::Block;
-use crate::parser::identifier::Identifier;
 
 ///
 /// The function definition statement.
 ///
 #[derive(Debug, PartialEq)]
 pub struct FunctionDefinition {
+    /// The function name.
     pub name: String,
+    /// The function formal arguments.
     pub parameters: Vec<Identifier>,
+    /// The function return variables.
     pub result: Vec<Identifier>, // TODO: investigate
+    /// The function body block.
     pub body: Block,
 }
 
 impl FunctionDefinition {
-    pub fn parse<I>(iter: &mut I) -> Self
+    pub fn parse<I>(iter: &mut I, _initial: Option<Lexeme>) -> Self
     where
         I: crate::PeekableIterator<Item = Lexeme>,
     {
@@ -54,7 +58,7 @@ impl FunctionDefinition {
             lexeme => panic!("expected -> or {{, got {}", lexeme),
         };
 
-        let body = Block::parse(iter);
+        let body = Block::parse(iter, None);
 
         Self {
             name,
