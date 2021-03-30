@@ -45,12 +45,17 @@ impl Expression {
         }
     }
 
-    pub fn into_llvm<'ctx>(self, context: &Context<'ctx>) -> inkwell::values::BasicValueEnum<'ctx> {
+    pub fn into_llvm<'ctx>(
+        self,
+        context: &Context<'ctx>,
+    ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
         match self {
-            Self::Literal(inner) => inner.into_llvm(context),
-            Self::Identifier(inner) => context
-                .builder
-                .build_load(context.variables[inner.as_str()], inner.as_str()),
+            Self::Literal(inner) => Some(inner.into_llvm(context)),
+            Self::Identifier(inner) => Some(
+                context
+                    .builder
+                    .build_load(context.variables[inner.as_str()], inner.as_str()),
+            ),
             Self::FunctionCall(inner) => inner.into_llvm(context),
         }
     }

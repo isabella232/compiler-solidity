@@ -9,7 +9,6 @@ use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::llvm::Context;
 use crate::parser::block::statement::expression::Expression;
-use crate::parser::r#type::Type;
 
 ///
 /// The function call subexpression.
@@ -54,34 +53,29 @@ impl FunctionCall {
         Self { name, arguments }
     }
 
-    pub fn into_llvm<'ctx>(self, context: &Context<'ctx>) -> inkwell::values::BasicValueEnum<'ctx> {
-        match self.clone().builtin(context) {
-            Some(expression) => expression,
-            None => {
-                let name = self.name.clone();
-                let arguments: Vec<inkwell::values::BasicValueEnum> = self
-                    .arguments
-                    .into_iter()
-                    .map(|argument| argument.into_llvm(context))
-                    .collect();
-                let function = context
-                    .module
-                    .get_function(self.name.as_str())
-                    .unwrap_or_else(|| panic!("Undeclared function {}", name));
-                let return_value = context
-                    .builder
-                    .build_call(function, &arguments, "")
-                    .try_as_basic_value();
-                // TODO: make the return value optional
-                match return_value.left() {
-                    Some(return_value) => return_value,
-                    None => Type::default()
-                        .into_llvm(context)
-                        .const_int(0, false)
-                        .as_basic_value_enum(),
-                }
-            }
+    pub fn into_llvm<'ctx>(
+        self,
+        context: &Context<'ctx>,
+    ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+        if let Some(value) = self.clone().builtin(context) {
+            return Some(value);
         }
+
+        let name = self.name.clone();
+        let arguments: Vec<inkwell::values::BasicValueEnum> = self
+            .arguments
+            .into_iter()
+            .filter_map(|argument| argument.into_llvm(context))
+            .collect();
+        let function = context
+            .module
+            .get_function(self.name.as_str())
+            .unwrap_or_else(|| panic!("Undeclared function {}", name));
+        let return_value = context
+            .builder
+            .build_call(function, &arguments, "")
+            .try_as_basic_value();
+        return_value.left()
     }
 
     fn builtin<'ctx>(
@@ -92,56 +86,112 @@ impl FunctionCall {
         match self.name.as_str() {
             "add" => {
                 let value = context.builder.build_int_add(
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 Some(value.as_basic_value_enum())
             }
             "sub" => {
                 let value = context.builder.build_int_sub(
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 Some(value.as_basic_value_enum())
             }
             "mul" => {
                 let value = context.builder.build_int_mul(
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 Some(value.as_basic_value_enum())
             }
             "div" => {
                 let value = context.builder.build_int_unsigned_div(
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 Some(value.as_basic_value_enum())
             }
             "sdiv" => {
                 let value = context.builder.build_int_signed_div(
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 Some(value.as_basic_value_enum())
             }
             "mod" => {
                 let value = context.builder.build_int_unsigned_rem(
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 Some(value.as_basic_value_enum())
             }
             "smod" => {
                 let value = context.builder.build_int_signed_rem(
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 Some(value.as_basic_value_enum())
@@ -149,8 +199,16 @@ impl FunctionCall {
             "lt" => {
                 let value = context.builder.build_int_compare(
                     inkwell::IntPredicate::ULT,
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 let value = context.builder.build_int_cast(
@@ -163,8 +221,16 @@ impl FunctionCall {
             "slt" => {
                 let value = context.builder.build_int_compare(
                     inkwell::IntPredicate::SLT,
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 let value = context.builder.build_int_cast(
@@ -177,8 +243,16 @@ impl FunctionCall {
             "gt" => {
                 let value = context.builder.build_int_compare(
                     inkwell::IntPredicate::UGT,
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 let value = context.builder.build_int_cast(
@@ -191,8 +265,16 @@ impl FunctionCall {
             "sgt" => {
                 let value = context.builder.build_int_compare(
                     inkwell::IntPredicate::SGT,
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 let value = context.builder.build_int_cast(
@@ -205,8 +287,16 @@ impl FunctionCall {
             "eq" => {
                 let value = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 let value = context.builder.build_int_cast(
@@ -218,40 +308,80 @@ impl FunctionCall {
             }
             "and" => {
                 let value = context.builder.build_and(
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 Some(value.as_basic_value_enum())
             }
             "or" => {
                 let value = context.builder.build_or(
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 Some(value.as_basic_value_enum())
             }
             "xor" => {
                 let value = context.builder.build_xor(
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 Some(value.as_basic_value_enum())
             }
             "shl" => {
                 let value = context.builder.build_left_shift(
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     "",
                 );
                 Some(value.as_basic_value_enum())
             }
             "shr" => {
                 let value = context.builder.build_right_shift(
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     false,
                     "",
                 );
@@ -259,8 +389,16 @@ impl FunctionCall {
             }
             "sar" => {
                 let value = context.builder.build_right_shift(
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     true,
                     "",
                 );
@@ -268,7 +406,11 @@ impl FunctionCall {
             }
             "iszero" => {
                 let value = context.builder.build_right_shift(
-                    self.arguments.remove(0).into_llvm(context).into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
                     context
                         .integer_type(crate::BITLENGTH_DEFAULT)
                         .const_int(0, false),

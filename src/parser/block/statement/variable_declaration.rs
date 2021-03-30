@@ -45,8 +45,12 @@ impl VariableDeclaration {
             None => return,
         };
 
+        let value = match expression.into_llvm(context) {
+            Some(value) => value,
+            None => return,
+        };
+
         if self.bindings.len() == 1 {
-            let value = expression.into_llvm(context);
             let identifier = self.bindings.remove(0);
             let pointer = context
                 .builder
@@ -56,7 +60,6 @@ impl VariableDeclaration {
             return;
         }
 
-        let value = expression.into_llvm(context);
         let llvm_type = value.into_struct_value().get_type();
         let pointer = context.builder.build_alloca(llvm_type, "");
         context.builder.build_store(pointer, value);

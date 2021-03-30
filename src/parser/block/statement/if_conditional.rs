@@ -34,13 +34,16 @@ impl IfConditional {
 
     pub fn into_llvm(self, context: &mut Context) {
         let condition = context.builder.build_int_cast(
-            self.condition.into_llvm(context).into_int_value(),
+            self.condition
+                .into_llvm(context)
+                .expect("Always exists")
+                .into_int_value(),
             context.llvm.bool_type(),
             "",
         );
         let main_block = context
             .llvm
-            .append_basic_block(context.function.unwrap(), "if.then");
+            .append_basic_block(context.function.unwrap(), "if.main");
         let join_block = context
             .llvm
             .append_basic_block(context.function.unwrap(), "if.join");

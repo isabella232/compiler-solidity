@@ -74,7 +74,10 @@ impl ForLoop {
         context.builder.build_unconditional_branch(condition_block);
         context.builder.position_at_end(condition_block);
         let condition = context.builder.build_int_cast(
-            self.condition.into_llvm(context).into_int_value(),
+            self.condition
+                .into_llvm(context)
+                .expect("Always exists")
+                .into_int_value(),
             context.llvm.bool_type(),
             "",
         );

@@ -103,7 +103,10 @@ impl Switch {
             cases.push((value, basic_block));
         }
         context.builder.build_switch(
-            self.expression.into_llvm(context).into_int_value(),
+            self.expression
+                .into_llvm(context)
+                .expect("Always exists")
+                .into_int_value(),
             default,
             &cases,
         );

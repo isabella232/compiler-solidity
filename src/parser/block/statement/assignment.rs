@@ -59,8 +59,12 @@ impl Assignment {
     }
 
     pub fn into_llvm(mut self, context: &Context) {
+        let value = match self.initializer.into_llvm(context) {
+            Some(value) => value,
+            None => return,
+        };
+
         if self.bindings.len() == 1 {
-            let value = self.initializer.into_llvm(context);
             let name = self.bindings.remove(0);
             context
                 .builder
@@ -68,7 +72,6 @@ impl Assignment {
             return;
         }
 
-        let value = self.initializer.into_llvm(context);
         let llvm_type = value.into_struct_value().get_type();
         let pointer = context.builder.build_alloca(llvm_type, "");
         context.builder.build_store(pointer, value);
