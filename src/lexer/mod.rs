@@ -17,7 +17,14 @@ use self::lexeme::Lexeme;
 /// The compiler lexer.
 ///
 pub struct Lexer {
+    /// The input source code.
     input: String,
+    /// The tokenization regular expression.
+    regexp: regex::Regex,
+    /// The position in the source code.
+    index: usize,
+    /// The peeked lexeme, waiting to be fetched.
+    peeked: Option<Lexeme>,
 }
 
 impl Lexer {
@@ -26,36 +33,83 @@ impl Lexer {
     ///
     pub fn new(mut input: String) -> Self {
         Self::remove_comments(&mut input);
-        Self { input }
+        input.push('\n');
+
+        Self {
+            input,
+            regexp: Symbol::regexp(),
+            index: 0,
+            peeked: None,
+        }
     }
 
     ///
-    /// Provides vector of tokens for a given source.
+    /// Advances the lexer, returning the next lexeme.
     ///
-    pub fn get_lexemes(&mut self) -> Vec<Lexeme> {
-        let mut lexemes = Vec::new();
-        let mut index = 0;
-        self.input.push('\n');
+    #[allow(clippy::should_implement_trait)]
+    pub fn next(&mut self) -> Lexeme {
+        if let Some(peeked) = self.peeked.take() {
+            return peeked;
+        }
 
-        let regex = Symbol::regexp();
-        while let Some(r#match) = regex.find(&self.input[index..]) {
-            if r#match.start() != 0 {
-                let lexeme = match Keyword::try_from(&self.input[index..index + r#match.start()]) {
+        loop {
+            let r#match = match self.regexp.find(&self.input[self.index..]) {
+                Some(r#match) => r#match,
+                None => return Lexeme::EndOfFile,
+            };
+
+            let lexeme = if r#match.start() != 0 {
+                let lexeme = match Keyword::try_from(
+                    &self.input[self.index..self.index + r#match.start()],
+                ) {
                     Ok(keyword) => Lexeme::Keyword(keyword),
                     Err(string) => Lexeme::Identifier(string),
                 };
-                lexemes.push(lexeme);
-            }
-            if !r#match.as_str().trim().is_empty() {
-                let lexeme = Symbol::try_from(r#match.as_str())
-                    .map(Lexeme::Symbol)
-                    .unwrap();
-                lexemes.push(lexeme);
-            }
-            index += r#match.end();
-        }
+                self.index += r#match.start();
+                lexeme
+            } else if !r#match.as_str().trim().is_empty() {
+                let lexeme = match Symbol::try_from(r#match.as_str()) {
+                    Ok(symbol) => Lexeme::Symbol(symbol),
+                    Err(token) => panic!("invalid token `{}`", token),
+                };
+                self.index += r#match.as_str().len();
+                lexeme
+            } else {
+                self.index += r#match.as_str().len();
+                continue;
+            };
 
-        lexemes
+            return lexeme;
+        }
+    }
+
+    ///
+    /// Peeks the next lexeme without advancing the iterator.
+    ///
+    pub fn peek(&mut self) -> Lexeme {
+        match self.peeked {
+            Some(ref peeked) => peeked.clone(),
+            None => {
+                let peeked = self.next();
+                self.peeked = Some(peeked.clone());
+                peeked
+            }
+        }
+    }
+
+    ///
+    /// Tokenizes the entire input source code string.
+    ///
+    /// Only for testing purposes.
+    ///
+    pub fn tokenize(&mut self) -> Vec<Lexeme> {
+        let mut lexemes = Vec::new();
+        loop {
+            match self.next() {
+                Lexeme::EndOfFile => return lexemes,
+                lexeme => lexemes.push(lexeme),
+            }
+        }
     }
 
     ///

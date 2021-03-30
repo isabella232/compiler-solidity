@@ -9,17 +9,17 @@ use structopt::StructOpt;
 /// YUL to LLVM compiler arguments.
 ///
 #[derive(Debug, StructOpt)]
-#[structopt(name = "YUL compiler for LLVM")]
+#[structopt(name = "The YUL-to-LLVM compiler")]
 pub struct Arguments {
-    /// Input file
+    /// The input file path.
     #[structopt(parse(from_os_str))]
     pub input: PathBuf,
 
-    /// Function to run
-    #[structopt(short, long, default_value = "")]
-    pub run: String,
+    /// The entry point name to run.
+    #[structopt(short, long)]
+    pub entry: Option<String>,
 
-    /// Options to pass to solidity compiler
+    /// The Solidity compiler options.
     #[structopt(long = "Xsol", default_value = "")]
     pub xsol: String,
 }

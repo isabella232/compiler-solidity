@@ -7,7 +7,7 @@ use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 
 #[test]
-fn whitespaces_should_be_ignored() {
+fn ok_identifiers_with_whitespaces() {
     assert_eq!(
         crate::tests::tokenize("   a    b c\td"),
         [
@@ -20,7 +20,7 @@ fn whitespaces_should_be_ignored() {
 }
 
 #[test]
-fn single_line_comments_should_be_ignored() {
+fn ok_identifiers_with_comments() {
     assert_eq!(
         crate::tests::tokenize("   a////comment\nb c\td//comment"),
         [
@@ -33,7 +33,7 @@ fn single_line_comments_should_be_ignored() {
 }
 
 #[test]
-fn multi_line_comments_should_be_tokenized() {
+fn ok_multiline_comments_tokenization() {
     assert_eq!(
         crate::tests::tokenize("/*123 comment function ***/{}"),
         [

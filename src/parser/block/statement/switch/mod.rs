@@ -7,6 +7,8 @@ pub mod case;
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
+use crate::lexer::Lexer;
+use crate::llvm::Generator;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::block::Block;
 
@@ -38,35 +40,32 @@ pub enum State {
 }
 
 impl Switch {
-    pub fn parse<I>(iter: &mut I, _initial: Option<Lexeme>) -> Self
-    where
-        I: crate::PeekableIterator<Item = Lexeme>,
-    {
+    pub fn parse(lexer: &mut Lexer, _initial: Option<Lexeme>) -> Self {
         let mut state = State::CaseOrDefaultKeyword;
 
-        let expression = Expression::parse(iter, None);
+        let expression = Expression::parse(lexer, None);
         let mut cases = Vec::new();
         let mut default = None;
 
         loop {
             match state {
-                State::CaseOrDefaultKeyword => match iter.peek().unwrap() {
+                State::CaseOrDefaultKeyword => match lexer.peek() {
                     Lexeme::Keyword(Keyword::Case) => state = State::CaseBlock,
                     Lexeme::Keyword(Keyword::Default) => state = State::DefaultBlock,
                     _ => break,
                 },
                 State::CaseBlock => {
-                    iter.next();
-                    cases.push(Case::parse(iter));
+                    lexer.next();
+                    cases.push(Case::parse(lexer, None));
                     state = State::CaseOrDefaultKeyword;
                 }
                 State::DefaultBlock => {
-                    iter.next();
-                    match iter.next().expect("unexpected eof in switch statement") {
+                    lexer.next();
+                    match lexer.next() {
                         Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
                         lexeme => panic!("expected `{{`, got {}", lexeme),
                     }
-                    default = Some(Block::parse(iter, None));
+                    default = Some(Block::parse(lexer, None));
                     break;
                 }
             }
@@ -84,50 +83,148 @@ impl Switch {
             default,
         }
     }
+
+    pub fn into_llvm<'a, 'ctx>(mut self, context: &mut Generator<'a, 'ctx>) {
+        let default = context
+            .llvm
+            .append_basic_block(context.function.unwrap(), "switch.default");
+        let join = context
+            .llvm
+            .append_basic_block(context.function.unwrap(), "switch.join");
+        let cases: Vec<(
+            inkwell::values::IntValue<'ctx>,
+            inkwell::basic_block::BasicBlock<'ctx>,
+        )> = self
+            .cases
+            .iter()
+            .map(|case| {
+                let lit = context
+                    .llvm
+                    .custom_width_int_type(256)
+                    .const_int_from_string(
+                        case.label.value.as_str(),
+                        inkwell::types::StringRadix::Decimal,
+                    )
+                    .unwrap();
+                let bb = context
+                    .llvm
+                    .append_basic_block(context.function.unwrap(), "switch.case");
+                (lit, bb)
+            })
+            .collect();
+        context.builder.build_switch(
+            self.expression.into_llvm(context).into_int_value(),
+            default,
+            &cases,
+        );
+        for (_value, basic_block) in cases.into_iter() {
+            context.builder.position_at_end(basic_block);
+            self.cases.remove(0).body.into_llvm_local(context);
+            context.builder.build_unconditional_branch(join);
+        }
+        context.builder.position_at_end(default);
+        if let Some(block) = self.default.take() {
+            block.into_llvm_local(context);
+        }
+        context.builder.build_unconditional_branch(join);
+        context.builder.position_at_end(join);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
-    fn ok_single_case() {
+    fn ok_parse_single_case() {
         let input = r#"{
-            switch expr case \"a\" {}
+            switch expr
+                case "a" {}
         }"#;
 
         crate::tests::parse(input);
     }
 
     #[test]
-    fn ok_single_case_default() {
+    fn ok_parse_single_case_default() {
         let input = r#"{
-            switch expr case \"a\" {} default {}
+            switch expr
+                case "a" {}
+                default {}
         }"#;
 
         crate::tests::parse(input);
     }
 
     #[test]
-    fn ok_multiple_cases() {
+    fn ok_parse_multiple_cases() {
         let input = r#"{
-            switch expr case \"a\" {} case \"b\" {} case \"c\" {}
+            switch expr
+                case "a" {}
+                case "b" {}
+                case "c" {}
         }"#;
 
         crate::tests::parse(input);
     }
 
     #[test]
-    fn ok_multiple_cases_default() {
+    fn ok_parse_multiple_cases_default() {
         let input = r#"{
-            switch expr case \"a\" {} case \"b\" {} case \"c\" {} default {}
+            switch expr
+                case "a" {}
+                case "b" {}
+                case "c" {}
+                default {}
         }"#;
 
         crate::tests::parse(input);
     }
 
     #[test]
-    fn ok_default() {
+    fn ok_parse_default() {
         let input = r#"{
-            switch expr default {}
+            switch expr
+                default {}
+        }"#;
+
+        crate::tests::parse(input);
+    }
+
+    #[test]
+    fn ok_compile_side_effects() {
+        let input = r#"{
+            function foo() -> x {
+                x := 42
+                switch x
+                case 1 {
+                    x := 22
+                }
+                default {
+                    x := 17
+                }
+            }
+        }"#;
+
+        let result = crate::tests::compile(input, Some("foo"));
+        assert_eq!(result, 17);
+    }
+
+    #[test]
+    #[should_panic]
+    fn error_expected_case() {
+        let input = r#"{
+            switch {}
+        }"#;
+
+        crate::tests::parse(input);
+    }
+
+    #[test]
+    #[should_panic]
+    fn error_case_after_default() {
+        let input = r#"{
+            switch expr
+                default {}
+                case 3 {}
         }"#;
 
         crate::tests::parse(input);

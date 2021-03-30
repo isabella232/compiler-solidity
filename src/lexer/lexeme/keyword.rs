@@ -77,3 +77,54 @@ impl fmt::Display for Keyword {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::parser::block::statement::Statement;
+    use crate::parser::block::Block;
+
+    #[test]
+    fn ok_break() {
+        let input = r#"{
+            break
+        }"#;
+
+        let result = crate::tests::parse(input);
+        assert_eq!(
+            result,
+            [Statement::Block(Block {
+                statements: vec![Statement::Break]
+            })]
+        );
+    }
+
+    #[test]
+    fn ok_continue() {
+        let input = r#"{
+            continue
+        }"#;
+
+        let result = crate::tests::parse(input);
+        assert_eq!(
+            result,
+            [Statement::Block(Block {
+                statements: vec![Statement::Continue]
+            })]
+        );
+    }
+
+    #[test]
+    fn ok_leave() {
+        let input = r#"{
+            leave
+        }"#;
+
+        let result = crate::tests::parse(input);
+        assert_eq!(
+            result,
+            [Statement::Block(Block {
+                statements: vec![Statement::Leave]
+            })]
+        );
+    }
+}

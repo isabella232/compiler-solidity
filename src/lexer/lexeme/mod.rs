@@ -21,6 +21,8 @@ pub enum Lexeme {
     Symbol(Symbol),
     /// The identifier lexeme.
     Identifier(String),
+    /// The end-of-file lexeme.
+    EndOfFile,
 }
 
 impl fmt::Display for Lexeme {
@@ -29,6 +31,7 @@ impl fmt::Display for Lexeme {
             Self::Keyword(inner) => write!(f, "{}", inner),
             Self::Symbol(inner) => write!(f, "{}", inner),
             Self::Identifier(inner) => write!(f, "{}", inner),
+            Self::EndOfFile => write!(f, "EOF"),
         }
     }
 }

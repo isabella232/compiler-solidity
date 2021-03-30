@@ -8,37 +8,38 @@ pub mod r#type;
 
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
+use crate::lexer::Lexer;
 
 use self::block::statement::Statement;
 use self::block::Block;
 use self::comment::Comment;
 
 ///
-/// The compiler parser.
+/// The upper module.
 ///
-pub struct Parser {}
+pub struct Module {
+    /// The statement list.
+    pub statements: Vec<Statement>,
+}
 
-impl Parser {
-    ///
-    /// The parser entry point.
-    ///
-    pub fn parse<I>(iter: I) -> Vec<Statement>
-    where
-        I: Iterator<Item = Lexeme>,
-    {
-        let mut result = Vec::new();
-        let peekable = &mut iter.peekable();
-        while let Some(lexeme) = peekable.next() {
+impl Module {
+    pub fn parse(lexer: &mut Lexer, _initial: Option<Lexeme>) -> Self {
+        let mut statements = Vec::new();
+
+        loop {
+            let lexeme = lexer.next();
             match lexeme {
-                Lexeme::Symbol(Symbol::CommentStart) => {
-                    Comment::parse(peekable);
-                }
                 Lexeme::Symbol(Symbol::BracketCurlyLeft) => {
-                    result.push(Statement::Block(Block::parse(peekable, None)));
+                    statements.push(Statement::Block(Block::parse(lexer, None)));
                 }
-                lexeme => panic!("expected /* or {{, got {}", lexeme),
+                Lexeme::Symbol(Symbol::CommentStart) => {
+                    Comment::parse(lexer, None);
+                }
+                Lexeme::EndOfFile => break,
+                lexeme => panic!("expected one of `/*`, `{{`, got {}", lexeme),
             }
         }
-        result
+
+        Self { statements }
     }
 }

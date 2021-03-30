@@ -6,6 +6,7 @@ use regex::Regex;
 
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
+use crate::lexer::Lexer;
 use crate::parser::r#type::Type;
 
 ///
@@ -20,76 +21,36 @@ pub struct Identifier {
 }
 
 impl Identifier {
-    pub fn parse_list<I>(iter: &mut I, first: Lexeme) -> Vec<Self>
-    where
-        I: crate::PeekableIterator<Item = Lexeme>,
-    {
-        let name = match first {
-            Lexeme::Identifier(identifier) => identifier,
-            Lexeme::Symbol(Symbol::ParenthesisRight) => return vec![],
-            lexeme => panic!("expected identifier, got {}", lexeme),
-        };
-        let mut result = vec![Self {
-            name,
-            yul_type: None,
-        }];
-
-        while let Some(Lexeme::Symbol(Symbol::Comma)) = iter.next() {
-            let name = match iter.next().expect("expected identifier") {
-                Lexeme::Identifier(identifier) if Self::is_valid(identifier.as_str()) => identifier,
-                lexeme => panic!("expected an identifier in identifier list, got {}", lexeme),
-            };
-            result.push(Self {
-                name,
-                yul_type: None,
-            });
-        }
-
-        result
-    }
-
-    // TODO: support declarations w/o initialization
-    pub fn parse_typed_list<I>(iter: &mut I, terminator: Lexeme) -> Vec<Self>
-    where
-        I: crate::PeekableIterator<Item = Lexeme>,
-    {
+    pub fn parse_list(
+        lexer: &mut Lexer,
+        mut initial: Option<Lexeme>,
+    ) -> (Vec<Self>, Option<Lexeme>) {
         let mut result = Vec::new();
-        while let Some(lexeme) = iter.next() {
-            if lexeme == terminator {
-                break;
-            }
 
-            if let Lexeme::Identifier(identifier) = lexeme {
-                if Self::is_valid(identifier.as_str()) {
+        loop {
+            let lexeme = match initial.take() {
+                Some(lexeme) => lexeme,
+                None => lexer.next(),
+            };
+
+            match lexeme {
+                Lexeme::Identifier(identifier) if Self::is_valid(identifier.as_str()) => {
                     result.push(Self {
                         name: identifier,
                         yul_type: None,
                     });
                 }
-            }
-
-            match iter
-                .peek()
-                .cloned()
-                .expect("unexpected end for typed parameter list")
-            {
-                Lexeme::Symbol(Symbol::Comma) => {
-                    iter.next();
-                    continue;
+                Lexeme::Symbol(Symbol::Colon) => {
+                    lexer.next();
                 }
-                lexeme if lexeme == terminator => {
-                    iter.next();
-                    break;
-                }
-                _lexeme => {}
+                Lexeme::Symbol(Symbol::Comma) => {}
+                lexeme => return (result, Some(lexeme)),
             }
         }
-
-        result
     }
 
     pub fn is_valid(value: &str) -> bool {
-        let id_pattern = Regex::new(r"^[a-zA-Z_$][a-zA-Z_$0-9.]*$").expect("invalid regex");
+        let id_pattern = Regex::new(r"^[a-zA-Z_\$][a-zA-Z0-9_\$\.]*$").expect("invalid regex");
         id_pattern.is_match(value)
     }
 }

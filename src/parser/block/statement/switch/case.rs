@@ -4,6 +4,7 @@
 
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
+use crate::lexer::Lexer;
 use crate::parser::block::statement::expression::literal::Literal;
 use crate::parser::block::Block;
 
@@ -19,13 +20,10 @@ pub struct Case {
 }
 
 impl Case {
-    pub fn parse<I>(iter: &mut I) -> Self
-    where
-        I: crate::PeekableIterator<Item = Lexeme>,
-    {
-        let literal = iter.next().expect("unexpected eof in switch statement");
+    pub fn parse(lexer: &mut Lexer, _initial: Option<Lexeme>) -> Self {
+        let literal = lexer.next();
 
-        match iter.next().expect("unexpected eof in switch statement") {
+        match lexer.next() {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
             lexeme => panic!("expected `{{`, got {}", lexeme),
         }
@@ -34,7 +32,7 @@ impl Case {
             label: Literal {
                 value: literal.to_string(),
             },
-            body: Block::parse(iter, None),
+            body: Block::parse(lexer, None),
         }
     }
 }

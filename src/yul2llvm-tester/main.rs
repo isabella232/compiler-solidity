@@ -49,7 +49,7 @@ fn read_test_config(file: &Path) -> Result<TestRun, &'static str> {
 fn run_test(run: &TestRun) -> Result<(), String> {
     let invocation = std::process::Command::new("yul2llvm")
         .arg(run.source.to_str().unwrap())
-        .arg("-r")
+        .arg("--entry")
         .arg(run.function.as_str())
         .output();
     if let Err(msg) = invocation {

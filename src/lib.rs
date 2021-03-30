@@ -12,21 +12,23 @@ use self::lexer::lexeme::keyword::Keyword;
 use self::lexer::lexeme::symbol::Symbol;
 use self::lexer::lexeme::Lexeme;
 use self::lexer::Lexer;
-use self::parser::Parser;
+use self::parser::Module;
 
 #[cfg(test)]
 mod tests;
 
 pub mod file_type;
-pub mod generator;
 pub mod lexer;
+pub mod llvm;
 pub mod parser;
 
-/// Abstract compilation step
+///
+/// The compilation steps.
+///
 #[derive(Debug)]
 pub enum Action<'a> {
     SolidityCompiler(&'a str, String),
-    CodeGenerator(String, &'a Option<&'a str>),
+    CodeGenerator(String, Option<String>),
 }
 
 /// Generate temporary output directory for a given solidity input
@@ -48,12 +50,12 @@ fn tmp_yul(input: &str) -> String {
 pub fn generate_actions<'a>(
     file: &'a Path,
     options: &'a str,
-    run: &'a Option<&'a str>,
+    entry: Option<String>,
 ) -> Vec<Action<'a>> {
     match FileType::new(file) {
         FileType::Yul => vec![Action::CodeGenerator(
             String::from(file.to_str().unwrap()),
-            run,
+            entry,
         )],
         FileType::Solidity => {
             let tmp_file = tmp_yul(file.to_str().unwrap());
@@ -61,7 +63,7 @@ pub fn generate_actions<'a>(
             let options_string = String::from(options_string.trim());
             vec![
                 Action::SolidityCompiler(file.to_str().unwrap(), options_string),
-                Action::CodeGenerator(tmp_file, run),
+                Action::CodeGenerator(tmp_file, entry),
             ]
         }
         _ => vec![],
@@ -110,7 +112,7 @@ fn extract_sol_functions(lexemes: &mut Vec<Lexeme>) {
 }
 
 /// Wrap Zinc generator invocation
-pub fn invoke_codegen<'a>(input: &str, run: &'a Option<&'a str>) {
+pub fn invoke_codegen(input: &str, entry: Option<String>) {
     let meta = fs::metadata(input).unwrap();
     let filenames = if meta.is_file() {
         vec![input.to_string()]
@@ -123,18 +125,17 @@ pub fn invoke_codegen<'a>(input: &str, run: &'a Option<&'a str>) {
     for in_file in filenames {
         let input = std::fs::read_to_string(in_file.as_str()).unwrap();
         let mut lexer = Lexer::new(input);
-        let mut lexemes = lexer.get_lexemes();
-        extract_sol_functions(&mut lexemes);
-        let statements = Parser::parse(lexemes.into_iter());
-        generator::Compiler::compile(&statements[0], run);
+        // extract_sol_functions(&mut lexemes);
+        let mut module = Module::parse(&mut lexer, None);
+        llvm::Generator::compile(module.statements.remove(0), entry.clone());
     }
 }
 
 /// Execute an action by calling corresponding handler
-pub fn execute_action(action: &Action) {
+pub fn execute_action(action: Action) {
     match action {
         Action::SolidityCompiler(input, options) => invoke_solidity(input, options.as_str()),
-        Action::CodeGenerator(input, run) => invoke_codegen(input.as_str(), run),
+        Action::CodeGenerator(input, entry) => invoke_codegen(input.as_str(), entry),
     }
 }
 
