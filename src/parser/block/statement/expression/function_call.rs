@@ -7,7 +7,7 @@ use inkwell::values::BasicValue;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Generator;
+use crate::llvm::Context;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::r#type::Type;
 
@@ -54,10 +54,7 @@ impl FunctionCall {
         Self { name, arguments }
     }
 
-    pub fn into_llvm<'ctx, 'a>(
-        self,
-        context: &'ctx Generator<'ctx, 'a>,
-    ) -> inkwell::values::BasicValueEnum<'ctx> {
+    pub fn into_llvm<'ctx>(self, context: &Context<'ctx>) -> inkwell::values::BasicValueEnum<'ctx> {
         match self.clone().builtin(context) {
             Some(expression) => expression,
             None => {
@@ -75,6 +72,7 @@ impl FunctionCall {
                     .builder
                     .build_call(function, &arguments, "")
                     .try_as_basic_value();
+                // TODO: make the return value optional
                 match return_value.left() {
                     Some(return_value) => return_value,
                     None => Type::default()
@@ -86,9 +84,9 @@ impl FunctionCall {
         }
     }
 
-    pub fn builtin<'ctx, 'a>(
+    fn builtin<'ctx>(
         mut self,
-        context: &'ctx Generator<'ctx, 'a>,
+        context: &Context<'ctx>,
     ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
         // TODO: Figure out how to use high-order functions to reduce code duplication.
         match self.name.as_str() {
@@ -157,7 +155,7 @@ impl FunctionCall {
                 );
                 let value = context.builder.build_int_cast(
                     value,
-                    context.llvm.custom_width_int_type(256),
+                    context.integer_type(crate::BITLENGTH_DEFAULT),
                     "",
                 );
                 Some(value.as_basic_value_enum())
@@ -171,7 +169,7 @@ impl FunctionCall {
                 );
                 let value = context.builder.build_int_cast(
                     value,
-                    context.llvm.custom_width_int_type(256),
+                    context.integer_type(crate::BITLENGTH_DEFAULT),
                     "",
                 );
                 Some(value.as_basic_value_enum())
@@ -185,7 +183,7 @@ impl FunctionCall {
                 );
                 let value = context.builder.build_int_cast(
                     value,
-                    context.llvm.custom_width_int_type(256),
+                    context.integer_type(crate::BITLENGTH_DEFAULT),
                     "",
                 );
                 Some(value.as_basic_value_enum())
@@ -199,7 +197,7 @@ impl FunctionCall {
                 );
                 let value = context.builder.build_int_cast(
                     value,
-                    context.llvm.custom_width_int_type(256),
+                    context.integer_type(crate::BITLENGTH_DEFAULT),
                     "",
                 );
                 Some(value.as_basic_value_enum())
@@ -213,7 +211,7 @@ impl FunctionCall {
                 );
                 let value = context.builder.build_int_cast(
                     value,
-                    context.llvm.custom_width_int_type(256),
+                    context.integer_type(crate::BITLENGTH_DEFAULT),
                     "",
                 );
                 Some(value.as_basic_value_enum())
@@ -271,13 +269,15 @@ impl FunctionCall {
             "iszero" => {
                 let value = context.builder.build_right_shift(
                     self.arguments.remove(0).into_llvm(context).into_int_value(),
-                    context.llvm.custom_width_int_type(256).const_int(0, false),
+                    context
+                        .integer_type(crate::BITLENGTH_DEFAULT)
+                        .const_int(0, false),
                     true,
                     "",
                 );
                 let value = context.builder.build_int_cast(
                     value,
-                    context.llvm.custom_width_int_type(256),
+                    context.integer_type(crate::BITLENGTH_DEFAULT),
                     "",
                 );
                 Some(value.as_basic_value_enum())
@@ -285,29 +285,25 @@ impl FunctionCall {
             // TODO: implement once we support it
             "revert" => Some(
                 context
-                    .llvm
-                    .custom_width_int_type(256)
+                    .integer_type(crate::BITLENGTH_DEFAULT)
                     .const_int(0, false)
                     .as_basic_value_enum(),
             ),
             "mstore" => Some(
                 context
-                    .llvm
-                    .custom_width_int_type(256)
+                    .integer_type(crate::BITLENGTH_DEFAULT)
                     .const_int(0, false)
                     .as_basic_value_enum(),
             ),
             "mload" => Some(
                 context
-                    .llvm
-                    .custom_width_int_type(256)
+                    .integer_type(crate::BITLENGTH_DEFAULT)
                     .const_int(0, false)
                     .as_basic_value_enum(),
             ),
             "selfdataload" => Some(
                 context
-                    .llvm
-                    .custom_width_int_type(256)
+                    .integer_type(crate::BITLENGTH_DEFAULT)
                     .const_int(0, false)
                     .as_basic_value_enum(),
             ),

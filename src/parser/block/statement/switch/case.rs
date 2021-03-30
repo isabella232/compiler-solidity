@@ -14,25 +14,25 @@ use crate::parser::block::Block;
 #[derive(Debug, PartialEq)]
 pub struct Case {
     /// The matched constant.
-    pub label: Literal,
+    pub literal: Literal,
     /// The case block.
-    pub body: Block,
+    pub block: Block,
 }
 
 impl Case {
-    pub fn parse(lexer: &mut Lexer, _initial: Option<Lexeme>) -> Self {
-        let literal = lexer.next();
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
+        let literal = match initial.unwrap_or_else(|| lexer.next()) {
+            lexeme @ Lexeme::Literal(_) => Literal::parse(lexer, Some(lexeme)),
+            lexeme => panic!("expected literal, got {}", lexeme),
+        };
 
         match lexer.next() {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
             lexeme => panic!("expected `{{`, got {}", lexeme),
         }
 
-        Self {
-            label: Literal {
-                value: literal.to_string(),
-            },
-            body: Block::parse(lexer, None),
-        }
+        let block = Block::parse(lexer, None);
+
+        Self { literal, block }
     }
 }

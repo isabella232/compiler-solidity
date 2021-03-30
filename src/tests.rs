@@ -17,5 +17,5 @@ pub(crate) fn parse(input: &str) -> Vec<Statement> {
 
 pub(crate) fn compile(input: &str, entry: Option<&str>) -> u64 {
     let mut statements = parse(input);
-    crate::llvm::Generator::compile(statements.remove(0), entry.map(|entry| entry.to_owned()))
+    crate::llvm::Context::compile(statements.remove(0), entry.map(|entry| entry.to_owned()))
 }

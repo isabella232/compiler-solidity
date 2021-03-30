@@ -5,9 +5,9 @@
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Generator;
-use crate::parser::block::statement::expression::identifier::Identifier;
+use crate::llvm::Context;
 use crate::parser::block::Block;
+use crate::parser::identifier::Identifier;
 
 ///
 /// The function definition statement.
@@ -39,7 +39,7 @@ impl FunctionDefinition {
             ),
         }
 
-        let (arguments, next) = Identifier::parse_list(lexer, None);
+        let (arguments, next) = Identifier::parse_typed_list(lexer, None);
 
         match next.unwrap_or_else(|| lexer.next()) {
             Lexeme::Symbol(Symbol::ParenthesisRight) => {}
@@ -52,7 +52,7 @@ impl FunctionDefinition {
         let (result, _next) = match lexer.peek() {
             Lexeme::Symbol(Symbol::Arrow) => {
                 lexer.next();
-                Identifier::parse_list(lexer, None)
+                Identifier::parse_typed_list(lexer, None)
             }
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {
                 lexer.next();
@@ -71,7 +71,7 @@ impl FunctionDefinition {
         }
     }
 
-    pub fn declare(&self, context: &mut Generator) {
+    pub fn declare(&self, context: &mut Context) {
         let argument_types: Vec<_> = self
             .arguments
             .iter()
@@ -84,7 +84,7 @@ impl FunctionDefinition {
         context.create_function(self.name.as_str(), function_type);
     }
 
-    pub fn into_llvm(self, context: &mut Generator) {
+    pub fn into_llvm(self, context: &mut Context) {
         let argument_types: Vec<_> = self
             .arguments
             .iter()

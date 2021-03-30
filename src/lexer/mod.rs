@@ -10,6 +10,9 @@ pub mod lexeme;
 use std::convert::TryFrom;
 
 use self::lexeme::keyword::Keyword;
+use self::lexeme::literal::boolean::Boolean as BooleanLiteral;
+use self::lexeme::literal::integer::Integer as IntegerLiteral;
+use self::lexeme::literal::Literal;
 use self::lexeme::symbol::Symbol;
 use self::lexeme::Lexeme;
 
@@ -62,8 +65,27 @@ impl Lexer {
                 let lexeme = match Keyword::try_from(
                     &self.input[self.index..self.index + r#match.start()],
                 ) {
-                    Ok(keyword) => Lexeme::Keyword(keyword),
-                    Err(string) => Lexeme::Identifier(string),
+                    Ok(keyword) => match BooleanLiteral::try_from(keyword) {
+                        Ok(literal) => Lexeme::Literal(Literal::Boolean(literal)),
+                        Err(keyword) => Lexeme::Keyword(keyword),
+                    },
+                    Err(string) => {
+                        let decimal = regex::Regex::new("^[0-9]+$").expect("Regexp is valid");
+                        let hexadecimal =
+                            regex::Regex::new("^0x[0-9a-fA-F]+$").expect("Regexp is valid");
+
+                        if decimal.is_match(string.as_str()) {
+                            Lexeme::Literal(Literal::Integer(IntegerLiteral::new_decimal(string)))
+                        } else if hexadecimal.is_match(string.as_str()) {
+                            Lexeme::Literal(Literal::Integer(IntegerLiteral::new_hexadecimal(
+                                string,
+                            )))
+                        } else if string.starts_with('"') {
+                            Lexeme::Literal(Literal::String(string.into()))
+                        } else {
+                            Lexeme::Identifier(string)
+                        }
+                    }
                 };
                 self.index += r#match.start();
                 lexeme

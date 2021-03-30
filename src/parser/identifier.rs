@@ -24,6 +24,28 @@ impl Identifier {
     pub fn parse_list(
         lexer: &mut Lexer,
         mut initial: Option<Lexeme>,
+    ) -> (Vec<String>, Option<Lexeme>) {
+        let mut result = Vec::new();
+
+        loop {
+            let lexeme = match initial.take() {
+                Some(lexeme) => lexeme,
+                None => lexer.next(),
+            };
+
+            match lexeme {
+                Lexeme::Identifier(identifier) if Self::is_valid(identifier.as_str()) => {
+                    result.push(identifier);
+                }
+                Lexeme::Symbol(Symbol::Comma) => {}
+                lexeme => return (result, Some(lexeme)),
+            }
+        }
+    }
+
+    pub fn parse_typed_list(
+        lexer: &mut Lexer,
+        mut initial: Option<Lexeme>,
     ) -> (Vec<Self>, Option<Lexeme>) {
         let mut result = Vec::new();
 
@@ -35,13 +57,17 @@ impl Identifier {
 
             match lexeme {
                 Lexeme::Identifier(identifier) if Self::is_valid(identifier.as_str()) => {
+                    let yul_type = match lexer.peek() {
+                        Lexeme::Symbol(Symbol::Colon) => {
+                            lexer.next();
+                            Some(Type::parse(lexer, None))
+                        }
+                        _ => None,
+                    };
                     result.push(Self {
                         name: identifier,
-                        yul_type: None,
+                        yul_type,
                     });
-                }
-                Lexeme::Symbol(Symbol::Colon) => {
-                    lexer.next();
                 }
                 Lexeme::Symbol(Symbol::Comma) => {}
                 lexeme => return (result, Some(lexeme)),

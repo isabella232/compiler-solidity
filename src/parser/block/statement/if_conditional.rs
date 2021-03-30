@@ -5,7 +5,7 @@
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Generator;
+use crate::llvm::Context;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::block::Block;
 
@@ -32,7 +32,7 @@ impl IfConditional {
         Self { condition, block }
     }
 
-    pub fn into_llvm(self, context: &mut Generator) {
+    pub fn into_llvm(self, context: &mut Context) {
         let condition = context.builder.build_int_cast(
             self.condition.into_llvm(context).into_int_value(),
             context.llvm.bool_type(),

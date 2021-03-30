@@ -2,15 +2,12 @@
 //! The assignment expression statement.
 //!
 
-use inkwell::types::BasicType;
-
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Generator;
-use crate::parser::block::statement::expression::identifier::Identifier;
+use crate::llvm::Context;
 use crate::parser::block::statement::expression::Expression;
-use crate::parser::r#type::Type;
+use crate::parser::identifier::Identifier;
 
 ///
 /// The assignment expression statement.
@@ -18,26 +15,34 @@ use crate::parser::r#type::Type;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Assignment {
     /// The variable bindings.
-    pub bindings: Vec<Identifier>,
+    pub bindings: Vec<String>,
     /// The initializing expression.
     pub initializer: Expression,
 }
 
 impl Assignment {
-    pub fn parse(lexer: &mut Lexer, initial: Lexeme) -> Self {
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
+        let lexeme = match initial {
+            Some(lexeme) => lexeme,
+            None => lexer.next(),
+        };
+
         match lexer.peek() {
             Lexeme::Symbol(Symbol::Assignment) => {
                 lexer.next();
+
+                let identifier = match lexeme {
+                    Lexeme::Identifier(identifier) => identifier,
+                    lexeme => panic!("expected identifier, got {}", lexeme),
+                };
+
                 Self {
-                    bindings: vec![Identifier {
-                        name: initial.to_string(),
-                        yul_type: None,
-                    }],
+                    bindings: vec![identifier],
                     initializer: Expression::parse(lexer, None),
                 }
             }
             Lexeme::Symbol(Symbol::Comma) => {
-                let (identifiers, next) = Identifier::parse_list(lexer, Some(initial));
+                let (identifiers, next) = Identifier::parse_list(lexer, Some(lexeme));
 
                 match next.unwrap_or_else(|| lexer.next()) {
                     Lexeme::Symbol(Symbol::Assignment) => {}
@@ -53,21 +58,19 @@ impl Assignment {
         }
     }
 
-    pub fn into_llvm(mut self, context: &Generator) {
+    pub fn into_llvm(mut self, context: &Context) {
         if self.bindings.len() == 1 {
             let value = self.initializer.into_llvm(context);
-            let name = self.bindings.remove(0).name;
+            let name = self.bindings.remove(0);
             context
                 .builder
                 .build_store(context.variables[name.as_str()], value);
             return;
         }
 
-        let types =
-            vec![Type::default().into_llvm(context).as_basic_type_enum(); self.bindings.len()];
-        let llvm_type = context.llvm.struct_type(types.as_slice(), false);
-        let pointer = context.builder.build_alloca(llvm_type, "");
         let value = self.initializer.into_llvm(context);
+        let llvm_type = value.into_struct_value().get_type();
+        let pointer = context.builder.build_alloca(llvm_type, "");
         context.builder.build_store(pointer, value);
 
         for (index, binding) in self.bindings.into_iter().enumerate() {
@@ -82,11 +85,11 @@ impl Assignment {
                 )
             };
 
-            let value = context.builder.build_load(pointer, binding.name.as_str());
+            let value = context.builder.build_load(pointer, binding.as_str());
 
             context
                 .builder
-                .build_store(context.variables[binding.name.as_str()], value);
+                .build_store(context.variables[binding.as_str()], value);
         }
     }
 }
@@ -112,10 +115,28 @@ mod tests {
     }
 
     #[test]
-    fn ok_compile() {
+    fn ok_compile_single() {
         let input = r#"{
             function foo() -> x {
                 let y := x
+            }
+        }"#;
+
+        crate::tests::compile(input, None);
+    }
+
+    #[test]
+    fn ok_compile_multiple() {
+        let input = r#"{
+            function bar() -> x, y {
+                x := 25
+                y := 42
+            }
+
+            function foo() {
+                let x := 1
+                let y := 2
+                x, y := bar()
             }
         }"#;
 

@@ -22,6 +22,9 @@ pub mod lexer;
 pub mod llvm;
 pub mod parser;
 
+pub const BITLENGTH_BOOLEAN: usize = 1;
+pub const BITLENGTH_DEFAULT: usize = 256;
+
 ///
 /// The compilation steps.
 ///
@@ -127,7 +130,7 @@ pub fn invoke_codegen(input: &str, entry: Option<String>) {
         let mut lexer = Lexer::new(input);
         // extract_sol_functions(&mut lexemes);
         let mut module = Module::parse(&mut lexer, None);
-        llvm::Generator::compile(module.statements.remove(0), entry.clone());
+        llvm::Context::compile(module.statements.remove(0), entry.clone());
     }
 }
 

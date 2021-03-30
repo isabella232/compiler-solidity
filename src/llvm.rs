@@ -1,48 +1,39 @@
 //!
-//! The LLVM generator.
+//! The LLVM context.
 //!
 
 use std::collections::HashMap;
 
-use inkwell::basic_block::BasicBlock;
-use inkwell::builder::Builder;
-use inkwell::context::Context;
-use inkwell::module::Module;
-use inkwell::types::BasicTypeEnum;
-use inkwell::types::FunctionType;
-use inkwell::values::FunctionValue;
-use inkwell::values::PointerValue;
-
-use crate::parser::block::statement::expression::identifier::Identifier;
 use crate::parser::block::statement::Statement;
+use crate::parser::identifier::Identifier;
 
 ///
-/// The LLVM generator.
+/// The LLVM context.
 ///
-pub struct Generator<'a, 'ctx> {
+pub struct Context<'ctx> {
     /// The inner LLVM context.
-    pub llvm: &'ctx Context,
+    pub llvm: &'ctx inkwell::context::Context,
     /// The LLVM builder.
-    pub builder: &'a Builder<'ctx>,
+    pub builder: inkwell::builder::Builder<'ctx>,
     /// The current module.
-    pub module: &'a Module<'ctx>,
+    pub module: inkwell::module::Module<'ctx>,
     /// The current function.
-    pub function: Option<FunctionValue<'ctx>>,
+    pub function: Option<inkwell::values::FunctionValue<'ctx>>,
 
     /// The block where the `continue` statement jumps to.
-    pub continue_bb: Option<BasicBlock<'ctx>>,
+    pub continue_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
     /// The block where the `break` statement jumps to.
-    pub break_bb: Option<BasicBlock<'ctx>>,
+    pub break_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
     /// The block where the `leave` statement jumps to.
-    pub leave_bb: Option<BasicBlock<'ctx>>,
+    pub leave_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
 
     /// The declared variables.
-    pub variables: HashMap<String, PointerValue<'ctx>>,
+    pub variables: HashMap<String, inkwell::values::PointerValue<'ctx>>,
     /// The declared functions.
-    pub functions: HashMap<String, FunctionValue<'ctx>>,
+    pub functions: HashMap<String, inkwell::values::FunctionValue<'ctx>>,
 }
 
-impl<'a, 'ctx> Generator<'a, 'ctx> {
+impl<'ctx> Context<'ctx> {
     ///
     /// Returns the integer type of the specified bitlength.
     ///
@@ -66,8 +57,8 @@ impl<'a, 'ctx> Generator<'a, 'ctx> {
     pub fn function_type(
         &self,
         return_values: &[Identifier],
-        argument_types: &[BasicTypeEnum<'ctx>],
-    ) -> FunctionType<'ctx> {
+        argument_types: &[inkwell::types::BasicTypeEnum<'ctx>],
+    ) -> inkwell::types::FunctionType<'ctx> {
         if return_values.is_empty() {
             return self.llvm.void_type().fn_type(argument_types, false);
         }
@@ -81,28 +72,32 @@ impl<'a, 'ctx> Generator<'a, 'ctx> {
             .iter()
             .map(|identifier| {
                 let yul_type = identifier.yul_type.to_owned().unwrap_or_default();
-                BasicTypeEnum::IntType(yul_type.into_llvm(self))
+                inkwell::types::BasicTypeEnum::IntType(yul_type.into_llvm(self))
             })
             .collect();
         let return_type = self.llvm.struct_type(return_types.as_slice(), false);
         return_type.fn_type(argument_types, false)
     }
 
-    pub fn create_function(&mut self, name: &str, fn_t: FunctionType<'ctx>) -> FunctionValue<'ctx> {
+    pub fn create_function(
+        &mut self,
+        name: &str,
+        fn_t: inkwell::types::FunctionType<'ctx>,
+    ) -> inkwell::values::FunctionValue<'ctx> {
         let function = self.module.add_function(name, fn_t, None);
         self.functions.insert(name.to_string(), function);
         function
     }
 
     pub fn compile(statement: Statement, entry: Option<String>) -> u64 {
-        let context = Context::create();
-        let module = context.create_module("module");
-        let builder = context.create_builder();
+        let llvm = inkwell::context::Context::create();
+        let module = llvm.create_module("module");
+        let builder = llvm.create_builder();
 
-        let mut compiler = Generator {
-            llvm: &context,
-            builder: &builder,
-            module: &module,
+        let mut context = Context {
+            llvm: &llvm,
+            builder,
+            module,
             function: None,
 
             break_bb: None,
@@ -115,15 +110,18 @@ impl<'a, 'ctx> Generator<'a, 'ctx> {
 
         match statement {
             Statement::Block(block) => {
-                block.into_llvm_module(&mut compiler);
+                block.into_llvm_module(&mut context);
             }
             _ => unreachable!(),
         }
-        println!("{}", module.print_to_string().to_string());
+        println!("{}", context.module.print_to_string().to_string());
         match entry {
             Some(name) => {
-                let execution_engine = module.create_interpreter_execution_engine().unwrap();
-                let entry = module.get_function(name.as_str()).unwrap();
+                let execution_engine = context
+                    .module
+                    .create_interpreter_execution_engine()
+                    .unwrap();
+                let entry = context.module.get_function(name.as_str()).unwrap();
                 let result = unsafe { execution_engine.run_function(entry, &[]) }.as_int(false);
                 println!("Result: {:?}", result);
                 result

@@ -5,7 +5,7 @@
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Generator;
+use crate::llvm::Context;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::block::Block;
 
@@ -57,7 +57,7 @@ impl ForLoop {
         }
     }
 
-    pub fn into_llvm(self, context: &mut Generator) {
+    pub fn into_llvm(self, context: &mut Context) {
         self.initializer.into_llvm_local(context);
         let condition_block = context
             .llvm

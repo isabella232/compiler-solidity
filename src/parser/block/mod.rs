@@ -4,14 +4,12 @@
 
 pub mod statement;
 
-use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Generator;
+use crate::llvm::Context;
 
 use self::statement::assignment::Assignment;
-use self::statement::expression::identifier::Identifier;
 use self::statement::expression::Expression;
 use self::statement::Statement;
 
@@ -35,16 +33,8 @@ impl Block {
             };
 
             match lexeme {
-                Lexeme::Keyword(Keyword::True) | Lexeme::Keyword(Keyword::False) => {
-                    statements.push(Statement::Expression(Expression::parse(
-                        lexer,
-                        Some(lexeme),
-                    )));
-                }
                 Lexeme::Keyword(_) => statements.push(Statement::parse(lexer, Some(lexeme))),
-                Lexeme::Identifier(ref identifier)
-                    if !Identifier::is_valid(identifier.as_str()) =>
-                {
+                Lexeme::Literal(_) => {
                     statements.push(Statement::Expression(Expression::parse(
                         lexer,
                         Some(lexeme),
@@ -52,10 +42,16 @@ impl Block {
                 }
                 Lexeme::Identifier(_) => match lexer.peek() {
                     Lexeme::Symbol(Symbol::Assignment) => {
-                        statements.push(Statement::Assignment(Assignment::parse(lexer, lexeme)));
+                        statements.push(Statement::Assignment(Assignment::parse(
+                            lexer,
+                            Some(lexeme),
+                        )));
                     }
                     Lexeme::Symbol(Symbol::Comma) => {
-                        statements.push(Statement::Assignment(Assignment::parse(lexer, lexeme)));
+                        statements.push(Statement::Assignment(Assignment::parse(
+                            lexer,
+                            Some(lexeme),
+                        )));
                     }
                     _ => {
                         statements.push(Statement::Expression(Expression::parse(
@@ -78,7 +74,7 @@ impl Block {
     ///
     /// Translates a module block into LLVM.
     ///
-    pub fn into_llvm_module(self, context: &mut Generator) {
+    pub fn into_llvm_module(self, context: &mut Context) {
         for statement in self.statements.iter() {
             match statement {
                 Statement::FunctionDefinition(statement) => {
@@ -98,7 +94,7 @@ impl Block {
     ///
     /// Translates a function or ordinar block into LLVM.
     ///
-    pub fn into_llvm_local(self, context: &mut Generator) {
+    pub fn into_llvm_local(self, context: &mut Context) {
         for statement in self.statements.into_iter() {
             match statement {
                 // The scope can be cleaned up on exit, but let's LLVM do the job. We can also rely

@@ -3,17 +3,14 @@
 //!
 
 pub mod function_call;
-pub mod identifier;
 pub mod literal;
 
-use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Generator;
+use crate::llvm::Context;
 
 use self::function_call::FunctionCall;
-use self::identifier::Identifier;
 use self::literal::Literal;
 
 ///
@@ -24,7 +21,7 @@ pub enum Expression {
     /// The function call subexpression.
     FunctionCall(FunctionCall),
     /// The identifier operand.
-    Identifier(Identifier),
+    Identifier(String),
     /// The literal operand.
     Literal(Literal),
 }
@@ -35,20 +32,8 @@ impl Expression {
             Some(lexeme) => lexeme,
             None => lexer.next(),
         };
-        match lexeme {
-            Lexeme::Keyword(Keyword::True) | Lexeme::Keyword(Keyword::False) => {
-                return Self::Literal(Literal {
-                    value: lexeme.to_string(),
-                });
-            }
-            Lexeme::Identifier(identifier) if !Identifier::is_valid(identifier.as_str()) => {
-                return Self::Literal(Literal { value: identifier });
-            }
-            Lexeme::Identifier(identifier) if identifier.as_str() == "hex" => {
-                // TODO: Check the hex
-                return Self::Literal(Literal { value: identifier });
-            }
-            _ => {}
+        if let Lexeme::Literal(_) = lexeme {
+            return Self::Literal(Literal::parse(lexer, Some(lexeme)));
         }
 
         match lexer.peek() {
@@ -56,22 +41,16 @@ impl Expression {
                 lexer.next();
                 Self::FunctionCall(FunctionCall::parse(lexer, Some(lexeme)))
             }
-            _ => Self::Identifier(Identifier {
-                name: lexeme.to_string(),
-                yul_type: None,
-            }),
+            _ => Self::Identifier(lexeme.to_string()),
         }
     }
 
-    pub fn into_llvm<'ctx, 'a>(
-        self,
-        context: &'ctx Generator<'ctx, 'a>,
-    ) -> inkwell::values::BasicValueEnum<'ctx> {
+    pub fn into_llvm<'ctx>(self, context: &Context<'ctx>) -> inkwell::values::BasicValueEnum<'ctx> {
         match self {
             Self::Literal(inner) => inner.into_llvm(context),
             Self::Identifier(inner) => context
                 .builder
-                .build_load(context.variables[inner.name.as_str()], ""),
+                .build_load(context.variables[inner.as_str()], inner.as_str()),
             Self::FunctionCall(inner) => inner.into_llvm(context),
         }
     }

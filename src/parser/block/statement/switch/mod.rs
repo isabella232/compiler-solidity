@@ -8,7 +8,7 @@ use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Generator;
+use crate::llvm::Context;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::block::Block;
 
@@ -84,34 +84,24 @@ impl Switch {
         }
     }
 
-    pub fn into_llvm<'a, 'ctx>(mut self, context: &mut Generator<'a, 'ctx>) {
+    pub fn into_llvm<'ctx>(mut self, context: &mut Context<'ctx>) {
         let default = context
             .llvm
             .append_basic_block(context.function.unwrap(), "switch.default");
         let join = context
             .llvm
             .append_basic_block(context.function.unwrap(), "switch.join");
-        let cases: Vec<(
+        let mut cases: Vec<(
             inkwell::values::IntValue<'ctx>,
             inkwell::basic_block::BasicBlock<'ctx>,
-        )> = self
-            .cases
-            .iter()
-            .map(|case| {
-                let lit = context
-                    .llvm
-                    .custom_width_int_type(256)
-                    .const_int_from_string(
-                        case.label.value.as_str(),
-                        inkwell::types::StringRadix::Decimal,
-                    )
-                    .unwrap();
-                let bb = context
-                    .llvm
-                    .append_basic_block(context.function.unwrap(), "switch.case");
-                (lit, bb)
-            })
-            .collect();
+        )> = Vec::with_capacity(self.cases.len());
+        for case in self.cases.iter() {
+            let value = case.literal.to_owned().into_llvm(context).into_int_value();
+            let basic_block = context
+                .llvm
+                .append_basic_block(context.function.unwrap(), "switch.case");
+            cases.push((value, basic_block));
+        }
         context.builder.build_switch(
             self.expression.into_llvm(context).into_int_value(),
             default,
@@ -119,7 +109,7 @@ impl Switch {
         );
         for (_value, basic_block) in cases.into_iter() {
             context.builder.position_at_end(basic_block);
-            self.cases.remove(0).body.into_llvm_local(context);
+            self.cases.remove(0).block.into_llvm_local(context);
             context.builder.build_unconditional_branch(join);
         }
         context.builder.position_at_end(default);

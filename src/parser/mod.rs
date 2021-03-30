@@ -4,6 +4,7 @@
 
 pub mod block;
 pub mod comment;
+pub mod identifier;
 pub mod r#type;
 
 use crate::lexer::lexeme::symbol::Symbol;

@@ -34,12 +34,30 @@ pub enum Keyword {
     True,
     /// The `false` keyword.
     False,
+    /// The `bool` keyword.
+    Bool,
+    /// The `int{N}` keyword.
+    Int(usize),
+    /// The `uint{N}` keyword.
+    Uint(usize),
 }
 
 impl TryFrom<&str> for Keyword {
     type Error = String;
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
+        if let Some(input) = input.strip_prefix("int") {
+            if let Ok(bitlength) = input.parse::<usize>() {
+                return Ok(Self::Int(bitlength));
+            }
+        }
+
+        if let Some(input) = input.strip_prefix("uint") {
+            if let Ok(bitlength) = input.parse::<usize>() {
+                return Ok(Self::Uint(bitlength));
+            }
+        }
+
         Ok(match input {
             "function" => Self::Function,
             "let" => Self::Let,
@@ -53,6 +71,7 @@ impl TryFrom<&str> for Keyword {
             "leave" => Self::Leave,
             "true" => Self::True,
             "false" => Self::False,
+            "bool" => Self::Bool,
 
             _ => return Err(input.to_owned()),
         })
@@ -74,6 +93,9 @@ impl fmt::Display for Keyword {
             Self::Leave => write!(f, "leave"),
             Self::True => write!(f, "true"),
             Self::False => write!(f, "false"),
+            Self::Bool => write!(f, "bool"),
+            Self::Int(bitlength) => write!(f, "int{}", bitlength),
+            Self::Uint(bitlength) => write!(f, "uint{}", bitlength),
         }
     }
 }
