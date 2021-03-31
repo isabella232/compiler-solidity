@@ -4,17 +4,17 @@
 
 use inkwell::types::BasicType;
 
+use crate::generator::llvm::Context;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Context;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::identifier::Identifier;
 
 ///
 /// The variable declaration statement.
 ///
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct VariableDeclaration {
     /// The variable bindings list.
     pub bindings: Vec<Identifier>,
@@ -23,12 +23,14 @@ pub struct VariableDeclaration {
 }
 
 impl VariableDeclaration {
-    pub fn parse(lexer: &mut Lexer, _initial: Option<Lexeme>) -> Self {
-        let (bindings, next) = Identifier::parse_typed_list(lexer, None);
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
+        let lexeme = initial.unwrap_or_else(|| lexer.next());
+
+        let (bindings, next) = Identifier::parse_typed_list(lexer, Some(lexeme));
 
         match next.unwrap_or_else(|| lexer.next()) {
             Lexeme::Symbol(Symbol::Assignment) => {}
-            lexeme => panic!("expected ':=', got {}", lexeme),
+            lexeme => panic!("Expected ':=', got {}", lexeme),
         }
 
         let expression = Expression::parse(lexer, None);
@@ -78,11 +80,7 @@ impl VariableDeclaration {
 
             let value = context.builder.build_load(pointer, binding.name.as_str());
 
-            let yul_type = binding
-                .yul_type
-                .to_owned()
-                .unwrap_or_default()
-                .into_llvm(context);
+            let yul_type = binding.yul_type.unwrap_or_default().into_llvm(context);
             let pointer = context
                 .builder
                 .build_alloca(yul_type.as_basic_type_enum(), binding.name.as_str());

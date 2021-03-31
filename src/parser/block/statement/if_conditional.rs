@@ -2,29 +2,31 @@
 //! The if-conditional statement.
 //!
 
+use crate::generator::llvm::Context;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Context;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::block::Block;
 
 ///
 /// The if-conditional statement.
 ///
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct IfConditional {
     pub condition: Expression,
     pub block: Block,
 }
 
 impl IfConditional {
-    pub fn parse(lexer: &mut Lexer, _initial: Option<Lexeme>) -> Self {
-        let condition = Expression::parse(lexer, None);
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
+        let lexeme = initial.unwrap_or_else(|| lexer.next());
+
+        let condition = Expression::parse(lexer, Some(lexeme));
 
         match lexer.next() {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => panic!("expected `{{`, found {}", lexeme),
+            lexeme => panic!("Expected `{{`, found {}", lexeme),
         }
 
         let block = Block::parse(lexer, None);

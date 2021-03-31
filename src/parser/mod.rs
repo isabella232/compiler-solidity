@@ -7,40 +7,43 @@ pub mod comment;
 pub mod identifier;
 pub mod r#type;
 
+use crate::generator::llvm::Context;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 
-use self::block::statement::Statement;
 use self::block::Block;
 use self::comment::Comment;
 
 ///
 /// The upper module.
 ///
+#[derive(Debug, PartialEq, Clone)]
 pub struct Module {
-    /// The statement list.
-    pub statements: Vec<Statement>,
+    /// The main block.
+    pub block: Block,
 }
 
 impl Module {
-    pub fn parse(lexer: &mut Lexer, _initial: Option<Lexeme>) -> Self {
-        let mut statements = Vec::new();
-
+    pub fn parse(lexer: &mut Lexer, mut initial: Option<Lexeme>) -> Self {
         loop {
-            let lexeme = lexer.next();
+            let lexeme = initial.take().unwrap_or_else(|| lexer.next());
+
             match lexeme {
                 Lexeme::Symbol(Symbol::BracketCurlyLeft) => {
-                    statements.push(Statement::Block(Block::parse(lexer, None)));
+                    return Self {
+                        block: Block::parse(lexer, None),
+                    };
                 }
                 Lexeme::Symbol(Symbol::CommentStart) => {
                     Comment::parse(lexer, None);
                 }
-                Lexeme::EndOfFile => break,
-                lexeme => panic!("expected one of `/*`, `{{`, got {}", lexeme),
+                lexeme => panic!("Expected one of `/*`, `{{`, got {}", lexeme),
             }
         }
+    }
 
-        Self { statements }
+    pub fn into_llvm(self, context: &mut Context) {
+        self.block.into_llvm_module(context);
     }
 }

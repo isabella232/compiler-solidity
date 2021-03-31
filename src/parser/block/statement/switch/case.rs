@@ -11,7 +11,7 @@ use crate::parser::block::Block;
 ///
 /// The switch statement case.
 ///
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Case {
     /// The matched constant.
     pub literal: Literal,
@@ -21,14 +21,16 @@ pub struct Case {
 
 impl Case {
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let literal = match initial.unwrap_or_else(|| lexer.next()) {
+        let lexeme = initial.unwrap_or_else(|| lexer.next());
+
+        let literal = match lexeme {
             lexeme @ Lexeme::Literal(_) => Literal::parse(lexer, Some(lexeme)),
-            lexeme => panic!("expected literal, got {}", lexeme),
+            lexeme => panic!("Expected literal, got {}", lexeme),
         };
 
         match lexer.next() {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => panic!("expected `{{`, got {}", lexeme),
+            lexeme => panic!("Expected `{{`, got {}", lexeme),
         }
 
         let block = Block::parse(lexer, None);

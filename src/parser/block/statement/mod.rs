@@ -26,7 +26,7 @@ use self::variable_declaration::VariableDeclaration;
 ///
 /// The block statement.
 ///
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     Block(Block),
     Expression(Expression),
@@ -42,11 +42,8 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn parse(lexer: &mut Lexer, mut initial: Option<Lexeme>) -> Self {
-        let lexeme = match initial.take() {
-            Some(lexeme) => lexeme,
-            None => lexer.next(),
-        };
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
+        let lexeme = initial.unwrap_or_else(|| lexer.next());
 
         match lexeme {
             Lexeme::Keyword(Keyword::Function) => Statement::FunctionDefinition(FunctionDefinition::parse(lexer, None)),
@@ -57,7 +54,14 @@ impl Statement {
             Lexeme::Keyword(Keyword::Break) => Statement::Break,
             Lexeme::Keyword(Keyword::Continue) => Statement::Continue,
             Lexeme::Keyword(Keyword::Leave) => Statement::Leave,
-            lexeme => panic!("expected one of `function`, `let`, `if`, `switch`, `for`, `break`, `continue`, `leave`, got {}", lexeme),
+            lexeme => panic!("Expected one of `function`, `let`, `if`, `switch`, `for`, `break`, `continue`, `leave`, got {}", lexeme),
+        }
+    }
+
+    pub fn into_block(self) -> Block {
+        match self {
+            Self::Block(block) => block,
+            _ => panic!("Expected block"),
         }
     }
 }

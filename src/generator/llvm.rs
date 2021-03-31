@@ -4,8 +4,8 @@
 
 use std::collections::HashMap;
 
-use crate::parser::block::statement::Statement;
 use crate::parser::identifier::Identifier;
+use crate::parser::Module;
 
 ///
 /// The LLVM context.
@@ -21,11 +21,11 @@ pub struct Context<'ctx> {
     pub function: Option<inkwell::values::FunctionValue<'ctx>>,
 
     /// The block where the `continue` statement jumps to.
-    pub continue_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+    pub continue_block: Option<inkwell::basic_block::BasicBlock<'ctx>>,
     /// The block where the `break` statement jumps to.
-    pub break_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+    pub break_block: Option<inkwell::basic_block::BasicBlock<'ctx>>,
     /// The block where the `leave` statement jumps to.
-    pub leave_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+    pub leave_block: Option<inkwell::basic_block::BasicBlock<'ctx>>,
 
     /// The declared variables.
     pub variables: HashMap<String, inkwell::values::PointerValue<'ctx>>,
@@ -34,6 +34,49 @@ pub struct Context<'ctx> {
 }
 
 impl<'ctx> Context<'ctx> {
+    /// The variables hashmap default capacity.
+    const VARIABLE_HASHMAP_INITIAL_CAPACITY: usize = 64;
+    /// The functions hashmap default capacity.
+    const FUNCTION_HASHMAP_INITIAL_CAPACITY: usize = 64;
+
+    ///
+    /// A shortcut constructor.
+    ///
+    pub fn new(llvm: &'ctx inkwell::context::Context) -> Self {
+        Self {
+            llvm,
+            builder: llvm.create_builder(),
+            module: llvm.create_module("module"),
+            function: None,
+
+            break_block: None,
+            continue_block: None,
+            leave_block: None,
+
+            variables: HashMap::with_capacity(Self::VARIABLE_HASHMAP_INITIAL_CAPACITY),
+            functions: HashMap::with_capacity(Self::FUNCTION_HASHMAP_INITIAL_CAPACITY),
+        }
+    }
+
+    ///
+    /// Compiles and runs the module, returning the `entry` function result.
+    ///
+    pub fn compile(mut self, module: Module, entry: Option<String>) -> Option<u64> {
+        module.into_llvm(&mut self);
+        println!("{}", self.module.print_to_string().to_string());
+
+        let execution_engine = self
+            .module
+            .create_interpreter_execution_engine()
+            .expect("Execution engine creation");
+        let entry = self
+            .module
+            .get_function(entry?.as_str())
+            .expect("Always exists");
+        let result = unsafe { execution_engine.run_function(entry, &[]) }.as_int(false);
+        Some(result)
+    }
+
     ///
     /// Returns the integer type of the specified bitlength.
     ///
@@ -87,46 +130,5 @@ impl<'ctx> Context<'ctx> {
         let function = self.module.add_function(name, fn_t, None);
         self.functions.insert(name.to_string(), function);
         function
-    }
-
-    pub fn compile(statement: Statement, entry: Option<String>) -> u64 {
-        let llvm = inkwell::context::Context::create();
-        let module = llvm.create_module("module");
-        let builder = llvm.create_builder();
-
-        let mut context = Context {
-            llvm: &llvm,
-            builder,
-            module,
-            function: None,
-
-            break_bb: None,
-            continue_bb: None,
-            leave_bb: None,
-
-            variables: HashMap::new(),
-            functions: HashMap::new(),
-        };
-
-        match statement {
-            Statement::Block(block) => {
-                block.into_llvm_module(&mut context);
-            }
-            _ => unreachable!(),
-        }
-        println!("{}", context.module.print_to_string().to_string());
-        match entry {
-            Some(name) => {
-                let execution_engine = context
-                    .module
-                    .create_interpreter_execution_engine()
-                    .unwrap();
-                let entry = context.module.get_function(name.as_str()).unwrap();
-                let result = unsafe { execution_engine.run_function(entry, &[]) }.as_int(false);
-                println!("Result: {:?}", result);
-                result
-            }
-            None => 0,
-        }
     }
 }

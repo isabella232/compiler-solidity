@@ -2,13 +2,17 @@
 //! The function call subexpression.
 //!
 
+pub mod name;
+
 use inkwell::values::BasicValue;
 
+use crate::generator::llvm::Context;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Context;
 use crate::parser::block::statement::expression::Expression;
+
+use self::name::Name;
 
 ///
 /// The function call subexpression.
@@ -16,16 +20,18 @@ use crate::parser::block::statement::expression::Expression;
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionCall {
     /// The function name.
-    pub name: String,
+    pub name: Name,
     /// The function arguments expression list.
     pub arguments: Vec<Expression>,
 }
 
 impl FunctionCall {
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let name = match initial.unwrap_or_else(|| lexer.next()) {
-            Lexeme::Identifier(identifier) => identifier,
-            lexeme => panic!("expected an identifier, found {}", lexeme),
+        let lexeme = initial.unwrap_or_else(|| lexer.next());
+
+        let name = match lexeme {
+            Lexeme::Identifier(identifier) => Name::from(identifier.as_str()),
+            lexeme => panic!("Expected an identifier, found {}", lexeme),
         };
 
         let mut arguments = Vec::new();
@@ -54,37 +60,11 @@ impl FunctionCall {
     }
 
     pub fn into_llvm<'ctx>(
-        self,
-        context: &Context<'ctx>,
-    ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-        if let Some(value) = self.clone().builtin(context) {
-            return Some(value);
-        }
-
-        let name = self.name.clone();
-        let arguments: Vec<inkwell::values::BasicValueEnum> = self
-            .arguments
-            .into_iter()
-            .filter_map(|argument| argument.into_llvm(context))
-            .collect();
-        let function = context
-            .module
-            .get_function(self.name.as_str())
-            .unwrap_or_else(|| panic!("Undeclared function {}", name));
-        let return_value = context
-            .builder
-            .build_call(function, &arguments, "")
-            .try_as_basic_value();
-        return_value.left()
-    }
-
-    fn builtin<'ctx>(
         mut self,
         context: &Context<'ctx>,
     ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-        // TODO: Figure out how to use high-order functions to reduce code duplication.
-        match self.name.as_str() {
-            "add" => {
+        match self.name {
+            Name::Add => {
                 let value = context.builder.build_int_add(
                     self.arguments
                         .remove(0)
@@ -100,7 +80,7 @@ impl FunctionCall {
                 );
                 Some(value.as_basic_value_enum())
             }
-            "sub" => {
+            Name::Sub => {
                 let value = context.builder.build_int_sub(
                     self.arguments
                         .remove(0)
@@ -116,7 +96,7 @@ impl FunctionCall {
                 );
                 Some(value.as_basic_value_enum())
             }
-            "mul" => {
+            Name::Mul => {
                 let value = context.builder.build_int_mul(
                     self.arguments
                         .remove(0)
@@ -132,7 +112,7 @@ impl FunctionCall {
                 );
                 Some(value.as_basic_value_enum())
             }
-            "div" => {
+            Name::Div => {
                 let value = context.builder.build_int_unsigned_div(
                     self.arguments
                         .remove(0)
@@ -148,23 +128,7 @@ impl FunctionCall {
                 );
                 Some(value.as_basic_value_enum())
             }
-            "sdiv" => {
-                let value = context.builder.build_int_signed_div(
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    "",
-                );
-                Some(value.as_basic_value_enum())
-            }
-            "mod" => {
+            Name::Mod => {
                 let value = context.builder.build_int_unsigned_rem(
                     self.arguments
                         .remove(0)
@@ -180,23 +144,7 @@ impl FunctionCall {
                 );
                 Some(value.as_basic_value_enum())
             }
-            "smod" => {
-                let value = context.builder.build_int_signed_rem(
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    "",
-                );
-                Some(value.as_basic_value_enum())
-            }
-            "lt" => {
+            Name::Lt => {
                 let value = context.builder.build_int_compare(
                     inkwell::IntPredicate::ULT,
                     self.arguments
@@ -218,29 +166,7 @@ impl FunctionCall {
                 );
                 Some(value.as_basic_value_enum())
             }
-            "slt" => {
-                let value = context.builder.build_int_compare(
-                    inkwell::IntPredicate::SLT,
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    "",
-                );
-                let value = context.builder.build_int_cast(
-                    value,
-                    context.integer_type(crate::BITLENGTH_DEFAULT),
-                    "",
-                );
-                Some(value.as_basic_value_enum())
-            }
-            "gt" => {
+            Name::Gt => {
                 let value = context.builder.build_int_compare(
                     inkwell::IntPredicate::UGT,
                     self.arguments
@@ -262,29 +188,7 @@ impl FunctionCall {
                 );
                 Some(value.as_basic_value_enum())
             }
-            "sgt" => {
-                let value = context.builder.build_int_compare(
-                    inkwell::IntPredicate::SGT,
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    "",
-                );
-                let value = context.builder.build_int_cast(
-                    value,
-                    context.integer_type(crate::BITLENGTH_DEFAULT),
-                    "",
-                );
-                Some(value.as_basic_value_enum())
-            }
-            "eq" => {
+            Name::Eq => {
                 let value = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
                     self.arguments
@@ -306,7 +210,7 @@ impl FunctionCall {
                 );
                 Some(value.as_basic_value_enum())
             }
-            "and" => {
+            Name::And => {
                 let value = context.builder.build_and(
                     self.arguments
                         .remove(0)
@@ -322,7 +226,7 @@ impl FunctionCall {
                 );
                 Some(value.as_basic_value_enum())
             }
-            "or" => {
+            Name::Or => {
                 let value = context.builder.build_or(
                     self.arguments
                         .remove(0)
@@ -338,7 +242,7 @@ impl FunctionCall {
                 );
                 Some(value.as_basic_value_enum())
             }
-            "xor" => {
+            Name::Xor => {
                 let value = context.builder.build_xor(
                     self.arguments
                         .remove(0)
@@ -354,57 +258,7 @@ impl FunctionCall {
                 );
                 Some(value.as_basic_value_enum())
             }
-            "shl" => {
-                let value = context.builder.build_left_shift(
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    "",
-                );
-                Some(value.as_basic_value_enum())
-            }
-            "shr" => {
-                let value = context.builder.build_right_shift(
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    false,
-                    "",
-                );
-                Some(value.as_basic_value_enum())
-            }
-            "sar" => {
-                let value = context.builder.build_right_shift(
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    true,
-                    "",
-                );
-                Some(value.as_basic_value_enum())
-            }
-            "iszero" => {
+            Name::IsZero => {
                 let value = context.builder.build_right_shift(
                     self.arguments
                         .remove(0)
@@ -424,32 +278,151 @@ impl FunctionCall {
                 );
                 Some(value.as_basic_value_enum())
             }
-            // TODO: implement once we support it
-            "revert" => Some(
-                context
-                    .integer_type(crate::BITLENGTH_DEFAULT)
-                    .const_int(0, false)
-                    .as_basic_value_enum(),
-            ),
-            "mstore" => Some(
-                context
-                    .integer_type(crate::BITLENGTH_DEFAULT)
-                    .const_int(0, false)
-                    .as_basic_value_enum(),
-            ),
-            "mload" => Some(
-                context
-                    .integer_type(crate::BITLENGTH_DEFAULT)
-                    .const_int(0, false)
-                    .as_basic_value_enum(),
-            ),
-            "selfdataload" => Some(
-                context
-                    .integer_type(crate::BITLENGTH_DEFAULT)
-                    .const_int(0, false)
-                    .as_basic_value_enum(),
-            ),
-            _ => None,
+
+            Name::Sdiv => {
+                let value = context.builder.build_int_signed_div(
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    "",
+                );
+                Some(value.as_basic_value_enum())
+            }
+            Name::Smod => {
+                let value = context.builder.build_int_signed_rem(
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    "",
+                );
+                Some(value.as_basic_value_enum())
+            }
+            Name::Slt => {
+                let value = context.builder.build_int_compare(
+                    inkwell::IntPredicate::SLT,
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    "",
+                );
+                let value = context.builder.build_int_cast(
+                    value,
+                    context.integer_type(crate::BITLENGTH_DEFAULT),
+                    "",
+                );
+                Some(value.as_basic_value_enum())
+            }
+            Name::Sgt => {
+                let value = context.builder.build_int_compare(
+                    inkwell::IntPredicate::SGT,
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    "",
+                );
+                let value = context.builder.build_int_cast(
+                    value,
+                    context.integer_type(crate::BITLENGTH_DEFAULT),
+                    "",
+                );
+                Some(value.as_basic_value_enum())
+            }
+            Name::Shl => {
+                let value = context.builder.build_left_shift(
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    "",
+                );
+                Some(value.as_basic_value_enum())
+            }
+            Name::Shr => {
+                let value = context.builder.build_right_shift(
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    false,
+                    "",
+                );
+                Some(value.as_basic_value_enum())
+            }
+            Name::Sar => {
+                let value = context.builder.build_right_shift(
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    self.arguments
+                        .remove(0)
+                        .into_llvm(context)
+                        .expect("Always exists")
+                        .into_int_value(),
+                    true,
+                    "",
+                );
+                Some(value.as_basic_value_enum())
+            }
+
+            Name::UserDefined(name) => {
+                let arguments: Vec<inkwell::values::BasicValueEnum> = self
+                    .arguments
+                    .into_iter()
+                    .filter_map(|argument| argument.into_llvm(context))
+                    .collect();
+                let function = context
+                    .module
+                    .get_function(name.as_str())
+                    .unwrap_or_else(|| panic!("Undeclared function {}", name));
+                let return_value = context
+                    .builder
+                    .build_call(function, &arguments, "")
+                    .try_as_basic_value();
+                return_value.left()
+            }
+            _ => unimplemented!(),
         }
     }
 }

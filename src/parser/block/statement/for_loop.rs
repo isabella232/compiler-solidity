@@ -2,17 +2,17 @@
 //! The for-loop statement.
 //!
 
+use crate::generator::llvm::Context;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Context;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::block::Block;
 
 ///
 /// The for-loop statement.
 ///
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ForLoop {
     /// The index variables initialization block.
     pub initializer: Block,
@@ -25,10 +25,12 @@ pub struct ForLoop {
 }
 
 impl ForLoop {
-    pub fn parse(lexer: &mut Lexer, _initial: Option<Lexeme>) -> Self {
-        match lexer.next() {
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
+        let lexeme = initial.unwrap_or_else(|| lexer.next());
+
+        match lexeme {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => panic!("expected `{{`, found {}", lexeme),
+            lexeme => panic!("Expected `{{`, found {}", lexeme),
         }
 
         let initializer = Block::parse(lexer, None);
@@ -37,14 +39,14 @@ impl ForLoop {
 
         match lexer.next() {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => panic!("expected `{{`, found {}", lexeme),
+            lexeme => panic!("Expected `{{`, found {}", lexeme),
         }
 
         let finalizer = Block::parse(lexer, None);
 
         match lexer.next() {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => panic!("expected `{{`, found {}", lexeme),
+            lexeme => panic!("Expected `{{`, found {}", lexeme),
         }
 
         let body = Block::parse(lexer, None);
@@ -84,16 +86,16 @@ impl ForLoop {
         context
             .builder
             .build_conditional_branch(condition, body, exit);
-        context.break_bb = Some(exit);
-        context.continue_bb = Some(increment_block);
+        context.break_block = Some(exit);
+        context.continue_block = Some(increment_block);
         context.builder.position_at_end(body);
         self.body.into_llvm_local(context);
         context.builder.build_unconditional_branch(increment_block);
         context.builder.position_at_end(increment_block);
         self.finalizer.into_llvm_local(context);
         context.builder.build_unconditional_branch(condition_block);
-        context.break_bb = None;
-        context.continue_bb = None;
+        context.break_block = None;
+        context.continue_block = None;
         context.builder.position_at_end(exit);
     }
 }

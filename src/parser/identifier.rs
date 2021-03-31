@@ -2,8 +2,6 @@
 //! The YUL source code identifier.
 //!
 
-use regex::Regex;
-
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -28,13 +26,10 @@ impl Identifier {
         let mut result = Vec::new();
 
         loop {
-            let lexeme = match initial.take() {
-                Some(lexeme) => lexeme,
-                None => lexer.next(),
-            };
+            let lexeme = initial.take().unwrap_or_else(|| lexer.next());
 
             match lexeme {
-                Lexeme::Identifier(identifier) if Self::is_valid(identifier.as_str()) => {
+                Lexeme::Identifier(identifier) => {
                     result.push(identifier);
                 }
                 Lexeme::Symbol(Symbol::Comma) => {}
@@ -50,13 +45,10 @@ impl Identifier {
         let mut result = Vec::new();
 
         loop {
-            let lexeme = match initial.take() {
-                Some(lexeme) => lexeme,
-                None => lexer.next(),
-            };
+            let lexeme = initial.take().unwrap_or_else(|| lexer.next());
 
             match lexeme {
-                Lexeme::Identifier(identifier) if Self::is_valid(identifier.as_str()) => {
+                Lexeme::Identifier(identifier) => {
                     let yul_type = match lexer.peek() {
                         Lexeme::Symbol(Symbol::Colon) => {
                             lexer.next();
@@ -73,10 +65,5 @@ impl Identifier {
                 lexeme => return (result, Some(lexeme)),
             }
         }
-    }
-
-    pub fn is_valid(value: &str) -> bool {
-        let id_pattern = Regex::new(r"^[a-zA-Z_\$][a-zA-Z0-9_\$\.]*$").expect("invalid regex");
-        id_pattern.is_match(value)
     }
 }

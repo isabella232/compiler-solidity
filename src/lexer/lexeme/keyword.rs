@@ -104,6 +104,7 @@ impl fmt::Display for Keyword {
 mod tests {
     use crate::parser::block::statement::Statement;
     use crate::parser::block::Block;
+    use crate::parser::Module;
 
     #[test]
     fn ok_break() {
@@ -114,9 +115,11 @@ mod tests {
         let result = crate::tests::parse(input);
         assert_eq!(
             result,
-            [Statement::Block(Block {
-                statements: vec![Statement::Break]
-            })]
+            Module {
+                block: Block {
+                    statements: vec![Statement::Break]
+                }
+            }
         );
     }
 
@@ -129,9 +132,11 @@ mod tests {
         let result = crate::tests::parse(input);
         assert_eq!(
             result,
-            [Statement::Block(Block {
-                statements: vec![Statement::Continue]
-            })]
+            Module {
+                block: Block {
+                    statements: vec![Statement::Continue]
+                }
+            }
         );
     }
 
@@ -144,9 +149,11 @@ mod tests {
         let result = crate::tests::parse(input);
         assert_eq!(
             result,
-            [Statement::Block(Block {
-                statements: vec![Statement::Leave]
-            })]
+            Module {
+                block: Block {
+                    statements: vec![Statement::Leave]
+                }
+            }
         );
     }
 }

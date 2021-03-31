@@ -2,19 +2,23 @@
 //! Datatype for a lexeme for further analysis and translation.
 //!
 
+use crate::generator::llvm::Context;
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Context;
 
 ///
 /// Datatype for a lexeme for further analysis and translation.
 ///
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type {
+    /// The `bool` type.
     Bool,
+    /// The `int{N}` type.
     Int(usize),
+    /// The `uint{N}` type.
     UInt(usize),
+    /// The custom user-defined type.
     Custom(String),
 }
 
@@ -26,17 +30,14 @@ impl Default for Type {
 
 impl Type {
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let lexeme = match initial {
-            Some(lexeme) => lexeme,
-            None => lexer.next(),
-        };
+        let lexeme = initial.unwrap_or_else(|| lexer.next());
 
         match lexeme {
             Lexeme::Keyword(Keyword::Bool) => Self::Bool,
             Lexeme::Keyword(Keyword::Int(bitlength)) => Self::Int(bitlength),
             Lexeme::Keyword(Keyword::Uint(bitlength)) => Self::UInt(bitlength),
             Lexeme::Identifier(identifier) => Self::Custom(identifier),
-            lexeme => panic!("expected type, got {}", lexeme),
+            lexeme => panic!("Expected type, got {}", lexeme),
         }
     }
 

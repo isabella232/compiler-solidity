@@ -4,10 +4,10 @@
 
 pub mod statement;
 
+use crate::generator::llvm::Context;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Context;
 
 use self::statement::assignment::Assignment;
 use self::statement::expression::Expression;
@@ -16,7 +16,7 @@ use self::statement::Statement;
 ///
 /// The source code block.
 ///
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Block {
     /// The block statements.
     pub statements: Vec<Statement>,
@@ -27,10 +27,7 @@ impl Block {
         let mut statements = Vec::new();
 
         loop {
-            let lexeme = match initial.take() {
-                Some(lexeme) => lexeme,
-                None => lexer.next(),
-            };
+            let lexeme = initial.take().unwrap_or_else(|| lexer.next());
 
             match lexeme {
                 Lexeme::Keyword(_) => statements.push(Statement::parse(lexer, Some(lexeme))),
@@ -111,17 +108,17 @@ impl Block {
                 Statement::Leave => {
                     context
                         .builder
-                        .build_unconditional_branch(context.leave_bb.unwrap());
+                        .build_unconditional_branch(context.leave_block.expect("Always exists"));
                 }
                 Statement::Break => {
                     context
                         .builder
-                        .build_unconditional_branch(context.break_bb.unwrap());
+                        .build_unconditional_branch(context.break_block.expect("Always exists"));
                 }
                 Statement::Continue => {
                     context
                         .builder
-                        .build_unconditional_branch(context.continue_bb.unwrap());
+                        .build_unconditional_branch(context.continue_block.expect("Always exists"));
                 }
                 _ => unreachable!(),
             }
@@ -133,6 +130,7 @@ impl Block {
 mod tests {
     use crate::parser::block::statement::Statement;
     use crate::parser::block::Block;
+    use crate::parser::Module;
 
     #[test]
     fn ok_nested() {
@@ -140,9 +138,11 @@ mod tests {
             {}
         }"#;
 
-        let expected = vec![Statement::Block(Block {
-            statements: vec![Statement::Block(Block { statements: vec![] })],
-        })];
+        let expected = Module {
+            block: Block {
+                statements: vec![Statement::Block(Block { statements: vec![] })],
+            },
+        };
 
         let result = crate::tests::parse(input);
         assert_eq!(expected, result,);

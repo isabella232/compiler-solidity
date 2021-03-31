@@ -2,10 +2,10 @@
 //! The assignment expression statement.
 //!
 
+use crate::generator::llvm::Context;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Context;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::identifier::Identifier;
 
@@ -22,10 +22,7 @@ pub struct Assignment {
 
 impl Assignment {
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let lexeme = match initial {
-            Some(lexeme) => lexeme,
-            None => lexer.next(),
-        };
+        let lexeme = initial.unwrap_or_else(|| lexer.next());
 
         match lexer.peek() {
             Lexeme::Symbol(Symbol::Assignment) => {
@@ -33,7 +30,7 @@ impl Assignment {
 
                 let identifier = match lexeme {
                     Lexeme::Identifier(identifier) => identifier,
-                    lexeme => panic!("expected identifier, got {}", lexeme),
+                    lexeme => panic!("Expected identifier, got {}", lexeme),
                 };
 
                 Self {
@@ -46,7 +43,7 @@ impl Assignment {
 
                 match next.unwrap_or_else(|| lexer.next()) {
                     Lexeme::Symbol(Symbol::Assignment) => {}
-                    lexeme => panic!("expected ':=', got {}", lexeme),
+                    lexeme => panic!("Expected ':=', got {}", lexeme),
                 }
 
                 Self {

@@ -35,6 +35,7 @@ fn ok_identifiers_with_comments() {
 }
 
 #[test]
+#[ignore]
 fn ok_multiline_comments_tokenization() {
     assert_eq!(
         crate::tests::tokenize("/*123 comment function ***/{}"),

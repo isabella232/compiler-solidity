@@ -4,11 +4,11 @@
 
 pub mod case;
 
+use crate::generator::llvm::Context;
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Context;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::block::Block;
 
@@ -17,7 +17,7 @@ use self::case::Case;
 ///
 /// The switch statement.
 ///
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Switch {
     /// The expression being matched.
     pub expression: Expression,
@@ -40,10 +40,11 @@ pub enum State {
 }
 
 impl Switch {
-    pub fn parse(lexer: &mut Lexer, _initial: Option<Lexeme>) -> Self {
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
+        let lexeme = initial.unwrap_or_else(|| lexer.next());
         let mut state = State::CaseOrDefaultKeyword;
 
-        let expression = Expression::parse(lexer, None);
+        let expression = Expression::parse(lexer, Some(lexeme));
         let mut cases = Vec::new();
         let mut default = None;
 
@@ -63,7 +64,7 @@ impl Switch {
                     lexer.next();
                     match lexer.next() {
                         Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-                        lexeme => panic!("expected `{{`, got {}", lexeme),
+                        lexeme => panic!("Expected `{{`, got {}", lexeme),
                     }
                     default = Some(Block::parse(lexer, None));
                     break;
@@ -73,7 +74,7 @@ impl Switch {
 
         if cases.is_empty() && default.is_none() {
             panic!(
-                "expected either the 'default' block or at least one 'case' in switch statement"
+                "Expected either the 'default' block or at least one 'case' in switch statement"
             );
         }
 

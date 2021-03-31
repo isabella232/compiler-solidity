@@ -4,19 +4,19 @@
 
 use inkwell::values::BasicValue;
 
+use crate::generator::llvm::Context;
 use crate::lexer::lexeme::literal::boolean::Boolean as BooleanLiteral;
 use crate::lexer::lexeme::literal::integer::Integer as IntegerLiteral;
 use crate::lexer::lexeme::literal::Literal as LexicalLiteral;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Context;
 use crate::parser::r#type::Type;
 
 ///
 /// Represents a literal in YUL without differentiating its type.
 ///
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Literal {
     /// The lexical literal.
     pub inner: LexicalLiteral,
@@ -26,14 +26,11 @@ pub struct Literal {
 
 impl Literal {
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let lexeme = match initial {
-            Some(lexeme) => lexeme,
-            None => lexer.next(),
-        };
+        let lexeme = initial.unwrap_or_else(|| lexer.next());
 
         let literal = match lexeme {
             Lexeme::Literal(literal) => literal,
-            lexeme => panic!("expected literal, got {}", lexeme),
+            lexeme => panic!("Expected literal, got {}", lexeme),
         };
 
         let yul_type = match lexer.peek() {
@@ -96,6 +93,7 @@ mod tests {
     use crate::parser::block::statement::expression::Expression;
     use crate::parser::block::statement::Statement;
     use crate::parser::block::Block;
+    use crate::parser::Module;
 
     #[test]
     fn ok_parse_false() {
@@ -106,12 +104,14 @@ mod tests {
         let result = crate::tests::parse(input);
         assert_eq!(
             result,
-            [Statement::Block(Block {
-                statements: vec![Statement::Expression(Expression::Literal(Literal {
-                    inner: LexicalLiteral::Boolean(LexicalBooleanLiteral::False),
-                    yul_type: None,
-                }))]
-            })]
+            Module {
+                block: Block {
+                    statements: vec![Statement::Expression(Expression::Literal(Literal {
+                        inner: LexicalLiteral::Boolean(LexicalBooleanLiteral::False),
+                        yul_type: None,
+                    }))]
+                }
+            }
         );
     }
 
@@ -124,12 +124,14 @@ mod tests {
         let result = crate::tests::parse(input);
         assert_eq!(
             result,
-            [Statement::Block(Block {
-                statements: vec![Statement::Expression(Expression::Literal(Literal {
-                    inner: LexicalLiteral::Boolean(LexicalBooleanLiteral::True),
-                    yul_type: None,
-                }))]
-            })]
+            Module {
+                block: Block {
+                    statements: vec![Statement::Expression(Expression::Literal(Literal {
+                        inner: LexicalLiteral::Boolean(LexicalBooleanLiteral::True),
+                        yul_type: None,
+                    }))]
+                }
+            }
         );
     }
 

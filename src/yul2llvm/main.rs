@@ -12,15 +12,15 @@ use self::arguments::Arguments;
 fn main() {
     let args = Arguments::new();
 
-    let file_name = args.input;
+    let path = args.input;
 
-    println!("Input {}", file_name.to_str().unwrap());
-    if !file_name.exists() {
-        panic!("{} does not exist", file_name.to_str().unwrap());
+    println!("Input {}", path.to_str().unwrap());
+    if !path.exists() {
+        panic!("{} does not exist", path.to_str().unwrap());
     }
 
-    let actions = yul2llvm::generate_actions(&file_name, args.xsol.as_str(), args.entry);
+    let actions = yul2llvm::Action::new_list(path, args.xsol, args.entry);
     for action in actions.into_iter() {
-        yul2llvm::execute_action(action);
+        action.execute();
     }
 }

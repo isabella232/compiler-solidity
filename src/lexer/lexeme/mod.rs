@@ -29,6 +29,17 @@ pub enum Lexeme {
     EndOfFile,
 }
 
+impl Lexeme {
+    ///
+    /// Checks whether the lexeme is a valid identifier.
+    ///
+    pub fn is_identifier(string: &str) -> bool {
+        regex::Regex::new(r"^[a-zA-Z_\$][a-zA-Z0-9_\$\.]*$")
+            .expect("Always valid")
+            .is_match(string)
+    }
+}
+
 impl fmt::Display for Lexeme {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

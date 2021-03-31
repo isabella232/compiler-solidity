@@ -5,10 +5,10 @@
 pub mod function_call;
 pub mod literal;
 
+use crate::generator::llvm::Context;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Context;
 
 use self::function_call::FunctionCall;
 use self::literal::Literal;
@@ -28,10 +28,8 @@ pub enum Expression {
 
 impl Expression {
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let lexeme = match initial {
-            Some(lexeme) => lexeme,
-            None => lexer.next(),
-        };
+        let lexeme = initial.unwrap_or_else(|| lexer.next());
+
         if let Lexeme::Literal(_) = lexeme {
             return Self::Literal(Literal::parse(lexer, Some(lexeme)));
         }

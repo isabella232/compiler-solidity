@@ -2,17 +2,17 @@
 //! The function definition statement.
 //!
 
+use crate::generator::llvm::Context;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::llvm::Context;
 use crate::parser::block::Block;
 use crate::parser::identifier::Identifier;
 
 ///
 /// The function definition statement.
 ///
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct FunctionDefinition {
     /// The function name.
     pub name: String,
@@ -25,16 +25,18 @@ pub struct FunctionDefinition {
 }
 
 impl FunctionDefinition {
-    pub fn parse(lexer: &mut Lexer, _initial: Option<Lexeme>) -> Self {
-        let name = match lexer.next() {
-            Lexeme::Identifier(name) if Identifier::is_valid(name.as_str()) => name,
-            lexeme => panic!("expected function identifier, got {}", lexeme),
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
+        let lexeme = initial.unwrap_or_else(|| lexer.next());
+
+        let name = match lexeme {
+            Lexeme::Identifier(name) => name,
+            lexeme => panic!("Expected function identifier, got {}", lexeme),
         };
 
         match lexer.next() {
             Lexeme::Symbol(Symbol::ParenthesisLeft) => {}
             lexeme => panic!(
-                "expected '(' in {} function definition, got {}",
+                "Expected '(' in {} function definition, got {}",
                 name, lexeme
             ),
         }
@@ -44,7 +46,7 @@ impl FunctionDefinition {
         match next.unwrap_or_else(|| lexer.next()) {
             Lexeme::Symbol(Symbol::ParenthesisRight) => {}
             lexeme => panic!(
-                "expected ')' in {} function definition, got {}",
+                "Expected ')' in {} function definition, got {}",
                 name, lexeme
             ),
         }
@@ -58,7 +60,7 @@ impl FunctionDefinition {
                 lexer.next();
                 (vec![], None)
             }
-            lexeme => panic!("expected -> or {{, got {}", lexeme),
+            lexeme => panic!("Expected -> or {{, got {}", lexeme),
         };
 
         let body = Block::parse(lexer, None);
@@ -80,7 +82,8 @@ impl FunctionDefinition {
                 inkwell::types::BasicTypeEnum::IntType(yul_type.into_llvm(context))
             })
             .collect();
-        let function_type = context.function_type(&self.result, &argument_types);
+        let function_type =
+            context.function_type(self.result.as_slice(), argument_types.as_slice());
         context.create_function(self.name.as_str(), function_type);
     }
 
@@ -133,7 +136,7 @@ impl FunctionDefinition {
             .collect();
 
         let exit = context.llvm.append_basic_block(function, "exit");
-        context.leave_bb = Some(exit);
+        context.leave_block = Some(exit);
 
         self.body.into_llvm_local(context);
 
