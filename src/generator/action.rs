@@ -18,7 +18,9 @@ use crate::parser::Module;
 ///
 #[derive(Debug)]
 pub enum Action {
+    /// The `solc` subprocess.
     SolidityCompiler(PathBuf, String),
+    /// The YUL compiler.
     CodeGenerator(PathBuf, Option<String>),
 }
 
@@ -76,18 +78,18 @@ impl Action {
     /// Executes the LLVM generator.
     ///
     pub fn execute_llvm(input: PathBuf, entry: Option<String>) {
-        let metadata = fs::metadata(&input).unwrap();
+        let metadata = fs::metadata(&input).expect("File metadata error");
         let inputs = if metadata.is_file() {
             vec![input]
         } else {
             std::fs::read_dir(input)
                 .expect("Directory reading error")
-                .map(|entry| entry.unwrap().path())
+                .map(|entry| entry.expect("Directory entry error").path())
                 .collect()
         };
 
         for input in inputs.into_iter() {
-            let input = std::fs::read_to_string(input).unwrap();
+            let input = std::fs::read_to_string(input).expect("Input file reading error");
             let mut lexer = Lexer::new(input);
             // Self::extract_sol_functions(&mut lexemes);
 
@@ -108,8 +110,12 @@ impl Action {
             .take(10)
             .map(char::from)
             .collect();
-        let file_stem = input.file_stem().expect("File stem always exists");
-        let tmp_dir_name = String::from(file_stem.to_str().unwrap()) + "-" + suffix.as_str();
+        let file_stem = input
+            .file_stem()
+            .expect("File stem always exists")
+            .to_string_lossy()
+            .to_string();
+        let tmp_dir_name = file_stem + "-" + suffix.as_str();
         path.push(tmp_dir_name);
         path
     }

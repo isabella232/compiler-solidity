@@ -38,22 +38,23 @@ pub enum Name {
     /// `(x * y) % m` with arbitrary precision arithmetic, `0` if `m == 0`
     MulMod,
 
-    Sdiv,
     /// `x / y`, for signed numbers in two’s complement, `0` if `y == 0`
-    Smod,
+    Sdiv,
     /// `x % y`, for signed numbers in two’s complement, `0` if `y == 0`
-    Exp,
+    Smod,
     /// `x` to the power of `y`
-    Slt,
+    Exp,
     /// `1` if `x < y`, `0` otherwise, for signed numbers in two’s complement
-    Sgt,
+    Slt,
     /// `1` if `x > y`, `0` otherwise, for signed numbers in two’s complement
-    Byte,
+    Sgt,
     /// `n`th byte of `x`, where the most significant byte is the `0`th byte
-    Shl,
+    Byte,
     /// logical shift left `y` by `x` bits
-    Shr,
+    Shl,
     /// logical shift right `y` by `x` bits
+    Shr,
+    /// signed arithmetic shift right `y` by `x` bits
     Sar,
     /// sign extend from `(i*8+7)`th bit counting from least significant
     SignExtend,

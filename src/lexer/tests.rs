@@ -7,11 +7,19 @@ use crate::lexer::lexeme::literal::integer::Integer as IntegerLiteral;
 use crate::lexer::lexeme::literal::Literal;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
+use crate::lexer::Lexer;
+
+///
+/// Consumes the source code and returns the vector of lexems.
+///
+fn tokenize(input: &str) -> Vec<Lexeme> {
+    Lexer::new(input.to_owned()).tokenize()
+}
 
 #[test]
 fn ok_identifiers_with_whitespaces() {
     assert_eq!(
-        crate::tests::tokenize("   a    b c\td"),
+        tokenize("   a    b c\td"),
         [
             Lexeme::Identifier("a".to_owned()),
             Lexeme::Identifier("b".to_owned()),
@@ -24,7 +32,7 @@ fn ok_identifiers_with_whitespaces() {
 #[test]
 fn ok_identifiers_with_comments() {
     assert_eq!(
-        crate::tests::tokenize("   a////comment\nb c\td//comment"),
+        tokenize("   a////comment\nb c\td//comment"),
         [
             Lexeme::Identifier("a".to_owned()),
             Lexeme::Identifier("b".to_owned()),
@@ -38,7 +46,7 @@ fn ok_identifiers_with_comments() {
 #[ignore]
 fn ok_multiline_comments_tokenization() {
     assert_eq!(
-        crate::tests::tokenize("/*123 comment function ***/{}"),
+        tokenize("/*123 comment function ***/{}"),
         [
             Lexeme::Symbol(Symbol::CommentStart),
             Lexeme::Literal(Literal::Integer(IntegerLiteral::new_decimal(

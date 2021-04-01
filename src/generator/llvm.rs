@@ -122,13 +122,23 @@ impl<'ctx> Context<'ctx> {
         return_type.fn_type(argument_types, false)
     }
 
+    ///
+    /// Writes the newly function to the hashmap.
+    ///
     pub fn create_function(
         &mut self,
         name: &str,
-        fn_t: inkwell::types::FunctionType<'ctx>,
+        r#type: inkwell::types::FunctionType<'ctx>,
     ) -> inkwell::values::FunctionValue<'ctx> {
-        let function = self.module.add_function(name, fn_t, None);
+        let function = self.module.add_function(name, r#type, None);
         self.functions.insert(name.to_string(), function);
         function
+    }
+
+    ///
+    /// Returns the current function.
+    ///
+    pub fn function(&self) -> inkwell::values::FunctionValue<'ctx> {
+        self.function.expect("Always exists")
     }
 }

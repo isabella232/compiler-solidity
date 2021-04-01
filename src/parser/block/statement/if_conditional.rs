@@ -14,7 +14,9 @@ use crate::parser::block::Block;
 ///
 #[derive(Debug, PartialEq, Clone)]
 pub struct IfConditional {
+    /// The condition expression.
     pub condition: Expression,
+    /// The conditional block.
     pub block: Block,
 }
 
@@ -45,10 +47,10 @@ impl IfConditional {
         );
         let main_block = context
             .llvm
-            .append_basic_block(context.function.unwrap(), "if.main");
+            .append_basic_block(context.function(), "if.main");
         let join_block = context
             .llvm
-            .append_basic_block(context.function.unwrap(), "if.join");
+            .append_basic_block(context.function(), "if.join");
         context
             .builder
             .build_conditional_branch(condition, main_block, join_block);

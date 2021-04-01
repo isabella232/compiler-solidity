@@ -73,6 +73,9 @@ impl FunctionDefinition {
         }
     }
 
+    ///
+    /// Hoists a function to allow calls before translating the body.
+    ///
     pub fn declare(&self, context: &mut Context) {
         let argument_types: Vec<_> = self
             .arguments
@@ -112,9 +115,10 @@ impl FunctionDefinition {
                 .builder
                 .build_alloca(argument_types[index], argument.name.as_str());
             context.variables.insert(argument.name.clone(), pointer);
-            context
-                .builder
-                .build_store(pointer, function.get_nth_param(index as u32).unwrap());
+            context.builder.build_store(
+                pointer,
+                function.get_nth_param(index as u32).expect("Always exists"),
+            );
         }
 
         let return_pointer = match return_types {
@@ -143,7 +147,7 @@ impl FunctionDefinition {
         let last_instruction = context
             .builder
             .get_insert_block()
-            .unwrap()
+            .expect("Always exists")
             .get_last_instruction();
 
         match last_instruction {
@@ -172,7 +176,7 @@ impl FunctionDefinition {
                             context
                                 .builder
                                 .build_struct_gep(return_pointer, index as u32, "")
-                                .unwrap(),
+                                .expect("Always exists"),
                             context.builder.build_load(*value, ""),
                         );
                     }

@@ -88,10 +88,10 @@ impl Switch {
     pub fn into_llvm<'ctx>(mut self, context: &mut Context<'ctx>) {
         let default = context
             .llvm
-            .append_basic_block(context.function.unwrap(), "switch.default");
+            .append_basic_block(context.function(), "switch.default");
         let join = context
             .llvm
-            .append_basic_block(context.function.unwrap(), "switch.join");
+            .append_basic_block(context.function(), "switch.join");
         let mut cases: Vec<(
             inkwell::values::IntValue<'ctx>,
             inkwell::basic_block::BasicBlock<'ctx>,
@@ -100,7 +100,7 @@ impl Switch {
             let value = case.literal.to_owned().into_llvm(context).into_int_value();
             let basic_block = context
                 .llvm
-                .append_basic_block(context.function.unwrap(), "switch.case");
+                .append_basic_block(context.function(), "switch.case");
             cases.push((value, basic_block));
         }
         context.builder.build_switch(

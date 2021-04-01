@@ -28,16 +28,27 @@ use self::variable_declaration::VariableDeclaration;
 ///
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
+    /// The code block.
     Block(Block),
+    /// The expression.
     Expression(Expression),
+    /// The `function` statement.
     FunctionDefinition(FunctionDefinition),
+    /// The `let` statement.
     VariableDeclaration(VariableDeclaration),
+    /// The `:=` existing variables reassignment statement.
     Assignment(Assignment),
+    /// The `if` statement.
     IfConditional(IfConditional),
+    /// The `switch` statement.
     Switch(Switch),
+    /// The `for` statement.
     ForLoop(ForLoop),
-    Break,
+    /// The `continue` statement.
     Continue,
+    /// The `break` statement.
+    Break,
+    /// The `leave` statement.
     Leave,
 }
 
@@ -51,13 +62,19 @@ impl Statement {
             Lexeme::Keyword(Keyword::If) => Statement::IfConditional(IfConditional::parse(lexer, None)),
             Lexeme::Keyword(Keyword::Switch) => Statement::Switch(Switch::parse(lexer, None)),
             Lexeme::Keyword(Keyword::For) => Statement::ForLoop(ForLoop::parse(lexer, None)),
-            Lexeme::Keyword(Keyword::Break) => Statement::Break,
             Lexeme::Keyword(Keyword::Continue) => Statement::Continue,
+            Lexeme::Keyword(Keyword::Break) => Statement::Break,
             Lexeme::Keyword(Keyword::Leave) => Statement::Leave,
             lexeme => panic!("Expected one of `function`, `let`, `if`, `switch`, `for`, `break`, `continue`, `leave`, got {}", lexeme),
         }
     }
 
+    ///
+    /// Converts the statement into a block.
+    ///
+    /// # Panics
+    /// If there statement is not a block.
+    ///
     pub fn into_block(self) -> Block {
         match self {
             Self::Block(block) => block,

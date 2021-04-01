@@ -3,16 +3,8 @@
 //!
 
 use crate::generator::llvm::Context;
-use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::Module;
-
-///
-/// Consumes the source code and returns the vector of lexems.
-///
-pub(crate) fn tokenize(input: &str) -> Vec<Lexeme> {
-    Lexer::new(input.to_owned()).tokenize()
-}
 
 ///
 /// Parses the source code and returns the AST.
