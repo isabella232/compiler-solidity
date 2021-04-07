@@ -1,6 +1,6 @@
-# YUL to LLVM
+# YUL to SyncVM
 
-The YUL to LLVM compiler.
+The compiler from YUL intermediate language to SyncVM bytecode.
 
 ## Grammar
 
