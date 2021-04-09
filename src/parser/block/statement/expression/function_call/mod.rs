@@ -6,7 +6,7 @@ pub mod name;
 
 use inkwell::values::BasicValue;
 
-use crate::generator::llvm::Context;
+use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -26,6 +26,9 @@ pub struct FunctionCall {
 }
 
 impl FunctionCall {
+    ///
+    /// The element parser, which acts like a constructor.
+    ///
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
         let lexeme = initial.unwrap_or_else(|| lexer.next());
 
@@ -59,9 +62,12 @@ impl FunctionCall {
         Self { name, arguments }
     }
 
+    ///
+    /// Converts the function call into an LLVM value.
+    ///
     pub fn into_llvm<'ctx>(
         mut self,
-        context: &Context<'ctx>,
+        context: &LLVMContext<'ctx>,
     ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
         match self.name {
             Name::Add => {
@@ -440,7 +446,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -455,7 +461,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -467,7 +473,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -476,7 +482,7 @@ mod tests {
             function foo() -> x {let y := 3 x := add(3, y)}
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -485,7 +491,7 @@ mod tests {
             function foo() -> x {let y := 3 x := sub(3, y)}
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -494,7 +500,7 @@ mod tests {
             function foo() -> x {let y := 3 x := mul(3, y)}
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -503,7 +509,7 @@ mod tests {
             function foo() -> x {let y := 3 x := div(3, y)}
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -512,7 +518,7 @@ mod tests {
             function foo() -> x {let y := 3 x := sdiv(3, y)}
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -521,7 +527,7 @@ mod tests {
             function foo() -> x {let y := 3 x := mod(3, y)}
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -530,6 +536,6 @@ mod tests {
             function foo() -> x {let y := 3 x := smod(3, y)}
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 }

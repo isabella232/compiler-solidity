@@ -2,7 +2,8 @@
 //! The for-loop statement.
 //!
 
-use crate::generator::llvm::Context;
+use crate::generator::llvm::Context as LLVMContext;
+use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -25,6 +26,9 @@ pub struct ForLoop {
 }
 
 impl ForLoop {
+    ///
+    /// The element parser, which acts like a constructor.
+    ///
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
         let lexeme = initial.unwrap_or_else(|| lexer.next());
 
@@ -58,8 +62,10 @@ impl ForLoop {
             body,
         }
     }
+}
 
-    pub fn into_llvm(self, context: &mut Context) {
+impl ILLVMWritable for ForLoop {
+    fn into_llvm(self, context: &mut LLVMContext) {
         self.initializer.into_llvm_local(context);
         let condition_block = context
             .llvm
@@ -108,7 +114,7 @@ mod tests {
             for {} expr {} {}
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -122,6 +128,6 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 }

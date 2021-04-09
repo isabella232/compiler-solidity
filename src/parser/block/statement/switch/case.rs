@@ -20,6 +20,9 @@ pub struct Case {
 }
 
 impl Case {
+    ///
+    /// The element parser, which acts like a constructor.
+    ///
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
         let lexeme = initial.unwrap_or_else(|| lexer.next());
 

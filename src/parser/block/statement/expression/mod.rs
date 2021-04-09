@@ -5,7 +5,7 @@
 pub mod function_call;
 pub mod literal;
 
-use crate::generator::llvm::Context;
+use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -27,6 +27,9 @@ pub enum Expression {
 }
 
 impl Expression {
+    ///
+    /// The element parser, which acts like a constructor.
+    ///
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
         let lexeme = initial.unwrap_or_else(|| lexer.next());
 
@@ -43,9 +46,12 @@ impl Expression {
         }
     }
 
+    ///
+    /// Converts the expression into an LLVM value.
+    ///
     pub fn into_llvm<'ctx>(
         self,
-        context: &Context<'ctx>,
+        context: &LLVMContext<'ctx>,
     ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
         match self {
             Self::Literal(inner) => Some(inner.into_llvm(context)),
@@ -69,6 +75,6 @@ mod tests {
             foo(x, y)
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 }

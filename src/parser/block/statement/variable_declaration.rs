@@ -4,7 +4,8 @@
 
 use inkwell::types::BasicType;
 
-use crate::generator::llvm::Context;
+use crate::generator::llvm::Context as LLVMContext;
+use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -23,6 +24,9 @@ pub struct VariableDeclaration {
 }
 
 impl VariableDeclaration {
+    ///
+    /// The element parser, which acts like a constructor.
+    ///
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
         let lexeme = initial.unwrap_or_else(|| lexer.next());
 
@@ -40,8 +44,10 @@ impl VariableDeclaration {
             expression: Some(expression),
         }
     }
+}
 
-    pub fn into_llvm(mut self, context: &mut Context) {
+impl ILLVMWritable for VariableDeclaration {
+    fn into_llvm(mut self, context: &mut LLVMContext) {
         let expression = match self.expression.take() {
             Some(expression) => expression,
             None => return,
@@ -98,7 +104,7 @@ mod tests {
             let x := false
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -107,7 +113,7 @@ mod tests {
             let x := true
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -116,7 +122,7 @@ mod tests {
             let x := 42
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -125,7 +131,7 @@ mod tests {
             let x := 0x42
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -134,7 +140,7 @@ mod tests {
             let x := "abc"
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -143,7 +149,7 @@ mod tests {
             let x := y
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -152,7 +158,7 @@ mod tests {
             let x := foo()
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -161,7 +167,7 @@ mod tests {
             let x := foo(x, y)
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -170,7 +176,7 @@ mod tests {
             let x := foo(bar(x, baz()))
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -182,7 +188,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -195,7 +201,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -207,7 +213,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -220,7 +226,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -236,7 +242,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -248,7 +254,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -260,6 +266,6 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 }

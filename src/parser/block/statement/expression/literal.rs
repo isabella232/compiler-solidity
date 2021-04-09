@@ -4,7 +4,7 @@
 
 use inkwell::values::BasicValue;
 
-use crate::generator::llvm::Context;
+use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::literal::boolean::Boolean as BooleanLiteral;
 use crate::lexer::lexeme::literal::integer::Integer as IntegerLiteral;
 use crate::lexer::lexeme::literal::Literal as LexicalLiteral;
@@ -25,6 +25,9 @@ pub struct Literal {
 }
 
 impl Literal {
+    ///
+    /// The element parser, which acts like a constructor.
+    ///
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
         let lexeme = initial.unwrap_or_else(|| lexer.next());
 
@@ -48,7 +51,13 @@ impl Literal {
         }
     }
 
-    pub fn into_llvm<'ctx>(self, context: &Context<'ctx>) -> inkwell::values::BasicValueEnum<'ctx> {
+    ///
+    /// Converts the literal into its LLVM representation.
+    ///
+    pub fn into_llvm<'ctx>(
+        self,
+        context: &LLVMContext<'ctx>,
+    ) -> inkwell::values::BasicValueEnum<'ctx> {
         match self.inner {
             LexicalLiteral::Boolean(inner) => self
                 .yul_type
@@ -101,7 +110,7 @@ mod tests {
             false
         }"#;
 
-        let result = crate::tests::parse(input);
+        let result = crate::parse(input);
         assert_eq!(
             result,
             Module {
@@ -121,7 +130,7 @@ mod tests {
             true
         }"#;
 
-        let result = crate::tests::parse(input);
+        let result = crate::parse(input);
         assert_eq!(
             result,
             Module {
@@ -143,7 +152,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -154,6 +163,6 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 }

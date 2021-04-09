@@ -2,7 +2,8 @@
 //! The assignment expression statement.
 //!
 
-use crate::generator::llvm::Context;
+use crate::generator::llvm::Context as LLVMContext;
+use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -21,6 +22,9 @@ pub struct Assignment {
 }
 
 impl Assignment {
+    ///
+    /// The element parser, which acts like a constructor.
+    ///
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
         let lexeme = initial.unwrap_or_else(|| lexer.next());
 
@@ -54,8 +58,10 @@ impl Assignment {
             _ => unreachable!(),
         }
     }
+}
 
-    pub fn into_llvm(mut self, context: &Context) {
+impl ILLVMWritable for Assignment {
+    fn into_llvm(mut self, context: &mut LLVMContext) {
         let value = match self.initializer.into_llvm(context) {
             Some(value) => value,
             None => return,
@@ -102,7 +108,7 @@ mod tests {
             x := foo(x)
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -111,7 +117,7 @@ mod tests {
             x, y := foo(x)
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -122,7 +128,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -140,7 +146,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -150,7 +156,7 @@ mod tests {
             x :=
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -160,6 +166,6 @@ mod tests {
             x, y
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 }

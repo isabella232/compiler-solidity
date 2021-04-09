@@ -4,7 +4,8 @@
 
 pub mod statement;
 
-use crate::generator::llvm::Context;
+use crate::generator::llvm::Context as LLVMContext;
+use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -23,6 +24,9 @@ pub struct Block {
 }
 
 impl Block {
+    ///
+    /// The element parser, which acts like a constructor.
+    ///
     pub fn parse(lexer: &mut Lexer, mut initial: Option<Lexeme>) -> Self {
         let mut statements = Vec::new();
 
@@ -71,7 +75,7 @@ impl Block {
     ///
     /// Translates a module block into LLVM.
     ///
-    pub fn into_llvm_module(self, context: &mut Context) {
+    pub fn into_llvm_module(self, context: &mut LLVMContext) {
         for statement in self.statements.iter() {
             match statement {
                 Statement::FunctionDefinition(statement) => {
@@ -91,7 +95,7 @@ impl Block {
     ///
     /// Translates a function or ordinar block into LLVM.
     ///
-    pub fn into_llvm_local(self, context: &mut Context) {
+    pub fn into_llvm_local(self, context: &mut LLVMContext) {
         for statement in self.statements.into_iter() {
             match statement {
                 // The scope can be cleaned up on exit, but let's LLVM do the job. We can also rely
@@ -144,7 +148,7 @@ mod tests {
             },
         };
 
-        let result = crate::tests::parse(input);
+        let result = crate::parse(input);
         assert_eq!(expected, result,);
     }
 
@@ -155,6 +159,6 @@ mod tests {
             {}{}{{
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 }

@@ -4,7 +4,8 @@
 
 pub mod case;
 
-use crate::generator::llvm::Context;
+use crate::generator::llvm::Context as LLVMContext;
+use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
@@ -40,6 +41,9 @@ pub enum State {
 }
 
 impl Switch {
+    ///
+    /// The element parser, which acts like a constructor.
+    ///
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
         let lexeme = initial.unwrap_or_else(|| lexer.next());
         let mut state = State::CaseOrDefaultKeyword;
@@ -84,8 +88,10 @@ impl Switch {
             default,
         }
     }
+}
 
-    pub fn into_llvm<'ctx>(mut self, context: &mut Context<'ctx>) {
+impl ILLVMWritable for Switch {
+    fn into_llvm<'ctx>(mut self, context: &mut LLVMContext<'ctx>) {
         let default = context
             .llvm
             .append_basic_block(context.function(), "switch.default");
@@ -134,7 +140,7 @@ mod tests {
                 case "a" {}
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -145,7 +151,7 @@ mod tests {
                 default {}
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -157,7 +163,7 @@ mod tests {
                 case "c" {}
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -170,7 +176,7 @@ mod tests {
                 default {}
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -180,7 +186,7 @@ mod tests {
                 default {}
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -198,7 +204,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -208,7 +214,7 @@ mod tests {
             switch {}
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -220,6 +226,6 @@ mod tests {
                 case 3 {}
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 }

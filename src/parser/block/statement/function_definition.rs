@@ -2,7 +2,8 @@
 //! The function definition statement.
 //!
 
-use crate::generator::llvm::Context;
+use crate::generator::llvm::Context as LLVMContext;
+use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -25,6 +26,9 @@ pub struct FunctionDefinition {
 }
 
 impl FunctionDefinition {
+    ///
+    /// The element parser, which acts like a constructor.
+    ///
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
         let lexeme = initial.unwrap_or_else(|| lexer.next());
 
@@ -76,7 +80,7 @@ impl FunctionDefinition {
     ///
     /// Hoists a function to allow calls before translating the body.
     ///
-    pub fn declare(&self, context: &mut Context) {
+    pub fn declare(&self, context: &mut LLVMContext) {
         let argument_types: Vec<_> = self
             .arguments
             .iter()
@@ -89,8 +93,10 @@ impl FunctionDefinition {
             context.function_type(self.result.as_slice(), argument_types.as_slice());
         context.create_function(self.name.as_str(), function_type);
     }
+}
 
-    pub fn into_llvm(self, context: &mut Context) {
+impl ILLVMWritable for FunctionDefinition {
+    fn into_llvm(self, context: &mut LLVMContext) {
         let argument_types: Vec<_> = self
             .arguments
             .iter()
@@ -197,7 +203,7 @@ mod tests {
             function foo(a: A, b) {}
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -206,7 +212,7 @@ mod tests {
             function foo(a: A, b) -> x: T, z: Y {}
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -215,7 +221,7 @@ mod tests {
             function foo() {}
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -224,7 +230,7 @@ mod tests {
             function foo() -> x {}
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -233,7 +239,7 @@ mod tests {
             function foo() -> x, y {}
         }"#;
 
-        crate::tests::compile(input);
+        crate::compile(input);
     }
 
     #[test]
@@ -243,7 +249,7 @@ mod tests {
             function 42() {}
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 
     #[test]
@@ -253,6 +259,6 @@ mod tests {
             function foo(42) {}
         }"#;
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 }

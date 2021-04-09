@@ -39,7 +39,7 @@ mod tests {
         let input = "/*123 comment ***/{}";
 
         assert_eq!(
-            crate::tests::parse(input),
+            crate::parse(input),
             Module {
                 block: Block { statements: vec![] }
             }
@@ -51,6 +51,6 @@ mod tests {
     fn error_parse_expected_comment_end() {
         let input = "/* xxx yyy";
 
-        crate::tests::parse(input);
+        crate::parse(input);
     }
 }

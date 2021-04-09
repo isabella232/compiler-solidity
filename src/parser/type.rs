@@ -2,7 +2,7 @@
 //! Datatype for a lexeme for further analysis and translation.
 //!
 
-use crate::generator::llvm::Context;
+use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -29,6 +29,9 @@ impl Default for Type {
 }
 
 impl Type {
+    ///
+    /// The element parser, which acts like a constructor.
+    ///
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
         let lexeme = initial.unwrap_or_else(|| lexer.next());
 
@@ -41,7 +44,10 @@ impl Type {
         }
     }
 
-    pub fn into_llvm<'ctx>(self, context: &Context<'ctx>) -> inkwell::types::IntType<'ctx> {
+    ///
+    /// Converts the type into its LLVM representation.
+    ///
+    pub fn into_llvm<'ctx>(self, context: &LLVMContext<'ctx>) -> inkwell::types::IntType<'ctx> {
         match self {
             Self::Bool => context.llvm.bool_type(),
             Self::Int(bitlength) => context.integer_type(bitlength),

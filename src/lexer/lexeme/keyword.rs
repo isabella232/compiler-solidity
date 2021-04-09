@@ -112,7 +112,7 @@ mod tests {
             break
         }"#;
 
-        let result = crate::tests::parse(input);
+        let result = crate::parse(input);
         assert_eq!(
             result,
             Module {
@@ -129,7 +129,7 @@ mod tests {
             continue
         }"#;
 
-        let result = crate::tests::parse(input);
+        let result = crate::parse(input);
         assert_eq!(
             result,
             Module {
@@ -146,7 +146,7 @@ mod tests {
             leave
         }"#;
 
-        let result = crate::tests::parse(input);
+        let result = crate::parse(input);
         assert_eq!(
             result,
             Module {

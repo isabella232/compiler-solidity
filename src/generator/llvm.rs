@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 
+use crate::generator::ILLVMWritable;
 use crate::parser::identifier::Identifier;
 use crate::parser::Module;
 
@@ -56,6 +57,16 @@ impl<'ctx> Context<'ctx> {
             variables: HashMap::with_capacity(Self::VARIABLE_HASHMAP_INITIAL_CAPACITY),
             functions: HashMap::with_capacity(Self::FUNCTION_HASHMAP_INITIAL_CAPACITY),
         }
+    }
+
+    ///
+    /// Verifies the current module.
+    ///
+    /// # Panics
+    /// If verification fails.
+    ///
+    pub fn verify(&self) -> Result<(), inkwell::support::LLVMString> {
+        self.module.verify()
     }
 
     ///
