@@ -182,8 +182,7 @@ mod tests {
             }
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 5);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -196,8 +195,7 @@ mod tests {
             }
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 1);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -209,8 +207,7 @@ mod tests {
             }
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 42);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -223,8 +220,7 @@ mod tests {
             }
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 1);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -240,7 +236,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input, None);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -252,7 +248,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input, None);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -264,6 +260,6 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input, None);
+        crate::tests::compile(input);
     }
 }

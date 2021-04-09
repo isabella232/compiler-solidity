@@ -215,7 +215,7 @@ mod tests {
             function foo() {}
         }"#;
 
-        crate::tests::compile(input, None);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -224,7 +224,7 @@ mod tests {
             function foo() -> x {}
         }"#;
 
-        crate::tests::compile(input, None);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -233,7 +233,7 @@ mod tests {
             function foo() -> x, y {}
         }"#;
 
-        crate::tests::compile(input, None);
+        crate::tests::compile(input);
     }
 
     #[test]

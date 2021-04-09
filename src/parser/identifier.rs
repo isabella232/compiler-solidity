@@ -19,6 +19,9 @@ pub struct Identifier {
 }
 
 impl Identifier {
+    ///
+    /// Parses the identifier list where the types cannot be specified.
+    ///
     pub fn parse_list(
         lexer: &mut Lexer,
         mut initial: Option<Lexeme>,
@@ -38,6 +41,9 @@ impl Identifier {
         }
     }
 
+    ///
+    /// Parses the identifier list where the types may be optionally specified.
+    ///
     pub fn parse_typed_list(
         lexer: &mut Lexer,
         mut initial: Option<Lexeme>,

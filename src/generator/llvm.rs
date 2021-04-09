@@ -61,20 +61,9 @@ impl<'ctx> Context<'ctx> {
     ///
     /// Compiles and runs the module, returning the `entry` function result.
     ///
-    pub fn compile(mut self, module: Module, entry: Option<String>) -> Option<u64> {
+    pub fn compile(mut self, module: Module) -> String {
         module.into_llvm(&mut self);
-        println!("{}", self.module.print_to_string().to_string());
-
-        let execution_engine = self
-            .module
-            .create_interpreter_execution_engine()
-            .expect("Execution engine creation");
-        let entry = self
-            .module
-            .get_function(entry?.as_str())
-            .expect("Always exists");
-        let result = unsafe { execution_engine.run_function(entry, &[]) }.as_int(false);
-        Some(result)
+        self.module.print_to_string().to_string()
     }
 
     ///

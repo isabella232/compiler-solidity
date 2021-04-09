@@ -440,8 +440,7 @@ mod tests {
             }
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 42);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -456,8 +455,7 @@ mod tests {
             }
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 42);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -469,7 +467,7 @@ mod tests {
             }
         }"#;
 
-        crate::tests::compile(input, None);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -478,8 +476,7 @@ mod tests {
             function foo() -> x {let y := 3 x := add(3, y)}
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 6);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -488,8 +485,7 @@ mod tests {
             function foo() -> x {let y := 3 x := sub(3, y)}
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 0);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -498,8 +494,7 @@ mod tests {
             function foo() -> x {let y := 3 x := mul(3, y)}
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 9);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -508,8 +503,7 @@ mod tests {
             function foo() -> x {let y := 3 x := div(3, y)}
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 1);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -518,8 +512,7 @@ mod tests {
             function foo() -> x {let y := 3 x := sdiv(3, y)}
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 1);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -528,8 +521,7 @@ mod tests {
             function foo() -> x {let y := 3 x := mod(3, y)}
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 0);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -538,7 +530,6 @@ mod tests {
             function foo() -> x {let y := 3 x := smod(3, y)}
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 0);
+        crate::tests::compile(input);
     }
 }

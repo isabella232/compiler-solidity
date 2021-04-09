@@ -97,8 +97,7 @@ mod tests {
             }
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 42);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -115,8 +114,7 @@ mod tests {
             }
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 20);
+        crate::tests::compile(input);
     }
 
     #[test]
@@ -133,7 +131,6 @@ mod tests {
             }
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 21);
+        crate::tests::compile(input);
     }
 }

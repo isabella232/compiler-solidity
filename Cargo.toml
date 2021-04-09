@@ -1,20 +1,16 @@
 [package]
-name = "yul2llvm"
+name = "yul-compiler"
 version = "0.1.0"
 authors = [
-    "Dmitry Borisenkov <dmitry.borisenkov89@gmail.com>",
     "Alex Zarudnyy <a.zarudnyy@matterlabs.dev>",
+    "Dmitry Borisenkov <dmitry.borisenkov89@gmail.com>",
 ]
 edition = "2018"
 description = "The YUL to LLVM compiler"
 
 [[bin]]
-name = "yul2llvm"
-path = "src/yul2llvm/main.rs"
-
-[[bin]]
-name = "yul2llvm-test"
-path = "src/yul2llvm-tester/main.rs"
+name = "yul-compiler"
+path = "src/yul-compiler/main.rs"
 
 [dependencies]
 structopt = { version = "0.3", default-features = false }

@@ -15,13 +15,9 @@ pub(crate) fn parse(input: &str) -> Module {
 
 ///
 /// Parses and compiles the source code.
-/// Also executes it and returns the result, if `entry` is specified.
 ///
-pub(crate) fn compile(input: &str, entry: Option<&str>) -> u64 {
+pub(crate) fn compile(input: &str) {
     let llvm = inkwell::context::Context::create();
     let module = parse(input);
-    let entry = entry.map(|entry| entry.to_owned());
-    Context::new(&llvm)
-        .compile(module, entry)
-        .unwrap_or_default()
+    Context::new(&llvm).compile(module);
 }

@@ -15,10 +15,6 @@ pub struct Arguments {
     #[structopt(parse(from_os_str))]
     pub input: PathBuf,
 
-    /// The entry point name to run.
-    #[structopt(short, long)]
-    pub entry: Option<String>,
-
     /// The Solidity compiler options.
     #[structopt(long = "Xsol", default_value = "")]
     pub xsol: String,

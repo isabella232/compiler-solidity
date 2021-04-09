@@ -122,7 +122,6 @@ mod tests {
             }
         }"#;
 
-        let result = crate::tests::compile(input, Some("foo"));
-        assert_eq!(result, 45);
+        crate::tests::compile(input);
     }
 }
