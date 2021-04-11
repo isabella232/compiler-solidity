@@ -4,12 +4,14 @@
 
 use inkwell::types::BasicType;
 
+use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::block::statement::expression::Expression;
+use crate::parser::error::Error as ParserError;
 use crate::parser::identifier::Identifier;
 
 ///
@@ -27,22 +29,22 @@ impl VariableDeclaration {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let lexeme = initial.unwrap_or_else(|| lexer.next());
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+        let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
-        let (bindings, next) = Identifier::parse_typed_list(lexer, Some(lexeme));
+        let (bindings, next) = Identifier::parse_typed_list(lexer, Some(lexeme))?;
 
-        match next.unwrap_or_else(|| lexer.next()) {
+        match crate::parser::take_or_next(next, lexer)? {
             Lexeme::Symbol(Symbol::Assignment) => {}
-            lexeme => panic!("Expected ':=', got {}", lexeme),
+            lexeme => return Err(ParserError::expected_one_of(vec![":="], lexeme, None).into()),
         }
 
-        let expression = Expression::parse(lexer, None);
+        let expression = Expression::parse(lexer, None)?;
 
-        Self {
+        Ok(Self {
             bindings,
             expression: Some(expression),
-        }
+        })
     }
 }
 
@@ -99,88 +101,88 @@ impl ILLVMWritable for VariableDeclaration {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn ok_parse_boolean_false() {
+    fn ok_boolean_false() {
         let input = r#"{
             let x := false
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_parse_boolean_true() {
+    fn ok_boolean_true() {
         let input = r#"{
             let x := true
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_parse_integer_decimal() {
+    fn ok_integer_decimal() {
         let input = r#"{
             let x := 42
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_parse_integer_hexadecimal() {
+    fn ok_integer_hexadecimal() {
         let input = r#"{
             let x := 0x42
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_parse_string() {
+    fn ok_string() {
         let input = r#"{
             let x := "abc"
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_parse_identifier() {
+    fn ok_identifier() {
         let input = r#"{
             let x := y
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_parse_function_call() {
+    fn ok_function_call() {
         let input = r#"{
             let x := foo()
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_parse_function_with_arguments() {
+    fn ok_function_with_arguments() {
         let input = r#"{
             let x := foo(x, y)
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_parse_function_with_arguments_nested() {
+    fn ok_function_with_arguments_nested() {
         let input = r#"{
             let x := foo(bar(x, baz()))
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_literal_decimal() {
+    fn ok_literal_decimal() {
         let input = r#"{
             function foo() -> x {
                 let y := 5
@@ -188,11 +190,11 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_literal_decimal_subtraction() {
+    fn ok_literal_decimal_subtraction() {
         let input = r#"{
             function foo() -> x {
                 let y := 1234567890123456789012345678
@@ -201,11 +203,11 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_literal_hexadecimal() {
+    fn ok_literal_hexadecimal() {
         let input = r#"{
             function foo() -> x {
                 let y := 0x2a
@@ -213,11 +215,11 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_literal_hexadecimal_subtraction() {
+    fn ok_literal_hexadecimal_subtraction() {
         let input = r#"{
             function foo() -> x {
                 let y := 0xffffffffffffffff
@@ -226,11 +228,11 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_multiple() {
+    fn ok_multiple() {
         let input = r#"{
             function bar() -> x, y {
                 x := 25
@@ -242,11 +244,11 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_type_cast() {
+    fn ok_type_cast() {
         let input = r#"{
             function foo() {
                 let x: uint64 := 42
@@ -254,11 +256,11 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_type_inference() {
+    fn ok_type_inference() {
         let input = r#"{
             function foo() {
                 let x := true
@@ -266,6 +268,6 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 }

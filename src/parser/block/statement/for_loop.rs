@@ -2,6 +2,7 @@
 //! The for-loop statement.
 //!
 
+use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
@@ -9,6 +10,7 @@ use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::block::Block;
+use crate::parser::error::Error as ParserError;
 
 ///
 /// The for-loop statement.
@@ -29,38 +31,38 @@ impl ForLoop {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let lexeme = initial.unwrap_or_else(|| lexer.next());
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+        let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
         match lexeme {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => panic!("Expected `{{`, found {}", lexeme),
+            lexeme => return Err(ParserError::expected_one_of(vec!["{"], lexeme, None).into()),
         }
 
-        let initializer = Block::parse(lexer, None);
+        let initializer = Block::parse(lexer, None)?;
 
-        let condition = Expression::parse(lexer, None);
+        let condition = Expression::parse(lexer, None)?;
 
-        match lexer.next() {
+        match lexer.next()? {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => panic!("Expected `{{`, found {}", lexeme),
+            lexeme => return Err(ParserError::expected_one_of(vec!["{"], lexeme, None).into()),
         }
 
-        let finalizer = Block::parse(lexer, None);
+        let finalizer = Block::parse(lexer, None)?;
 
-        match lexer.next() {
+        match lexer.next()? {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => panic!("Expected `{{`, found {}", lexeme),
+            lexeme => return Err(ParserError::expected_one_of(vec!["{"], lexeme, None).into()),
         }
 
-        let body = Block::parse(lexer, None);
+        let body = Block::parse(lexer, None)?;
 
-        Self {
+        Ok(Self {
             initializer,
             condition,
             finalizer,
             body,
-        }
+        })
     }
 }
 
@@ -109,16 +111,16 @@ impl ILLVMWritable for ForLoop {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn ok_parse() {
+    fn ok_empty() {
         let input = r#"{
             for {} expr {} {}
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile() {
+    fn ok_complex() {
         let input = r#"{
             function foo() -> x {
                 x := 0
@@ -128,6 +130,6 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 }

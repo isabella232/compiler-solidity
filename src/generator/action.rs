@@ -2,11 +2,7 @@
 //! YUL to LLVM compiler action.
 //!
 
-use std::path::PathBuf;
-
-use crate::generator::llvm::Context;
-use crate::lexer::Lexer;
-use crate::parser::Module;
+use std::path::Path;
 
 ///
 /// The compilation action.
@@ -18,7 +14,7 @@ impl Action {
     ///
     /// Executes the Solidity compiler.
     ///
-    pub fn execute_solc(input: PathBuf, options: String) {
+    pub fn solc(input: &Path, options: String) {
         let child = std::process::Command::new("solc")
             .arg(&input)
             .args(options.split(' ').collect::<Vec<&str>>())
@@ -30,16 +26,5 @@ impl Action {
             message.push_str(String::from_utf8_lossy(output.stderr.as_slice()).as_ref());
             panic!("The `solc` error: {}", message);
         }
-    }
-
-    ///
-    /// Executes the LLVM generator.
-    ///
-    pub fn execute_llvm(input: PathBuf) -> String {
-        let input = std::fs::read_to_string(input).expect("Input file reading error");
-        let mut lexer = Lexer::new(input);
-        let llvm = inkwell::context::Context::create();
-        let module = Module::parse(&mut lexer, None);
-        Context::new(&llvm).compile(module)
     }
 }

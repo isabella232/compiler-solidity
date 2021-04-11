@@ -2,6 +2,7 @@
 //! The if-conditional statement.
 //!
 
+use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
@@ -9,6 +10,7 @@ use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::block::statement::expression::Expression;
 use crate::parser::block::Block;
+use crate::parser::error::Error as ParserError;
 
 ///
 /// The if-conditional statement.
@@ -25,19 +27,19 @@ impl IfConditional {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let lexeme = initial.unwrap_or_else(|| lexer.next());
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+        let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
-        let condition = Expression::parse(lexer, Some(lexeme));
+        let condition = Expression::parse(lexer, Some(lexeme))?;
 
-        match lexer.next() {
+        match lexer.next()? {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => panic!("Expected `{{`, found {}", lexeme),
+            lexeme => return Err(ParserError::expected_one_of(vec!["{"], lexeme, None).into()),
         }
 
-        let block = Block::parse(lexer, None);
+        let block = Block::parse(lexer, None)?;
 
-        Self { condition, block }
+        Ok(Self { condition, block })
     }
 }
 
@@ -75,11 +77,11 @@ mod tests {
             if expr {}
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_lesser_than() {
+    fn ok_lesser_than() {
         let input = r#"{
             function foo() -> x {
                 x := 42
@@ -90,11 +92,11 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_equals() {
+    fn ok_equals() {
         let input = r#"{
             function foo() -> x {
                 x := 42
@@ -105,11 +107,11 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_greater_than() {
+    fn ok_greater_than() {
         let input = r#"{
             function foo() -> x {
                 x := 42
@@ -120,6 +122,6 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 }

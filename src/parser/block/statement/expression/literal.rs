@@ -4,6 +4,7 @@
 
 use inkwell::values::BasicValue;
 
+use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::literal::boolean::Boolean as BooleanLiteral;
 use crate::lexer::lexeme::literal::integer::Integer as IntegerLiteral;
@@ -11,6 +12,7 @@ use crate::lexer::lexeme::literal::Literal as LexicalLiteral;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
+use crate::parser::error::Error as ParserError;
 use crate::parser::r#type::Type;
 
 ///
@@ -28,26 +30,28 @@ impl Literal {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let lexeme = initial.unwrap_or_else(|| lexer.next());
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+        let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
         let literal = match lexeme {
             Lexeme::Literal(literal) => literal,
-            lexeme => panic!("Expected literal, got {}", lexeme),
+            lexeme => {
+                return Err(ParserError::expected_one_of(vec!["{literal}"], lexeme, None).into())
+            }
         };
 
-        let yul_type = match lexer.peek() {
+        let yul_type = match lexer.peek()? {
             Lexeme::Symbol(Symbol::Colon) => {
-                lexer.next();
-                Some(Type::parse(lexer, None))
+                lexer.next()?;
+                Some(Type::parse(lexer, None)?)
             }
             _ => None,
         };
 
-        Self {
+        Ok(Self {
             inner: literal,
             yul_type,
-        }
+        })
     }
 
     ///
@@ -104,7 +108,7 @@ mod tests {
     use crate::parser::Module;
 
     #[test]
-    fn ok_parse_false() {
+    fn ok_false() {
         let input = r#"{
             false
         }"#;
@@ -112,19 +116,19 @@ mod tests {
         let result = crate::parse(input);
         assert_eq!(
             result,
-            Module {
+            Ok(Module {
                 block: Block {
                     statements: vec![Statement::Expression(Expression::Literal(Literal {
                         inner: LexicalLiteral::Boolean(LexicalBooleanLiteral::False),
                         yul_type: None,
                     }))]
                 }
-            }
+            })
         );
     }
 
     #[test]
-    fn ok_parse_true() {
+    fn ok_true() {
         let input = r#"{
             true
         }"#;
@@ -132,36 +136,36 @@ mod tests {
         let result = crate::parse(input);
         assert_eq!(
             result,
-            Module {
+            Ok(Module {
                 block: Block {
                     statements: vec![Statement::Expression(Expression::Literal(Literal {
                         inner: LexicalLiteral::Boolean(LexicalBooleanLiteral::True),
                         yul_type: None,
                     }))]
                 }
-            }
+            })
         );
     }
 
     #[test]
-    fn ok_compile() {
+    fn ok_parse() {
         let input = r#"{
             function foo() {
                 let x := 42
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_with_type() {
+    fn ok_with_type() {
         let input = r#"{
             function foo() {
                 let x := 42:uint64
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 }

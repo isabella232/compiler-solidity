@@ -5,6 +5,7 @@
 pub mod function_call;
 pub mod literal;
 
+use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
@@ -30,19 +31,22 @@ impl Expression {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let lexeme = initial.unwrap_or_else(|| lexer.next());
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+        let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
         if let Lexeme::Literal(_) = lexeme {
-            return Self::Literal(Literal::parse(lexer, Some(lexeme)));
+            return Ok(Self::Literal(Literal::parse(lexer, Some(lexeme))?));
         }
 
-        match lexer.peek() {
+        match lexer.peek()? {
             Lexeme::Symbol(Symbol::ParenthesisLeft) => {
-                lexer.next();
-                Self::FunctionCall(FunctionCall::parse(lexer, Some(lexeme)))
+                lexer.next()?;
+                Ok(Self::FunctionCall(FunctionCall::parse(
+                    lexer,
+                    Some(lexeme),
+                )?))
             }
-            _ => Self::Identifier(lexeme.to_string()),
+            _ => Ok(Self::Identifier(lexeme.to_string())),
         }
     }
 
@@ -75,6 +79,6 @@ mod tests {
             foo(x, y)
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_ok());
     }
 }

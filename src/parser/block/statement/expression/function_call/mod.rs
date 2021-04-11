@@ -6,11 +6,13 @@ pub mod name;
 
 use inkwell::values::BasicValue;
 
+use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::block::statement::expression::Expression;
+use crate::parser::error::Error as ParserError;
 
 use self::name::Name;
 
@@ -29,37 +31,39 @@ impl FunctionCall {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let lexeme = initial.unwrap_or_else(|| lexer.next());
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+        let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
         let name = match lexeme {
             Lexeme::Identifier(identifier) => Name::from(identifier.as_str()),
-            lexeme => panic!("Expected an identifier, found {}", lexeme),
+            lexeme => {
+                return Err(ParserError::expected_one_of(vec!["{identifier}"], lexeme, None).into())
+            }
         };
 
         let mut arguments = Vec::new();
         loop {
-            let argument = match lexer.next() {
+            let argument = match lexer.next()? {
                 Lexeme::Symbol(Symbol::ParenthesisRight) => break,
-                lexeme => Expression::parse(lexer, Some(lexeme)),
+                lexeme => Expression::parse(lexer, Some(lexeme))?,
             };
 
             arguments.push(argument);
 
-            match lexer.peek() {
+            match lexer.peek()? {
                 Lexeme::Symbol(Symbol::Comma) => {
-                    lexer.next();
+                    lexer.next()?;
                     continue;
                 }
                 Lexeme::Symbol(Symbol::ParenthesisRight) => {
-                    lexer.next();
+                    lexer.next()?;
                     break;
                 }
                 _ => break,
             }
         }
 
-        Self { name, arguments }
+        Ok(Self { name, arguments })
     }
 
     ///
@@ -501,7 +505,7 @@ impl FunctionCall {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn ok_compile_void() {
+    fn ok_void() {
         let input = r#"{
             function bar() {}
 
@@ -511,11 +515,11 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_non_void() {
+    fn ok_non_void() {
         let input = r#"{
             function bar() -> x {
                 x:= 42
@@ -526,11 +530,11 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_with_arguments() {
+    fn ok_with_arguments() {
         let input = r#"{
             function foo(z) -> x {
                 let y := 3
@@ -538,69 +542,69 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_builtin_add() {
+    fn ok_builtin_add() {
         let input = r#"{
             function foo() -> x {let y := 3 x := add(3, y)}
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_builtin_sub() {
+    fn ok_builtin_sub() {
         let input = r#"{
             function foo() -> x {let y := 3 x := sub(3, y)}
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_builtin_mul() {
+    fn ok_builtin_mul() {
         let input = r#"{
             function foo() -> x {let y := 3 x := mul(3, y)}
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_builtin_div() {
+    fn ok_builtin_div() {
         let input = r#"{
             function foo() -> x {let y := 3 x := div(3, y)}
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_builtin_sdiv() {
+    fn ok_builtin_sdiv() {
         let input = r#"{
             function foo() -> x {let y := 3 x := sdiv(3, y)}
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_builtin_mod() {
+    fn ok_builtin_mod() {
         let input = r#"{
             function foo() -> x {let y := 3 x := mod(3, y)}
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_builtin_smod() {
+    fn ok_builtin_smod() {
         let input = r#"{
             function foo() -> x {let y := 3 x := smod(3, y)}
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 }

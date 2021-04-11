@@ -2,10 +2,12 @@
 //! Datatype for a lexeme for further analysis and translation.
 //!
 
+use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
+use crate::parser::error::Error as ParserError;
 
 ///
 /// Datatype for a lexeme for further analysis and translation.
@@ -32,15 +34,15 @@ impl Type {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let lexeme = initial.unwrap_or_else(|| lexer.next());
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+        let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
         match lexeme {
-            Lexeme::Keyword(Keyword::Bool) => Self::Bool,
-            Lexeme::Keyword(Keyword::Int(bitlength)) => Self::Int(bitlength),
-            Lexeme::Keyword(Keyword::Uint(bitlength)) => Self::UInt(bitlength),
-            Lexeme::Identifier(identifier) => Self::Custom(identifier),
-            lexeme => panic!("Expected type, got {}", lexeme),
+            Lexeme::Keyword(Keyword::Bool) => Ok(Self::Bool),
+            Lexeme::Keyword(Keyword::Int(bitlength)) => Ok(Self::Int(bitlength)),
+            Lexeme::Keyword(Keyword::Uint(bitlength)) => Ok(Self::UInt(bitlength)),
+            Lexeme::Identifier(identifier) => Ok(Self::Custom(identifier)),
+            lexeme => Err(ParserError::expected_one_of(vec!["{type}"], lexeme, None).into()),
         }
     }
 

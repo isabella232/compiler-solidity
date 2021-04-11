@@ -27,4 +27,4 @@ esac
 cargo fmt --all
 cargo clippy
 cargo test
-cargo run ${CARGO_LOG_LEVEL} ${RELEASE_FLAG} -- "${3}"
+cargo build ${CARGO_LOG_LEVEL} ${RELEASE_FLAG}

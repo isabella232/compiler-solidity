@@ -2,11 +2,13 @@
 //! The switch statement case.
 //!
 
+use crate::error::Error;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::block::statement::expression::literal::Literal;
 use crate::parser::block::Block;
+use crate::parser::error::Error as ParserError;
 
 ///
 /// The switch statement case.
@@ -23,21 +25,23 @@ impl Case {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let lexeme = initial.unwrap_or_else(|| lexer.next());
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+        let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
         let literal = match lexeme {
-            lexeme @ Lexeme::Literal(_) => Literal::parse(lexer, Some(lexeme)),
-            lexeme => panic!("Expected literal, got {}", lexeme),
+            lexeme @ Lexeme::Literal(_) => Literal::parse(lexer, Some(lexeme))?,
+            lexeme => {
+                return Err(ParserError::expected_one_of(vec!["{literal}"], lexeme, None).into())
+            }
         };
 
-        match lexer.next() {
+        match lexer.next()? {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => panic!("Expected `{{`, got {}", lexeme),
+            lexeme => return Err(ParserError::expected_one_of(vec!["{"], lexeme, None).into()),
         }
 
-        let block = Block::parse(lexer, None);
+        let block = Block::parse(lexer, None)?;
 
-        Self { literal, block }
+        Ok(Self { literal, block })
     }
 }

@@ -4,11 +4,13 @@
 
 pub mod statement;
 
+use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
+use crate::parser::error::Error as ParserError;
 
 use self::statement::assignment::Assignment;
 use self::statement::expression::Expression;
@@ -27,67 +29,71 @@ impl Block {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, mut initial: Option<Lexeme>) -> Self {
+    pub fn parse(lexer: &mut Lexer, mut initial: Option<Lexeme>) -> Result<Self, Error> {
         let mut statements = Vec::new();
 
         loop {
-            let lexeme = initial.take().unwrap_or_else(|| lexer.next());
+            let lexeme = crate::parser::take_or_next(initial.take(), lexer)?;
 
             match lexeme {
-                Lexeme::Keyword(_) => statements.push(Statement::parse(lexer, Some(lexeme))),
+                Lexeme::Keyword(_) => statements.push(Statement::parse(lexer, Some(lexeme))?),
                 Lexeme::Literal(_) => {
-                    statements.push(Statement::Expression(Expression::parse(
-                        lexer,
-                        Some(lexeme),
-                    )));
+                    statements
+                        .push(Expression::parse(lexer, Some(lexeme)).map(Statement::Expression)?);
                 }
-                Lexeme::Identifier(_) => match lexer.peek() {
+                Lexeme::Identifier(_) => match lexer.peek()? {
                     Lexeme::Symbol(Symbol::Assignment) => {
-                        statements.push(Statement::Assignment(Assignment::parse(
-                            lexer,
-                            Some(lexeme),
-                        )));
+                        statements.push(
+                            Assignment::parse(lexer, Some(lexeme)).map(Statement::Assignment)?,
+                        );
                     }
                     Lexeme::Symbol(Symbol::Comma) => {
-                        statements.push(Statement::Assignment(Assignment::parse(
-                            lexer,
-                            Some(lexeme),
-                        )));
+                        statements.push(
+                            Assignment::parse(lexer, Some(lexeme)).map(Statement::Assignment)?,
+                        );
                     }
                     _ => {
-                        statements.push(Statement::Expression(Expression::parse(
-                            lexer,
-                            Some(lexeme),
-                        )));
+                        statements.push(
+                            Expression::parse(lexer, Some(lexeme)).map(Statement::Expression)?,
+                        );
                     }
                 },
                 Lexeme::Symbol(Symbol::BracketCurlyLeft) => {
-                    statements.push(Statement::Block(Block::parse(lexer, None)))
+                    statements.push(Block::parse(lexer, None).map(Statement::Block)?)
                 }
                 Lexeme::Symbol(Symbol::BracketCurlyRight) => break,
-                _ => panic!("YUL is malformed"),
+                lexeme => {
+                    return Err(ParserError::expected_one_of(
+                        vec!["{keyword}", "{expression}", "{identifier}", "{", "}"],
+                        lexeme,
+                        None,
+                    )
+                    .into())
+                }
             }
         }
 
-        Self { statements }
+        Ok(Self { statements })
     }
 
     ///
     /// Translates a module block into LLVM.
     ///
     pub fn into_llvm_module(self, context: &mut LLVMContext) {
+        context.create_module("main");
+
         for statement in self.statements.iter() {
             match statement {
                 Statement::FunctionDefinition(statement) => {
                     statement.declare(context);
                 }
-                _ => unreachable!(),
+                _ => panic!("Cannot appear in local blocks"),
             }
         }
         for statement in self.statements.into_iter() {
             match statement {
                 Statement::FunctionDefinition(statement) => statement.into_llvm(context),
-                _ => unreachable!(),
+                _ => panic!("Cannot appear in local blocks"),
             }
         }
     }
@@ -124,7 +130,7 @@ impl Block {
                         .builder
                         .build_unconditional_branch(context.continue_block.expect("Always exists"));
                 }
-                _ => unreachable!(),
+                Statement::FunctionDefinition(_) => panic!("Cannot appear in local blocks"),
             }
         }
     }
@@ -142,23 +148,22 @@ mod tests {
             {}
         }"#;
 
-        let expected = Module {
+        let expected = Ok(Module {
             block: Block {
                 statements: vec![Statement::Block(Block { statements: vec![] })],
             },
-        };
+        });
 
         let result = crate::parse(input);
-        assert_eq!(expected, result,);
+        assert_eq!(expected, result);
     }
 
     #[test]
-    #[should_panic]
     fn error_expected_bracket_curly_right() {
         let input = r#"{
             {}{}{{
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_err());
     }
 }

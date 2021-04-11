@@ -2,6 +2,7 @@
 //! The YUL source code identifier.
 //!
 
+use crate::error::Error;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -25,18 +26,18 @@ impl Identifier {
     pub fn parse_list(
         lexer: &mut Lexer,
         mut initial: Option<Lexeme>,
-    ) -> (Vec<String>, Option<Lexeme>) {
+    ) -> Result<(Vec<String>, Option<Lexeme>), Error> {
         let mut result = Vec::new();
 
         loop {
-            let lexeme = initial.take().unwrap_or_else(|| lexer.next());
+            let lexeme = crate::parser::take_or_next(initial.take(), lexer)?;
 
             match lexeme {
                 Lexeme::Identifier(identifier) => {
                     result.push(identifier);
                 }
                 Lexeme::Symbol(Symbol::Comma) => {}
-                lexeme => return (result, Some(lexeme)),
+                lexeme => return Ok((result, Some(lexeme))),
             }
         }
     }
@@ -47,18 +48,18 @@ impl Identifier {
     pub fn parse_typed_list(
         lexer: &mut Lexer,
         mut initial: Option<Lexeme>,
-    ) -> (Vec<Self>, Option<Lexeme>) {
+    ) -> Result<(Vec<Self>, Option<Lexeme>), Error> {
         let mut result = Vec::new();
 
         loop {
-            let lexeme = initial.take().unwrap_or_else(|| lexer.next());
+            let lexeme = crate::parser::take_or_next(initial.take(), lexer)?;
 
             match lexeme {
                 Lexeme::Identifier(identifier) => {
-                    let yul_type = match lexer.peek() {
+                    let yul_type = match lexer.peek()? {
                         Lexeme::Symbol(Symbol::Colon) => {
-                            lexer.next();
-                            Some(Type::parse(lexer, None))
+                            lexer.next()?;
+                            Some(Type::parse(lexer, None)?)
                         }
                         _ => None,
                     };
@@ -68,7 +69,7 @@ impl Identifier {
                     });
                 }
                 Lexeme::Symbol(Symbol::Comma) => {}
-                lexeme => return (result, Some(lexeme)),
+                lexeme => return Ok((result, Some(lexeme))),
             }
         }
     }

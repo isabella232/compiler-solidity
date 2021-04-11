@@ -2,12 +2,14 @@
 //! The assignment expression statement.
 //!
 
+use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::block::statement::expression::Expression;
+use crate::parser::error::Error as ParserError;
 use crate::parser::identifier::Identifier;
 
 ///
@@ -25,37 +27,46 @@ impl Assignment {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let lexeme = initial.unwrap_or_else(|| lexer.next());
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+        let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
-        match lexer.peek() {
+        match lexer.peek()? {
             Lexeme::Symbol(Symbol::Assignment) => {
-                lexer.next();
+                lexer.next()?;
 
                 let identifier = match lexeme {
                     Lexeme::Identifier(identifier) => identifier,
-                    lexeme => panic!("Expected identifier, got {}", lexeme),
+                    lexeme => {
+                        return Err(ParserError::expected_one_of(
+                            vec!["{identifier}"],
+                            lexeme,
+                            None,
+                        )
+                        .into())
+                    }
                 };
 
-                Self {
+                Ok(Self {
                     bindings: vec![identifier],
-                    initializer: Expression::parse(lexer, None),
-                }
+                    initializer: Expression::parse(lexer, None)?,
+                })
             }
             Lexeme::Symbol(Symbol::Comma) => {
-                let (identifiers, next) = Identifier::parse_list(lexer, Some(lexeme));
+                let (identifiers, next) = Identifier::parse_list(lexer, Some(lexeme))?;
 
-                match next.unwrap_or_else(|| lexer.next()) {
+                match crate::parser::take_or_next(next, lexer)? {
                     Lexeme::Symbol(Symbol::Assignment) => {}
-                    lexeme => panic!("Expected ':=', got {}", lexeme),
+                    lexeme => {
+                        return Err(ParserError::expected_one_of(vec![":="], lexeme, None).into())
+                    }
                 }
 
-                Self {
+                Ok(Self {
                     bindings: identifiers,
-                    initializer: Expression::parse(lexer, None),
-                }
+                    initializer: Expression::parse(lexer, None)?,
+                })
             }
-            _ => unreachable!(),
+            lexeme => Err(ParserError::expected_one_of(vec![":=", ","], lexeme, None).into()),
         }
     }
 }
@@ -103,36 +114,25 @@ impl ILLVMWritable for Assignment {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn ok_parse_single() {
+    fn ok_single() {
         let input = r#"{
             x := foo(x)
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_parse_multiple() {
+    fn ok_multiple() {
         let input = r#"{
             x, y := foo(x)
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn ok_compile_single() {
-        let input = r#"{
-            function foo() -> x {
-                let y := x
-            }
-        }"#;
-
-        crate::compile(input);
-    }
-
-    #[test]
-    fn ok_compile_multiple() {
+    fn ok_multiple_return_values() {
         let input = r#"{
             function bar() -> x, y {
                 x := 25
@@ -146,26 +146,24 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    #[should_panic]
-    fn error_parse_expected_expression() {
+    fn error_expected_expression() {
         let input = r#"{
             x :=
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_err());
     }
 
     #[test]
-    #[should_panic]
-    fn error_parse_expected_symbol_assignment() {
+    fn error_expected_symbol_assignment() {
         let input = r#"{
             x, y
         }"#;
 
-        crate::parse(input);
+        assert!(crate::parse(input).is_err());
     }
 }

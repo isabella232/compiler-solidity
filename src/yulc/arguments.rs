@@ -14,6 +14,10 @@ pub struct Arguments {
     /// The input file path.
     #[structopt(parse(from_os_str))]
     pub input: PathBuf,
+
+    /// Sets the LLVM optimization level.
+    #[structopt(short = "O", long = "opt-level", default_value = "0")]
+    pub optimization_level: usize,
 }
 
 impl Arguments {

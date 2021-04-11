@@ -5,10 +5,12 @@
 #[cfg(test)]
 mod tests;
 
+pub mod error;
 pub mod lexeme;
 
 use std::convert::TryFrom;
 
+use self::error::Error;
 use self::lexeme::keyword::Keyword;
 use self::lexeme::literal::boolean::Boolean as BooleanLiteral;
 use self::lexeme::literal::integer::Integer as IntegerLiteral;
@@ -50,15 +52,15 @@ impl Lexer {
     /// Advances the lexer, returning the next lexeme.
     ///
     #[allow(clippy::should_implement_trait)]
-    pub fn next(&mut self) -> Lexeme {
+    pub fn next(&mut self) -> Result<Lexeme, Error> {
         if let Some(peeked) = self.peeked.take() {
-            return peeked;
+            return Ok(peeked);
         }
 
         loop {
             let r#match = match self.regexp.find(&self.input[self.index..]) {
                 Some(r#match) => r#match,
-                None => return Lexeme::EndOfFile,
+                None => return Ok(Lexeme::EndOfFile),
             };
 
             let lexeme = if r#match.start() != 0 {
@@ -85,7 +87,7 @@ impl Lexer {
                         } else if Lexeme::is_identifier(string.as_str()) {
                             Lexeme::Identifier(string)
                         } else {
-                            panic!("Invalid lexeme `{}`", string);
+                            return Err(Error::invalid_lexeme(string));
                         }
                     }
                 };
@@ -94,7 +96,7 @@ impl Lexer {
             } else if !r#match.as_str().trim().is_empty() {
                 let lexeme = match Symbol::try_from(r#match.as_str()) {
                     Ok(symbol) => Lexeme::Symbol(symbol),
-                    Err(token) => panic!("invalid token `{}`", token),
+                    Err(string) => return Err(Error::invalid_lexeme(string)),
                 };
                 self.index += r#match.as_str().len();
                 lexeme
@@ -103,20 +105,20 @@ impl Lexer {
                 continue;
             };
 
-            return lexeme;
+            return Ok(lexeme);
         }
     }
 
     ///
     /// Peeks the next lexeme without advancing the iterator.
     ///
-    pub fn peek(&mut self) -> Lexeme {
+    pub fn peek(&mut self) -> Result<Lexeme, Error> {
         match self.peeked {
-            Some(ref peeked) => peeked.clone(),
+            Some(ref peeked) => Ok(peeked.clone()),
             None => {
-                let peeked = self.next();
+                let peeked = self.next()?;
                 self.peeked = Some(peeked.clone());
-                peeked
+                Ok(peeked)
             }
         }
     }
@@ -126,11 +128,11 @@ impl Lexer {
     ///
     /// Only for testing purposes.
     ///
-    pub fn tokenize(&mut self) -> Vec<Lexeme> {
+    pub fn tokenize(&mut self) -> Result<Vec<Lexeme>, Error> {
         let mut lexemes = Vec::new();
         loop {
-            match self.next() {
-                Lexeme::EndOfFile => return lexemes,
+            match self.next()? {
+                Lexeme::EndOfFile => return Ok(lexemes),
                 lexeme => lexemes.push(lexeme),
             }
         }

@@ -10,10 +10,12 @@ pub mod if_conditional;
 pub mod switch;
 pub mod variable_declaration;
 
+use crate::error::Error;
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::block::Block;
+use crate::parser::error::Error as ParserError;
 
 use self::assignment::Assignment;
 use self::expression::Expression;
@@ -56,19 +58,32 @@ impl Statement {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Self {
-        let lexeme = initial.unwrap_or_else(|| lexer.next());
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+        let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
         match lexeme {
-            Lexeme::Keyword(Keyword::Function) => Statement::FunctionDefinition(FunctionDefinition::parse(lexer, None)),
-            Lexeme::Keyword(Keyword::Let) => Statement::VariableDeclaration(VariableDeclaration::parse(lexer, None)),
-            Lexeme::Keyword(Keyword::If) => Statement::IfConditional(IfConditional::parse(lexer, None)),
-            Lexeme::Keyword(Keyword::Switch) => Statement::Switch(Switch::parse(lexer, None)),
-            Lexeme::Keyword(Keyword::For) => Statement::ForLoop(ForLoop::parse(lexer, None)),
-            Lexeme::Keyword(Keyword::Continue) => Statement::Continue,
-            Lexeme::Keyword(Keyword::Break) => Statement::Break,
-            Lexeme::Keyword(Keyword::Leave) => Statement::Leave,
-            lexeme => panic!("Expected one of `function`, `let`, `if`, `switch`, `for`, `break`, `continue`, `leave`, got {}", lexeme),
+            Lexeme::Keyword(Keyword::Function) => Ok(Statement::FunctionDefinition(
+                FunctionDefinition::parse(lexer, None)?,
+            )),
+            Lexeme::Keyword(Keyword::Let) => Ok(Statement::VariableDeclaration(
+                VariableDeclaration::parse(lexer, None)?,
+            )),
+            Lexeme::Keyword(Keyword::If) => {
+                Ok(Statement::IfConditional(IfConditional::parse(lexer, None)?))
+            }
+            Lexeme::Keyword(Keyword::Switch) => Ok(Statement::Switch(Switch::parse(lexer, None)?)),
+            Lexeme::Keyword(Keyword::For) => Ok(Statement::ForLoop(ForLoop::parse(lexer, None)?)),
+            Lexeme::Keyword(Keyword::Continue) => Ok(Statement::Continue),
+            Lexeme::Keyword(Keyword::Break) => Ok(Statement::Break),
+            Lexeme::Keyword(Keyword::Leave) => Ok(Statement::Leave),
+            lexeme => Err(ParserError::expected_one_of(
+                vec![
+                    "function", "let", "if", "switch", "for", "break", "continue", "leave",
+                ],
+                lexeme,
+                None,
+            )
+            .into()),
         }
     }
 
@@ -100,7 +115,7 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
@@ -117,7 +132,7 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 
     #[test]
@@ -134,6 +149,6 @@ mod tests {
             }
         }"#;
 
-        crate::compile(input);
+        assert!(crate::parse(input).is_ok());
     }
 }

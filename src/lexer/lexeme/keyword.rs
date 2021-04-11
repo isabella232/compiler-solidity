@@ -115,11 +115,11 @@ mod tests {
         let result = crate::parse(input);
         assert_eq!(
             result,
-            Module {
+            Ok(Module {
                 block: Block {
                     statements: vec![Statement::Break]
                 }
-            }
+            })
         );
     }
 
@@ -132,11 +132,11 @@ mod tests {
         let result = crate::parse(input);
         assert_eq!(
             result,
-            Module {
+            Ok(Module {
                 block: Block {
                     statements: vec![Statement::Continue]
                 }
-            }
+            })
         );
     }
 
@@ -149,11 +149,11 @@ mod tests {
         let result = crate::parse(input);
         assert_eq!(
             result,
-            Module {
+            Ok(Module {
                 block: Block {
                     statements: vec![Statement::Leave]
                 }
-            }
+            })
         );
     }
 }

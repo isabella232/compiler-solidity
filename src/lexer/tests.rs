@@ -13,7 +13,9 @@ use crate::lexer::Lexer;
 /// Consumes the source code and returns the vector of lexems.
 ///
 fn tokenize(input: &str) -> Vec<Lexeme> {
-    Lexer::new(input.to_owned()).tokenize()
+    Lexer::new(input.to_owned())
+        .tokenize()
+        .expect("Test data is valid")
 }
 
 #[test]

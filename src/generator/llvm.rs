@@ -4,9 +4,7 @@
 
 use std::collections::HashMap;
 
-use crate::generator::ILLVMWritable;
 use crate::parser::identifier::Identifier;
-use crate::parser::Module;
 
 ///
 /// The LLVM context.
@@ -32,6 +30,14 @@ pub struct Context<'ctx> {
     pub variables: HashMap<String, inkwell::values::PointerValue<'ctx>>,
     /// The declared functions.
     pub functions: HashMap<String, inkwell::values::FunctionValue<'ctx>>,
+
+    /// The optimization level.
+    optimization_level: inkwell::OptimizationLevel,
+    /// The optimization pass manager builder.
+    pass_manager_builder: inkwell::passes::PassManagerBuilder,
+    /// The function optimization pass manager.
+    pass_manager_function:
+        Option<inkwell::passes::PassManager<inkwell::values::FunctionValue<'ctx>>>,
 }
 
 impl<'ctx> Context<'ctx> {
@@ -41,9 +47,28 @@ impl<'ctx> Context<'ctx> {
     const FUNCTION_HASHMAP_INITIAL_CAPACITY: usize = 64;
 
     ///
-    /// A shortcut constructor.
+    /// Initializes a new LLVM context.
     ///
     pub fn new(llvm: &'ctx inkwell::context::Context) -> Self {
+        Self::new_with_optimizer(llvm, 0)
+    }
+
+    ///
+    /// Initializes a new LLVM context, setting the optimization level.
+    ///
+    pub fn new_with_optimizer(
+        llvm: &'ctx inkwell::context::Context,
+        optimization_level: usize,
+    ) -> Self {
+        let pass_manager_builder = inkwell::passes::PassManagerBuilder::create();
+        let optimization_level = match optimization_level {
+            0 => inkwell::OptimizationLevel::None,
+            1 => inkwell::OptimizationLevel::Less,
+            2 => inkwell::OptimizationLevel::Default,
+            _ => inkwell::OptimizationLevel::Aggressive,
+        };
+        pass_manager_builder.set_optimization_level(optimization_level);
+
         Self {
             llvm,
             builder: llvm.create_builder(),
@@ -56,6 +81,32 @@ impl<'ctx> Context<'ctx> {
 
             variables: HashMap::with_capacity(Self::VARIABLE_HASHMAP_INITIAL_CAPACITY),
             functions: HashMap::with_capacity(Self::FUNCTION_HASHMAP_INITIAL_CAPACITY),
+
+            optimization_level,
+            pass_manager_builder,
+            pass_manager_function: None,
+        }
+    }
+
+    ///
+    /// Returns the optimization level.
+    ///
+    pub fn optimization_level(&self) -> inkwell::OptimizationLevel {
+        self.optimization_level
+    }
+
+    ///
+    /// Optimizes the current module.
+    ///
+    /// Should be only run when the entire module has been translated.
+    ///
+    pub fn optimize(&self) {
+        let pass_manager = self
+            .pass_manager_function
+            .as_ref()
+            .expect("Pass manager is created with the module");
+        for (_, function) in self.functions.iter() {
+            pass_manager.run_on(function);
         }
     }
 
@@ -70,11 +121,35 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
-    /// Compiles and runs the module, returning the `entry` function result.
+    /// Creates a new module in the context.
     ///
-    pub fn compile(mut self, module: Module) -> String {
-        module.into_llvm(&mut self);
-        self.module.print_to_string().to_string()
+    pub fn create_module(&mut self, name: &str) {
+        let module = self.llvm.create_module(name);
+        let pass_manager = inkwell::passes::PassManager::create(&module);
+        self.pass_manager_builder
+            .populate_function_pass_manager(&pass_manager);
+        self.pass_manager_function = Some(pass_manager);
+        self.module = module;
+    }
+
+    ///
+    /// Writes the newly function to the hashmap.
+    ///
+    pub fn create_function(
+        &mut self,
+        name: &str,
+        r#type: inkwell::types::FunctionType<'ctx>,
+    ) -> inkwell::values::FunctionValue<'ctx> {
+        let function = self.module.add_function(name, r#type, None);
+        self.functions.insert(name.to_string(), function);
+        function
+    }
+
+    ///
+    /// Returns the current function.
+    ///
+    pub fn function(&self) -> inkwell::values::FunctionValue<'ctx> {
+        self.function.expect("Always exists")
     }
 
     ///
@@ -120,25 +195,5 @@ impl<'ctx> Context<'ctx> {
             .collect();
         let return_type = self.llvm.struct_type(return_types.as_slice(), false);
         return_type.fn_type(argument_types, false)
-    }
-
-    ///
-    /// Writes the newly function to the hashmap.
-    ///
-    pub fn create_function(
-        &mut self,
-        name: &str,
-        r#type: inkwell::types::FunctionType<'ctx>,
-    ) -> inkwell::values::FunctionValue<'ctx> {
-        let function = self.module.add_function(name, r#type, None);
-        self.functions.insert(name.to_string(), function);
-        function
-    }
-
-    ///
-    /// Returns the current function.
-    ///
-    pub fn function(&self) -> inkwell::values::FunctionValue<'ctx> {
-        self.function.expect("Always exists")
     }
 }
