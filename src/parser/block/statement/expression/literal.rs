@@ -39,8 +39,7 @@ impl Literal {
         let yul_type = match lexer.peek() {
             Lexeme::Symbol(Symbol::Colon) => {
                 lexer.next();
-                lexer.next();
-                None
+                Some(Type::parse(lexer, None))
             }
             _ => None,
         };

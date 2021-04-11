@@ -9,7 +9,7 @@ edition = "2018"
 description = "The YUL to LLVM compiler"
 
 [[bin]]
-name = "yul-compiler"
+name = "yulc"
 path = "src/yul-compiler/main.rs"
 
 [dependencies]

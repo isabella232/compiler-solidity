@@ -14,10 +14,6 @@ pub struct Arguments {
     /// The input file path.
     #[structopt(parse(from_os_str))]
     pub input: PathBuf,
-
-    /// The Solidity compiler options.
-    #[structopt(long = "Xsol", default_value = "")]
-    pub xsol: String,
 }
 
 impl Arguments {
