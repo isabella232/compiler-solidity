@@ -69,7 +69,7 @@ dependencies = [
 [[package]]
 name = "compiler-const"
 version = "0.3.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-const?branch=main#e22d459a0945800fbfc1b79b3abf5f49ca574e4c"
+source = "git+ssh://git@github.com/matter-labs/compiler-const?branch=main#8692c34aca5fb7fa9374458ac2e950b0521bd1ec"
 
 [[package]]
 name = "crossbeam-channel"

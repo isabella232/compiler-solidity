@@ -50,7 +50,7 @@ impl<'ctx> Context<'ctx> {
     /// Initializes a new LLVM context.
     ///
     pub fn new(llvm: &'ctx inkwell::context::Context) -> Self {
-        Self::new_with_optimizer(llvm, 0)
+        Self::new_with_optimizer(llvm, inkwell::OptimizationLevel::None)
     }
 
     ///
@@ -58,15 +58,9 @@ impl<'ctx> Context<'ctx> {
     ///
     pub fn new_with_optimizer(
         llvm: &'ctx inkwell::context::Context,
-        optimization_level: usize,
+        optimization_level: inkwell::OptimizationLevel,
     ) -> Self {
         let pass_manager_builder = inkwell::passes::PassManagerBuilder::create();
-        let optimization_level = match optimization_level {
-            0 => inkwell::OptimizationLevel::None,
-            1 => inkwell::OptimizationLevel::Less,
-            2 => inkwell::OptimizationLevel::Default,
-            _ => inkwell::OptimizationLevel::Aggressive,
-        };
         pass_manager_builder.set_optimization_level(optimization_level);
 
         Self {

@@ -87,13 +87,13 @@ impl Block {
                 Statement::FunctionDefinition(statement) => {
                     statement.declare(context);
                 }
-                _ => panic!("Cannot appear in local blocks"),
+                _ => panic!("Cannot appear in module blocks"),
             }
         }
         for statement in self.statements.into_iter() {
             match statement {
                 Statement::FunctionDefinition(statement) => statement.into_llvm(context),
-                _ => panic!("Cannot appear in local blocks"),
+                _ => panic!("Cannot appear in module blocks"),
             }
         }
     }

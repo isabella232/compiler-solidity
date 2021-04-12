@@ -14,6 +14,9 @@ pub enum Error {
     Lexer(LexerError),
     /// The parser error.
     Parser(ParserError),
+    /// The LLVM error.
+    #[allow(clippy::upper_case_acronyms)]
+    LLVM(String),
 }
 
 impl From<LexerError> for Error {
