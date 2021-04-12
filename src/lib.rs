@@ -14,12 +14,6 @@ pub use self::generator::ILLVMWritable;
 pub use self::lexer::Lexer;
 pub use self::parser::Module;
 
-/// The `bool` type bitlength.
-pub const BITLENGTH_BOOLEAN: usize = 1;
-
-/// The `uint` / `uint256` type bitlength.
-pub const BITLENGTH_DEFAULT: usize = 256;
-
 ///
 /// Parses the source code and returns the AST.
 ///

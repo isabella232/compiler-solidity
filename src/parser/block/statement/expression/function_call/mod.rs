@@ -172,7 +172,7 @@ impl FunctionCall {
                 );
                 let value = context.builder.build_int_cast(
                     value,
-                    context.integer_type(crate::BITLENGTH_DEFAULT),
+                    context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
                 Some(value.as_basic_value_enum())
@@ -194,7 +194,7 @@ impl FunctionCall {
                 );
                 let value = context.builder.build_int_cast(
                     value,
-                    context.integer_type(crate::BITLENGTH_DEFAULT),
+                    context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
                 Some(value.as_basic_value_enum())
@@ -216,7 +216,7 @@ impl FunctionCall {
                 );
                 let value = context.builder.build_int_cast(
                     value,
-                    context.integer_type(crate::BITLENGTH_DEFAULT),
+                    context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
                 Some(value.as_basic_value_enum())
@@ -229,14 +229,14 @@ impl FunctionCall {
                         .expect("Always exists")
                         .into_int_value(),
                     context
-                        .integer_type(crate::BITLENGTH_DEFAULT)
+                        .integer_type(compiler_const::bitlength::FIELD)
                         .const_int(0, false),
                     true,
                     "",
                 );
                 let value = context.builder.build_int_cast(
                     value,
-                    context.integer_type(crate::BITLENGTH_DEFAULT),
+                    context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
                 Some(value.as_basic_value_enum())
@@ -342,7 +342,7 @@ impl FunctionCall {
                 );
                 let value = context.builder.build_int_cast(
                     value,
-                    context.integer_type(crate::BITLENGTH_DEFAULT),
+                    context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
                 Some(value.as_basic_value_enum())
@@ -364,7 +364,7 @@ impl FunctionCall {
                 );
                 let value = context.builder.build_int_cast(
                     value,
-                    context.integer_type(crate::BITLENGTH_DEFAULT),
+                    context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
                 Some(value.as_basic_value_enum())

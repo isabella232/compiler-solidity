@@ -67,6 +67,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "compiler-const"
+version = "0.3.0"
+source = "git+ssh://git@github.com/matter-labs/compiler-const?branch=main#e22d459a0945800fbfc1b79b3abf5f49ca574e4c"
+
+[[package]]
 name = "crossbeam-channel"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -553,6 +558,7 @@ name = "yul-compiler"
 version = "0.1.0"
 dependencies = [
  "colored",
+ "compiler-const",
  "inkwell",
  "rand",
  "rayon",

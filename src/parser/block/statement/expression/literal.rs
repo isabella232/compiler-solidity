@@ -90,7 +90,7 @@ impl Literal {
                 .as_basic_value_enum()
             }
             LexicalLiteral::String(_inner) => context
-                .integer_type(crate::BITLENGTH_DEFAULT)
+                .integer_type(compiler_const::bitlength::FIELD)
                 .const_int(0, false)
                 .as_basic_value_enum(),
         }
