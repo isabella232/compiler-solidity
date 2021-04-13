@@ -10,6 +10,10 @@ use std::fmt;
 ///
 #[derive(Debug, Clone, PartialEq)]
 pub enum Keyword {
+    /// The `object` keyword.
+    Object,
+    /// The `code` keyword.
+    Code,
     /// The `function` keyword.
     Function,
     /// The `let` keyword.
@@ -59,6 +63,8 @@ impl TryFrom<&str> for Keyword {
         }
 
         Ok(match input {
+            "object" => Self::Object,
+            "code" => Self::Code,
             "function" => Self::Function,
             "let" => Self::Let,
             "if" => Self::If,
@@ -81,6 +87,8 @@ impl TryFrom<&str> for Keyword {
 impl fmt::Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Object => write!(f, "object"),
+            Self::Code => write!(f, "code"),
             Self::Function => write!(f, "function"),
             Self::Let => write!(f, "let"),
             Self::If => write!(f, "if"),
@@ -102,58 +110,30 @@ impl fmt::Display for Keyword {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::block::statement::Statement;
-    use crate::parser::block::Block;
-    use crate::parser::Module;
+    use crate::lexer::Lexer;
+    use crate::parser::object::code::block::statement::Statement;
 
     #[test]
     fn ok_break() {
-        let input = r#"{
-            break
-        }"#;
+        let input = r#"break"#;
 
-        let result = crate::parse(input);
-        assert_eq!(
-            result,
-            Ok(Module {
-                block: Block {
-                    statements: vec![Statement::Break]
-                }
-            })
-        );
+        let result = Statement::parse(&mut Lexer::new(input.to_owned()), None);
+        assert_eq!(result, Ok(Statement::Break));
     }
 
     #[test]
     fn ok_continue() {
-        let input = r#"{
-            continue
-        }"#;
+        let input = r#"continue"#;
 
-        let result = crate::parse(input);
-        assert_eq!(
-            result,
-            Ok(Module {
-                block: Block {
-                    statements: vec![Statement::Continue]
-                }
-            })
-        );
+        let result = Statement::parse(&mut Lexer::new(input.to_owned()), None);
+        assert_eq!(result, Ok(Statement::Continue));
     }
 
     #[test]
     fn ok_leave() {
-        let input = r#"{
-            leave
-        }"#;
+        let input = r#"leave"#;
 
-        let result = crate::parse(input);
-        assert_eq!(
-            result,
-            Ok(Module {
-                block: Block {
-                    statements: vec![Statement::Leave]
-                }
-            })
-        );
+        let result = Statement::parse(&mut Lexer::new(input.to_owned()), None);
+        assert_eq!(result, Ok(Statement::Leave));
     }
 }

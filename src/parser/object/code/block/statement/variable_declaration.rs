@@ -10,9 +10,9 @@ use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::parser::block::statement::expression::Expression;
 use crate::parser::error::Error as ParserError;
 use crate::parser::identifier::Identifier;
+use crate::parser::object::code::block::statement::expression::Expression;
 
 ///
 /// The variable declaration statement.

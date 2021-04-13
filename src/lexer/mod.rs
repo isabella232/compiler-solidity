@@ -83,6 +83,11 @@ impl Lexer {
                                 string,
                             )))
                         } else if string.starts_with('"') {
+                            let string = string
+                                .strip_prefix('"')
+                                .and_then(|string| string.strip_suffix('"'))
+                                .unwrap_or_else(|| string.as_str())
+                                .to_owned();
                             Lexeme::Literal(Literal::String(string.into()))
                         } else if Lexeme::is_identifier(string.as_str()) {
                             Lexeme::Identifier(string)
@@ -143,8 +148,14 @@ impl Lexer {
     ///
     fn remove_comments(src: &mut String) {
         while let Some(position) = src.find("//") {
-            let eol = src[position..].find('\n').unwrap_or(src.len() - position) + position;
-            src.replace_range(position..eol, "");
+            let end_of_line = src[position..].find('\n').unwrap_or(src.len() - position) + position;
+            src.replace_range(position..end_of_line, "");
+        }
+
+        while let Some(position) = src.find("/*") {
+            let end_of_comment =
+                src[position..].find("*/").unwrap_or(src.len() - position) + position;
+            src.replace_range(position..end_of_comment + 2, "");
         }
     }
 }

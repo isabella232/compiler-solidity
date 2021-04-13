@@ -1,5 +1,5 @@
 //!
-//! Datatype for a lexeme for further analysis and translation.
+//! The YUL source code type.
 //!
 
 use crate::error::Error;
@@ -10,7 +10,7 @@ use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
 
 ///
-/// Datatype for a lexeme for further analysis and translation.
+/// The YUL source code type.
 ///
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -26,7 +26,7 @@ pub enum Type {
 
 impl Default for Type {
     fn default() -> Self {
-        Self::UInt(256)
+        Self::UInt(compiler_const::bitlength::FIELD)
     }
 }
 

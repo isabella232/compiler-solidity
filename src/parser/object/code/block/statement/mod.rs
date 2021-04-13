@@ -14,8 +14,10 @@ use crate::error::Error;
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::parser::block::Block;
 use crate::parser::error::Error as ParserError;
+use crate::parser::object::code::block::Block;
+use crate::parser::object::code::Code;
+use crate::parser::object::Object;
 
 use self::assignment::Assignment;
 use self::expression::Expression;
@@ -30,6 +32,10 @@ use self::variable_declaration::VariableDeclaration;
 ///
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
+    /// The object element.
+    Object(Object),
+    /// The code element.
+    Code(Code),
     /// The code block.
     Block(Block),
     /// The expression.
@@ -62,6 +68,10 @@ impl Statement {
         let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
         match lexeme {
+            lexeme @ Lexeme::Keyword(Keyword::Object) => {
+                Ok(Statement::Object(Object::parse(lexer, Some(lexeme))?))
+            }
+            Lexeme::Keyword(Keyword::Code) => Ok(Statement::Code(Code::parse(lexer, None)?)),
             Lexeme::Keyword(Keyword::Function) => Ok(Statement::FunctionDefinition(
                 FunctionDefinition::parse(lexer, None)?,
             )),
@@ -78,7 +88,8 @@ impl Statement {
             Lexeme::Keyword(Keyword::Leave) => Ok(Statement::Leave),
             lexeme => Err(ParserError::expected_one_of(
                 vec![
-                    "function", "let", "if", "switch", "for", "break", "continue", "leave",
+                    "object", "code", "function", "let", "if", "switch", "for", "break",
+                    "continue", "leave",
                 ],
                 lexeme,
                 None,

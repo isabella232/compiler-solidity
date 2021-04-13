@@ -77,24 +77,24 @@ impl Block {
     }
 
     ///
-    /// Translates a module block into LLVM.
+    /// Translates an object block into LLVM.
     ///
-    pub fn into_llvm_module(self, context: &mut LLVMContext) {
-        context.create_module("main");
-
-        for statement in self.statements.iter() {
-            match statement {
-                Statement::FunctionDefinition(statement) => {
-                    statement.declare(context);
-                }
-                _ => panic!("Cannot appear in module blocks"),
-            }
-        }
+    pub fn into_llvm_object(self, context: &mut LLVMContext) {
+        let mut functions = Vec::with_capacity(self.statements.len());
         for statement in self.statements.into_iter() {
             match statement {
-                Statement::FunctionDefinition(statement) => statement.into_llvm(context),
-                _ => panic!("Cannot appear in module blocks"),
+                Statement::Object(object) => object.into_llvm(context),
+                Statement::Code(code) => code.into_llvm(context),
+                Statement::FunctionDefinition(statement) => {
+                    statement.declare(context);
+                    functions.push(statement);
+                }
+                _ => {}
             }
+        }
+
+        for function in functions.into_iter() {
+            function.into_llvm(context);
         }
     }
 
@@ -104,8 +104,6 @@ impl Block {
     pub fn into_llvm_local(self, context: &mut LLVMContext) {
         for statement in self.statements.into_iter() {
             match statement {
-                // The scope can be cleaned up on exit, but let's LLVM do the job. We can also rely
-                // on YUL renaming so we don't need to track scope.
                 Statement::Block(block) => block.into_llvm_local(context),
                 Statement::Expression(expression) => {
                     expression.into_llvm(context);
@@ -130,7 +128,7 @@ impl Block {
                         .builder
                         .build_unconditional_branch(context.continue_block.expect("Always exists"));
                 }
-                Statement::FunctionDefinition(_) => panic!("Cannot appear in local blocks"),
+                _ => {}
             }
         }
     }
@@ -138,9 +136,9 @@ impl Block {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::block::statement::Statement;
-    use crate::parser::block::Block;
-    use crate::parser::Module;
+    use crate::parser::object::code::block::statement::Statement;
+    use crate::parser::object::code::block::Block;
+    use crate::parser::object::code::Code;
 
     #[test]
     fn ok_nested() {
@@ -148,11 +146,12 @@ mod tests {
             {}
         }"#;
 
-        let expected = Ok(Module {
+        let expected = Ok(Code {
             block: Block {
                 statements: vec![Statement::Block(Block { statements: vec![] })],
             },
-        });
+        }
+        .into_test_object());
 
         let result = crate::parse(input);
         assert_eq!(expected, result);

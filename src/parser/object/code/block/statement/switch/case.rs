@@ -6,9 +6,9 @@ use crate::error::Error;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::parser::block::statement::expression::literal::Literal;
-use crate::parser::block::Block;
 use crate::parser::error::Error as ParserError;
+use crate::parser::object::code::block::statement::expression::literal::Literal;
+use crate::parser::object::code::block::Block;
 
 ///
 /// The switch statement case.

@@ -5,22 +5,17 @@
 pub mod arguments;
 
 use self::arguments::Arguments;
-
-/// The common application success exit code.
-pub const SUCCESS: i32 = 0;
-
-/// The common application failure exit code.
-pub const FAILURE: i32 = 1;
+use std::io::Read;
 
 ///
 /// The application entry point.
 ///
 fn main() {
     std::process::exit(match main_inner() {
-        Ok(()) => SUCCESS,
+        Ok(()) => compiler_const::exit_code::SUCCESS,
         Err(error) => {
             eprintln!("{:?}", error);
-            FAILURE
+            compiler_const::exit_code::FAILURE
         }
     })
 }
@@ -31,7 +26,13 @@ fn main() {
 fn main_inner() -> Result<(), yul_compiler::Error> {
     let arguments = Arguments::new();
 
-    let code = std::fs::read_to_string(&arguments.input).expect("Input file reading error");
+    let code = if arguments.input.to_string_lossy() == "-" {
+        let mut buffer = String::with_capacity(16384);
+        std::io::stdin().read_to_string(&mut buffer)?;
+        buffer
+    } else {
+        std::fs::read_to_string(&arguments.input)?
+    };
     let output = yul_compiler::compile(&code, arguments.optimization_level)?;
     println!("{}", output);
 

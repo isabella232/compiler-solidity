@@ -8,24 +8,34 @@ pub mod lexer;
 pub mod parser;
 
 pub use self::error::Error;
-pub use self::generator::action::Action;
 pub use self::generator::llvm::Context as LLVMContext;
 pub use self::generator::ILLVMWritable;
 pub use self::lexer::Lexer;
-pub use self::parser::Module;
+pub use self::parser::object::Object;
+
+///
+/// Removes the metadata put by `solc` at the beginning of the Yul input.
+///
+pub fn clean(mut input: &str) -> &str {
+    input = input.strip_prefix("IR:").unwrap_or(input);
+    input = input.strip_prefix("Optimized IR:").unwrap_or(input);
+    input
+}
 
 ///
 /// Parses the source code and returns the AST.
 ///
-pub fn parse(input: &str) -> Result<Module, Error> {
-    Module::parse(&mut Lexer::new(input.to_owned()), None)
+pub fn parse(input: &str) -> Result<Object, Error> {
+    let input = clean(input).to_owned();
+    let mut lexer = Lexer::new(input);
+    Object::parse(&mut lexer, None)
 }
 
 ///
 /// Parses and compiles the source code.
 ///
 pub fn compile(input: &str, optimization_level: usize) -> Result<String, Error> {
-    let module = parse(input)?;
+    let object = parse(input)?;
 
     let optimization_level = match optimization_level {
         0 => inkwell::OptimizationLevel::None,
@@ -35,9 +45,12 @@ pub fn compile(input: &str, optimization_level: usize) -> Result<String, Error> 
     };
     let llvm = inkwell::context::Context::create();
     let mut context = LLVMContext::new_with_optimizer(&llvm, optimization_level);
-    module.into_llvm(&mut context);
+    context.create_module(object.identifier.as_str());
+    object.into_llvm(&mut context);
     context.optimize();
-    context.verify().expect("Verification error");
+    context
+        .verify()
+        .map_err(|error| Error::LLVM(error.to_string()))?;
 
     inkwell::targets::Target::initialize_syncvm(&inkwell::targets::InitializationConfig::default());
     let target = inkwell::targets::Target::from_name(compiler_const::virtual_machine::TARGET_NAME)
@@ -64,7 +77,7 @@ pub fn compile(input: &str, optimization_level: usize) -> Result<String, Error> 
         })?;
     let buffer = target_machine
         .write_to_memory_buffer(&context.module, inkwell::targets::FileType::Assembly)
-        .map_err(|error| Error::LLVM(format!("Module compiling error: {}", error)))?;
+        .map_err(|error| Error::LLVM(format!("Code compiling error: {}", error)))?;
     let assembly = String::from_utf8_lossy(buffer.as_slice()).to_string();
 
     Ok(assembly)

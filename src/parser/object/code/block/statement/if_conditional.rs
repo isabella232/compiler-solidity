@@ -8,9 +8,9 @@ use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::parser::block::statement::expression::Expression;
-use crate::parser::block::Block;
 use crate::parser::error::Error as ParserError;
+use crate::parser::object::code::block::statement::expression::Expression;
+use crate::parser::object::code::block::Block;
 
 ///
 /// The if-conditional statement.

@@ -89,10 +89,7 @@ impl Literal {
                 .expect("The value is valid")
                 .as_basic_value_enum()
             }
-            LexicalLiteral::String(_inner) => context
-                .integer_type(compiler_const::bitlength::FIELD)
-                .const_int(0, false)
-                .as_basic_value_enum(),
+            LexicalLiteral::String(_inner) => todo!(),
         }
     }
 }
@@ -101,11 +98,11 @@ impl Literal {
 mod tests {
     use crate::lexer::lexeme::literal::boolean::Boolean as LexicalBooleanLiteral;
     use crate::lexer::lexeme::literal::Literal as LexicalLiteral;
-    use crate::parser::block::statement::expression::literal::Literal;
-    use crate::parser::block::statement::expression::Expression;
-    use crate::parser::block::statement::Statement;
-    use crate::parser::block::Block;
-    use crate::parser::Module;
+    use crate::parser::object::code::block::statement::expression::literal::Literal;
+    use crate::parser::object::code::block::statement::expression::Expression;
+    use crate::parser::object::code::block::statement::Statement;
+    use crate::parser::object::code::block::Block;
+    use crate::parser::object::code::Code;
 
     #[test]
     fn ok_false() {
@@ -116,14 +113,15 @@ mod tests {
         let result = crate::parse(input);
         assert_eq!(
             result,
-            Ok(Module {
+            Ok(Code {
                 block: Block {
                     statements: vec![Statement::Expression(Expression::Literal(Literal {
                         inner: LexicalLiteral::Boolean(LexicalBooleanLiteral::False),
                         yul_type: None,
                     }))]
                 }
-            })
+            }
+            .into_test_object())
         );
     }
 
@@ -136,14 +134,15 @@ mod tests {
         let result = crate::parse(input);
         assert_eq!(
             result,
-            Ok(Module {
+            Ok(Code {
                 block: Block {
                     statements: vec![Statement::Expression(Expression::Literal(Literal {
                         inner: LexicalLiteral::Boolean(LexicalBooleanLiteral::True),
                         yul_type: None,
                     }))]
                 }
-            })
+            }
+            .into_test_object())
         );
     }
 
