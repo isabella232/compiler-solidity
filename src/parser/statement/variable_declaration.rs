@@ -12,7 +12,7 @@ use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
 use crate::parser::identifier::Identifier;
-use crate::parser::object::code::block::statement::expression::Expression;
+use crate::parser::statement::expression::Expression;
 
 ///
 /// The variable declaration statement.
@@ -102,138 +102,138 @@ impl ILLVMWritable for VariableDeclaration {
 mod tests {
     #[test]
     fn ok_boolean_false() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             let x := false
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_boolean_true() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             let x := true
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_integer_decimal() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             let x := 42
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_integer_hexadecimal() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             let x := 0x42
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_string() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             let x := "abc"
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_identifier() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             let x := y
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_function_call() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             let x := foo()
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_function_with_arguments() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             let x := foo(x, y)
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_function_with_arguments_nested() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             let x := foo(bar(x, baz()))
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_literal_decimal() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {
                 let y := 5
                 x := y
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_literal_decimal_subtraction() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {
                 let y := 1234567890123456789012345678
                 let z := 1234567890123456789012345679
                 x := sub(z, y)
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_literal_hexadecimal() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {
                 let y := 0x2a
                 x := y
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_literal_hexadecimal_subtraction() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {
                 let y := 0xffffffffffffffff
                 let z := 0xfffffffffffffffe
                 x := sub(y, z)
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_multiple() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function bar() -> x, y {
                 x := 25
                 y := 42
@@ -242,31 +242,31 @@ mod tests {
             function foo() {
                 let x, y := bar()
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_type_cast() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() {
                 let x: uint64 := 42
                 x := 25
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_type_inference() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() {
                 let x := true
                 x := false
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }

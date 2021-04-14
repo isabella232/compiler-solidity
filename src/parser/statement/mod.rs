@@ -3,10 +3,13 @@
 //!
 
 pub mod assignment;
+pub mod block;
+pub mod code;
 pub mod expression;
 pub mod for_loop;
 pub mod function_definition;
 pub mod if_conditional;
+pub mod object;
 pub mod switch;
 pub mod variable_declaration;
 
@@ -15,15 +18,15 @@ use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
-use crate::parser::object::code::block::Block;
-use crate::parser::object::code::Code;
-use crate::parser::object::Object;
 
 use self::assignment::Assignment;
+use self::block::Block;
+use self::code::Code;
 use self::expression::Expression;
 use self::for_loop::ForLoop;
 use self::function_definition::FunctionDefinition;
 use self::if_conditional::IfConditional;
+use self::object::Object;
 use self::switch::Switch;
 use self::variable_declaration::VariableDeclaration;
 
@@ -115,8 +118,8 @@ impl Statement {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn leave_should_compile() {
-        let input = r#"{
+    fn ok_leave() {
+        let input = r#"object "Test" { code {
             function foo() -> x {
                 x := 42
                 if lt(x, 55) {
@@ -124,14 +127,14 @@ mod tests {
                 }
                 x := 43
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn continue_should_compile() {
-        let input = r#"{
+    fn ok_continue() {
+        let input = r#"object "Test" { code {
             function foo() -> x {
                 x := 0
                 for { let i := 0 } lt(i, 10) { i := add(i, 1) } {
@@ -141,14 +144,14 @@ mod tests {
                     x := add(i, x)
                 }
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
-    fn break_should_compile() {
-        let input = r#"{
+    fn ok_break() {
+        let input = r#"object "Test" { code {
             function foo() -> x {
                 x:= 0
                 for { let i := 0 } lt(i, 10) { i := add(i, 1) } {
@@ -158,7 +161,7 @@ mod tests {
                     x := add(i, x)
                 }
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }

@@ -2,18 +2,15 @@
 //! The YUL code.
 //!
 
-pub mod block;
-
 use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
-use crate::lexer::lexeme::symbol::Symbol;
+use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
-use crate::parser::object::Object;
-
-use self::block::Block;
+use crate::parser::statement::block::Block;
+use crate::parser::statement::object::Object;
 
 ///
 /// The YUL code.
@@ -32,11 +29,13 @@ impl Code {
         let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
         match lexeme {
-            Lexeme::Symbol(Symbol::BracketCurlyLeft) => Ok(Self {
-                block: Block::parse(lexer, None)?,
-            }),
-            lexeme => Err(ParserError::expected_one_of(vec!["{"], lexeme, None).into()),
+            Lexeme::Keyword(Keyword::Code) => {}
+            lexeme => return Err(ParserError::expected_one_of(vec!["code"], lexeme, None).into()),
         }
+
+        let block = Block::parse(lexer, None)?;
+
+        Ok(Self { block })
     }
 
     ///
@@ -44,8 +43,9 @@ impl Code {
     ///
     pub fn into_test_object(self) -> Object {
         Object {
-            identifier: "test".to_owned(),
+            identifier: "Test".to_owned(),
             code: self,
+            object: None,
         }
     }
 }

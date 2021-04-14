@@ -5,12 +5,10 @@
 use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
-use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::parser::error::Error as ParserError;
-use crate::parser::object::code::block::statement::expression::Expression;
-use crate::parser::object::code::block::Block;
+use crate::parser::statement::block::Block;
+use crate::parser::statement::expression::Expression;
 
 ///
 /// The for-loop statement.
@@ -34,26 +32,11 @@ impl ForLoop {
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
         let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
-        match lexeme {
-            Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => return Err(ParserError::expected_one_of(vec!["{"], lexeme, None).into()),
-        }
-
-        let initializer = Block::parse(lexer, None)?;
+        let initializer = Block::parse(lexer, Some(lexeme))?;
 
         let condition = Expression::parse(lexer, None)?;
 
-        match lexer.next()? {
-            Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => return Err(ParserError::expected_one_of(vec!["{"], lexeme, None).into()),
-        }
-
         let finalizer = Block::parse(lexer, None)?;
-
-        match lexer.next()? {
-            Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => return Err(ParserError::expected_one_of(vec!["{"], lexeme, None).into()),
-        }
 
         let body = Block::parse(lexer, None)?;
 
@@ -112,23 +95,23 @@ impl ILLVMWritable for ForLoop {
 mod tests {
     #[test]
     fn ok_empty() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             for {} expr {} {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_complex() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {
                 x := 0
                 for { let i := 0 } lt(i, 10) { i := add(i, 1) } {
                     x := add(i, x)
                 }
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }

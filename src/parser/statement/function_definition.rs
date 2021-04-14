@@ -10,7 +10,7 @@ use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
 use crate::parser::identifier::Identifier;
-use crate::parser::object::code::block::Block;
+use crate::parser::statement::block::Block;
 
 ///
 /// The function definition statement.
@@ -53,21 +53,18 @@ impl FunctionDefinition {
             lexeme => return Err(ParserError::expected_one_of(vec![")"], lexeme, None).into()),
         }
 
-        let (result, _next) = match lexer.peek()? {
+        let (result, next) = match lexer.peek()? {
             Lexeme::Symbol(Symbol::Arrow) => {
                 lexer.next()?;
                 Identifier::parse_typed_list(lexer, None)?
             }
-            Lexeme::Symbol(Symbol::BracketCurlyLeft) => {
-                lexer.next()?;
-                (vec![], None)
-            }
+            Lexeme::Symbol(Symbol::BracketCurlyLeft) => (vec![], None),
             lexeme => {
                 return Err(ParserError::expected_one_of(vec!["->", "{"], lexeme, None).into())
             }
         };
 
-        let body = Block::parse(lexer, None)?;
+        let body = Block::parse(lexer, next)?;
 
         Ok(Self {
             name,
@@ -80,7 +77,7 @@ impl FunctionDefinition {
     ///
     /// Hoists a function to allow calls before translating the body.
     ///
-    pub fn declare(&self, context: &mut LLVMContext) {
+    pub fn declare(&mut self, context: &mut LLVMContext) {
         let argument_types: Vec<_> = self
             .arguments
             .iter()
@@ -89,8 +86,10 @@ impl FunctionDefinition {
                 inkwell::types::BasicTypeEnum::IntType(yul_type.into_llvm(context))
             })
             .collect();
+
         let function_type =
             context.function_type(self.result.as_slice(), argument_types.as_slice());
+
         context.create_function(self.name.as_str(), function_type);
     }
 }
@@ -199,63 +198,63 @@ impl ILLVMWritable for FunctionDefinition {
 mod tests {
     #[test]
     fn ok_void() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_void_with_arguments() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo(a: A, b) {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_non_void_typed() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo(a: A, b) -> x: T, z: Y {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_i256() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_multiple_i256() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x, y {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn error_invalid_name() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function 42() {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_err());
     }
 
     #[test]
     fn error_invalid_argument() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo(42) {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_err());
     }

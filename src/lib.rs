@@ -11,7 +11,7 @@ pub use self::error::Error;
 pub use self::generator::llvm::Context as LLVMContext;
 pub use self::generator::ILLVMWritable;
 pub use self::lexer::Lexer;
-pub use self::parser::object::Object;
+pub use self::parser::statement::object::Object;
 
 ///
 /// Removes the metadata put by `solc` at the beginning of the Yul input.

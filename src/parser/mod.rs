@@ -4,7 +4,7 @@
 
 pub mod error;
 pub mod identifier;
-pub mod object;
+pub mod statement;
 pub mod r#type;
 
 use crate::error::Error;

@@ -5,12 +5,10 @@
 use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
-use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::parser::error::Error as ParserError;
-use crate::parser::object::code::block::statement::expression::Expression;
-use crate::parser::object::code::block::Block;
+use crate::parser::statement::block::Block;
+use crate::parser::statement::expression::Expression;
 
 ///
 /// The if-conditional statement.
@@ -31,11 +29,6 @@ impl IfConditional {
         let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
         let condition = Expression::parse(lexer, Some(lexeme))?;
-
-        match lexer.next()? {
-            Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => return Err(ParserError::expected_one_of(vec!["{"], lexeme, None).into()),
-        }
 
         let block = Block::parse(lexer, None)?;
 
@@ -72,17 +65,17 @@ impl ILLVMWritable for IfConditional {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn ok_parse() {
-        let input = r#"{
+    fn ok_empty() {
+        let input = r#"object "Test" { code {
             if expr {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_lesser_than() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {
                 x := 42
                 let y := 1
@@ -90,14 +83,14 @@ mod tests {
                     x := add(y, 1)
                 }
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_equals() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {
                 x := 42
                 let y := 1
@@ -105,14 +98,14 @@ mod tests {
                     x := add(y, 1)
                 }
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_greater_than() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {
                 x := 42
                 let y := 1
@@ -120,7 +113,7 @@ mod tests {
                     x := add(y, 1)
                 }
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }

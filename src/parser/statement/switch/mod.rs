@@ -8,12 +8,11 @@ use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::keyword::Keyword;
-use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
-use crate::parser::object::code::block::statement::expression::Expression;
-use crate::parser::object::code::block::Block;
+use crate::parser::statement::block::Block;
+use crate::parser::statement::expression::Expression;
 
 use self::case::Case;
 
@@ -68,14 +67,6 @@ impl Switch {
                 }
                 State::DefaultBlock => {
                     lexer.next()?;
-                    match lexer.next()? {
-                        Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-                        lexeme => {
-                            return Err(
-                                ParserError::expected_one_of(vec!["{"], lexeme, None).into()
-                            );
-                        }
-                    }
                     default = Some(Block::parse(lexer, None)?);
                     break;
                 }
@@ -139,63 +130,63 @@ impl ILLVMWritable for Switch {
 mod tests {
     #[test]
     fn ok_single_case() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             switch expr
                 case "a" {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_single_case_default() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             switch expr
                 case "a" {}
                 default {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_multiple_cases() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             switch expr
                 case "a" {}
                 case "b" {}
                 case "c" {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_multiple_cases_default() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             switch expr
                 case "a" {}
                 case "b" {}
                 case "c" {}
                 default {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_default() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             switch expr
                 default {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_side_effects() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {
                 x := 42
                 switch x
@@ -206,27 +197,27 @@ mod tests {
                     x := 17
                 }
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn error_expected_case() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             switch {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_err());
     }
 
     #[test]
     fn error_case_after_default() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             switch expr
                 default {}
                 case 3 {}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_err());
     }

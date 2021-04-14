@@ -111,7 +111,7 @@ impl fmt::Display for Keyword {
 #[cfg(test)]
 mod tests {
     use crate::lexer::Lexer;
-    use crate::parser::object::code::block::statement::Statement;
+    use crate::parser::statement::Statement;
 
     #[test]
     fn ok_break() {

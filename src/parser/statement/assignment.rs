@@ -10,7 +10,7 @@ use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
 use crate::parser::identifier::Identifier;
-use crate::parser::object::code::block::statement::expression::Expression;
+use crate::parser::statement::expression::Expression;
 
 ///
 /// The assignment expression statement.
@@ -30,21 +30,16 @@ impl Assignment {
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
         let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
+        let identifier = match lexeme {
+            Lexeme::Identifier(identifier) => identifier,
+            lexeme => {
+                return Err(ParserError::expected_one_of(vec!["{identifier}"], lexeme, None).into())
+            }
+        };
+
         match lexer.peek()? {
             Lexeme::Symbol(Symbol::Assignment) => {
                 lexer.next()?;
-
-                let identifier = match lexeme {
-                    Lexeme::Identifier(identifier) => identifier,
-                    lexeme => {
-                        return Err(ParserError::expected_one_of(
-                            vec!["{identifier}"],
-                            lexeme,
-                            None,
-                        )
-                        .into())
-                    }
-                };
 
                 Ok(Self {
                     bindings: vec![identifier],
@@ -52,7 +47,8 @@ impl Assignment {
                 })
             }
             Lexeme::Symbol(Symbol::Comma) => {
-                let (identifiers, next) = Identifier::parse_list(lexer, Some(lexeme))?;
+                let (identifiers, next) =
+                    Identifier::parse_list(lexer, Some(Lexeme::Identifier(identifier)))?;
 
                 match crate::parser::take_or_next(next, lexer)? {
                     Lexeme::Symbol(Symbol::Assignment) => {}
@@ -115,25 +111,23 @@ impl ILLVMWritable for Assignment {
 mod tests {
     #[test]
     fn ok_single() {
-        let input = r#"{
-            x := foo(x)
-        }"#;
+        let input = r#"x := foo(x)"#;
 
-        assert!(crate::parse(input).is_ok());
+        let mut lexer = crate::lexer::Lexer::new(input.to_owned());
+        assert!(super::Assignment::parse(&mut lexer, None).is_ok());
     }
 
     #[test]
     fn ok_multiple() {
-        let input = r#"{
-            x, y := foo(x)
-        }"#;
+        let input = r#"x, y := foo(x)"#;
 
-        assert!(crate::parse(input).is_ok());
+        let mut lexer = crate::lexer::Lexer::new(input.to_owned());
+        assert!(super::Assignment::parse(&mut lexer, None).is_ok());
     }
 
     #[test]
     fn ok_multiple_return_values() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function bar() -> x, y {
                 x := 25
                 y := 42
@@ -144,26 +138,24 @@ mod tests {
                 let y := 2
                 x, y := bar()
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn error_expected_expression() {
-        let input = r#"{
-            x :=
-        }"#;
+        let input = r#"x :="#;
 
-        assert!(crate::parse(input).is_err());
+        let mut lexer = crate::lexer::Lexer::new(input.to_owned());
+        assert!(super::Assignment::parse(&mut lexer, None).is_err());
     }
 
     #[test]
     fn error_expected_symbol_assignment() {
-        let input = r#"{
-            x, y
-        }"#;
+        let input = r#"x, y"#;
 
-        assert!(crate::parse(input).is_err());
+        let mut lexer = crate::lexer::Lexer::new(input.to_owned());
+        assert!(super::Assignment::parse(&mut lexer, None).is_err());
     }
 }

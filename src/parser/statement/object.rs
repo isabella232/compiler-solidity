@@ -2,18 +2,16 @@
 //! The YUL object.
 //!
 
-pub mod code;
-
 use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::literal::Literal;
+use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
-
-use self::code::Code;
+use crate::parser::statement::code::Code;
 
 ///
 /// The YUL object.
@@ -24,6 +22,8 @@ pub struct Object {
     pub identifier: String,
     /// The code.
     pub code: Code,
+    /// The optional inner object.
+    pub object: Option<Box<Self>>,
 }
 
 impl Object {
@@ -45,14 +45,32 @@ impl Object {
             }
         };
 
+        match lexer.next()? {
+            Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
+            lexeme => return Err(ParserError::expected_one_of(vec!["{"], lexeme, None).into()),
+        }
+
         let code = Code::parse(lexer, None)?;
 
-        Ok(Self { identifier, code })
+        let object = match lexer.peek()? {
+            Lexeme::Keyword(Keyword::Object) => Some(Self::parse(lexer, None).map(Box::new)?),
+            _ => None,
+        };
+
+        Ok(Self {
+            identifier,
+            code,
+            object,
+        })
     }
 }
 
 impl ILLVMWritable for Object {
     fn into_llvm(self, context: &mut LLVMContext) {
-        self.code.into_llvm(context)
+        self.code.into_llvm(context);
+
+        if let Some(object) = self.object {
+            object.into_llvm(context);
+        }
     }
 }

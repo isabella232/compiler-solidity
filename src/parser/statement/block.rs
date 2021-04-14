@@ -2,8 +2,6 @@
 //! The source code block.
 //!
 
-pub mod statement;
-
 use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
@@ -11,10 +9,9 @@ use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
-
-use self::statement::assignment::Assignment;
-use self::statement::expression::Expression;
-use self::statement::Statement;
+use crate::parser::statement::assignment::Assignment;
+use crate::parser::statement::expression::Expression;
+use crate::parser::statement::Statement;
 
 ///
 /// The source code block.
@@ -29,19 +26,26 @@ impl Block {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, mut initial: Option<Lexeme>) -> Result<Self, Error> {
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+        let lexeme = crate::parser::take_or_next(initial, lexer)?;
+
         let mut statements = Vec::new();
 
-        loop {
-            let lexeme = crate::parser::take_or_next(initial.take(), lexer)?;
+        match lexeme {
+            Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
+            lexeme => return Err(ParserError::expected_one_of(vec!["{"], lexeme, None).into()),
+        }
 
-            match lexeme {
-                Lexeme::Keyword(_) => statements.push(Statement::parse(lexer, Some(lexeme))?),
-                Lexeme::Literal(_) => {
+        loop {
+            match lexer.next()? {
+                lexeme @ Lexeme::Keyword(_) => {
+                    statements.push(Statement::parse(lexer, Some(lexeme))?)
+                }
+                lexeme @ Lexeme::Literal(_) => {
                     statements
                         .push(Expression::parse(lexer, Some(lexeme)).map(Statement::Expression)?);
                 }
-                Lexeme::Identifier(_) => match lexer.peek()? {
+                lexeme @ Lexeme::Identifier(_) => match lexer.peek()? {
                     Lexeme::Symbol(Symbol::Assignment) => {
                         statements.push(
                             Assignment::parse(lexer, Some(lexeme)).map(Statement::Assignment)?,
@@ -58,8 +62,8 @@ impl Block {
                         );
                     }
                 },
-                Lexeme::Symbol(Symbol::BracketCurlyLeft) => {
-                    statements.push(Block::parse(lexer, None).map(Statement::Block)?)
+                lexeme @ Lexeme::Symbol(Symbol::BracketCurlyLeft) => {
+                    statements.push(Block::parse(lexer, Some(lexeme)).map(Statement::Block)?)
                 }
                 Lexeme::Symbol(Symbol::BracketCurlyRight) => break,
                 lexeme => {
@@ -85,7 +89,7 @@ impl Block {
             match statement {
                 Statement::Object(object) => object.into_llvm(context),
                 Statement::Code(code) => code.into_llvm(context),
-                Statement::FunctionDefinition(statement) => {
+                Statement::FunctionDefinition(mut statement) => {
                     statement.declare(context);
                     functions.push(statement);
                 }
@@ -136,9 +140,8 @@ impl Block {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::object::code::block::statement::Statement;
-    use crate::parser::object::code::block::Block;
-    use crate::parser::object::code::Code;
+    use crate::parser::statement::block::Block;
+    use crate::parser::statement::Statement;
 
     #[test]
     fn ok_nested() {
@@ -146,14 +149,12 @@ mod tests {
             {}
         }"#;
 
-        let expected = Ok(Code {
-            block: Block {
-                statements: vec![Statement::Block(Block { statements: vec![] })],
-            },
-        }
-        .into_test_object());
+        let expected = Ok(Block {
+            statements: vec![Statement::Block(Block { statements: vec![] })],
+        });
 
-        let result = crate::parse(input);
+        let mut lexer = crate::lexer::Lexer::new(input.to_owned());
+        let result = super::Block::parse(&mut lexer, None);
         assert_eq!(expected, result);
     }
 
@@ -163,6 +164,7 @@ mod tests {
             {}{}{{
         }"#;
 
-        assert!(crate::parse(input).is_err());
+        let mut lexer = crate::lexer::Lexer::new(input.to_owned());
+        assert!(super::Block::parse(&mut lexer, None).is_err());
     }
 }

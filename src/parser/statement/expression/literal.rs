@@ -98,17 +98,17 @@ impl Literal {
 mod tests {
     use crate::lexer::lexeme::literal::boolean::Boolean as LexicalBooleanLiteral;
     use crate::lexer::lexeme::literal::Literal as LexicalLiteral;
-    use crate::parser::object::code::block::statement::expression::literal::Literal;
-    use crate::parser::object::code::block::statement::expression::Expression;
-    use crate::parser::object::code::block::statement::Statement;
-    use crate::parser::object::code::block::Block;
-    use crate::parser::object::code::Code;
+    use crate::parser::statement::block::Block;
+    use crate::parser::statement::code::Code;
+    use crate::parser::statement::expression::literal::Literal;
+    use crate::parser::statement::expression::Expression;
+    use crate::parser::statement::Statement;
 
     #[test]
     fn ok_false() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             false
-        }"#;
+        }}"#;
 
         let result = crate::parse(input);
         assert_eq!(
@@ -127,9 +127,9 @@ mod tests {
 
     #[test]
     fn ok_true() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             true
-        }"#;
+        }}"#;
 
         let result = crate::parse(input);
         assert_eq!(
@@ -148,22 +148,22 @@ mod tests {
 
     #[test]
     fn ok_parse() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() {
                 let x := 42
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_with_type() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() {
                 let x := 42:uint64
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }

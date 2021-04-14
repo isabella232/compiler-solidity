@@ -12,7 +12,7 @@ use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
-use crate::parser::object::code::block::statement::expression::Expression;
+use crate::parser::statement::expression::Expression;
 
 use self::name::Name;
 
@@ -163,6 +163,11 @@ impl FunctionCall {
                         .into_int_value(),
                     "",
                 );
+                let value = context.builder.build_int_cast(
+                    value,
+                    context.integer_type(compiler_const::bitlength::FIELD),
+                    "",
+                );
                 Some(value.as_basic_value_enum())
             }
             Name::Lt => {
@@ -244,6 +249,11 @@ impl FunctionCall {
                         .const_zero(),
                     "",
                 );
+                let value = context.builder.build_int_cast(
+                    value,
+                    context.integer_type(compiler_const::bitlength::FIELD),
+                    "",
+                );
                 Some(value.as_basic_value_enum())
             }
             Name::And => {
@@ -258,6 +268,11 @@ impl FunctionCall {
                         .into_llvm(context)
                         .expect("Always exists")
                         .into_int_value(),
+                    "",
+                );
+                let value = context.builder.build_int_cast(
+                    value,
+                    context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
                 Some(value.as_basic_value_enum())
@@ -276,6 +291,11 @@ impl FunctionCall {
                         .into_int_value(),
                     "",
                 );
+                let value = context.builder.build_int_cast(
+                    value,
+                    context.integer_type(compiler_const::bitlength::FIELD),
+                    "",
+                );
                 Some(value.as_basic_value_enum())
             }
             Name::Xor => {
@@ -292,14 +312,19 @@ impl FunctionCall {
                         .into_int_value(),
                     "",
                 );
+                let value = context.builder.build_int_cast(
+                    value,
+                    context.integer_type(compiler_const::bitlength::FIELD),
+                    "",
+                );
                 Some(value.as_basic_value_enum())
             }
             Name::AddMod => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::MulMod => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
 
@@ -516,16 +541,16 @@ impl FunctionCall {
                 )
             }
             Name::Keccak256 => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Pc => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
 
             Name::Pop => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::MLoad => {
@@ -549,175 +574,175 @@ impl FunctionCall {
             }
 
             Name::SLoad => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::SStore => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
 
             Name::Caller => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::CallValue => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::CallDataLoad => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::CallDataSize => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::CallDataCopy => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
 
             Name::MSize => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Gas => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Address => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Balance => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::SelfBalance => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
 
             Name::ChainId => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Origin => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::GasPrice => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::BlockHash => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::CoinBase => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Timestamp => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Number => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Difficulty => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::GasLimit => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
 
             Name::Create => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Create2 => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
 
             Name::Log0 => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Log1 => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Log2 => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Log3 => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Log4 => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
 
             Name::Call => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::CallCode => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::DelegateCall => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::StaticCall => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
 
             Name::CodeSize => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::CodeCopy => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::ExtCodeSize => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::ExtCodeCopy => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::ReturnCodeSize => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::ReturnCodeCopy => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::ExtCodeHash => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
 
             Name::Stop => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Return => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Revert => {
@@ -726,11 +751,11 @@ impl FunctionCall {
                 None
             }
             Name::SelfDestruct => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
             Name::Invalid => {
-                println!("{:?}", self.name);
+                // println!("{:?}", self.name);
                 None
             }
 

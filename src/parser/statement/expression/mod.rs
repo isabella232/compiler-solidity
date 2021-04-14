@@ -10,6 +10,7 @@ use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
+use crate::parser::error::Error as ParserError;
 
 use self::function_call::FunctionCall;
 use self::literal::Literal;
@@ -34,19 +35,28 @@ impl Expression {
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
         let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
-        if let Lexeme::Literal(_) = lexeme {
-            return Ok(Self::Literal(Literal::parse(lexer, Some(lexeme))?));
-        }
+        let identifier = match lexeme {
+            Lexeme::Literal(_) => return Ok(Self::Literal(Literal::parse(lexer, Some(lexeme))?)),
+            Lexeme::Identifier(identifier) => identifier,
+            lexeme => {
+                return Err(ParserError::expected_one_of(
+                    vec!["{literal}", "{identifier}"],
+                    lexeme,
+                    None,
+                )
+                .into())
+            }
+        };
 
         match lexer.peek()? {
             Lexeme::Symbol(Symbol::ParenthesisLeft) => {
                 lexer.next()?;
                 Ok(Self::FunctionCall(FunctionCall::parse(
                     lexer,
-                    Some(lexeme),
+                    Some(Lexeme::Identifier(identifier)),
                 )?))
             }
-            _ => Ok(Self::Identifier(lexeme.to_string())),
+            _ => Ok(Self::Identifier(identifier)),
         }
     }
 
@@ -73,11 +83,11 @@ impl Expression {
 mod tests {
     #[test]
     fn ok_list() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             id
             3
             foo(x, y)
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
