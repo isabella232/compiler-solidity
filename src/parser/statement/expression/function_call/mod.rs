@@ -783,21 +783,21 @@ impl FunctionCall {
 mod tests {
     #[test]
     fn ok_void() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function bar() {}
 
             function foo() -> x {
                 x := 42
                 bar()
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_non_void() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function bar() -> x {
                 x:= 42
             }
@@ -805,82 +805,82 @@ mod tests {
             function foo() -> x {
                 x := bar()
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_with_arguments() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo(z) -> x {
                 let y := 3
                 x := add(3, y)
             }
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_builtin_add() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {let y := 3 x := add(3, y)}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_builtin_sub() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {let y := 3 x := sub(3, y)}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_builtin_mul() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {let y := 3 x := mul(3, y)}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_builtin_div() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {let y := 3 x := div(3, y)}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_builtin_sdiv() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {let y := 3 x := sdiv(3, y)}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_builtin_mod() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {let y := 3 x := mod(3, y)}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }
 
     #[test]
     fn ok_builtin_smod() {
-        let input = r#"{
+        let input = r#"object "Test" { code {
             function foo() -> x {let y := 3 x := smod(3, y)}
-        }"#;
+        }}"#;
 
         assert!(crate::parse(input).is_ok());
     }

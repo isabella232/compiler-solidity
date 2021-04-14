@@ -90,7 +90,7 @@ impl ILLVMWritable for Switch {
         let default = context
             .llvm
             .append_basic_block(context.function(), "switch.default");
-        let join = context
+        let join_block = context
             .llvm
             .append_basic_block(context.function(), "switch.join");
         let mut cases: Vec<(
@@ -115,14 +115,14 @@ impl ILLVMWritable for Switch {
         for (_value, basic_block) in cases.into_iter() {
             context.builder.position_at_end(basic_block);
             self.cases.remove(0).block.into_llvm_local(context);
-            context.builder.build_unconditional_branch(join);
+            context.build_unconditional_branch(join_block);
         }
         context.builder.position_at_end(default);
         if let Some(block) = self.default.take() {
             block.into_llvm_local(context);
         }
-        context.builder.build_unconditional_branch(join);
-        context.builder.position_at_end(join);
+        context.build_unconditional_branch(join_block);
+        context.builder.position_at_end(join_block);
     }
 }
 

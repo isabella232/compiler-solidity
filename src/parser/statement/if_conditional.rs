@@ -57,7 +57,7 @@ impl ILLVMWritable for IfConditional {
             .build_conditional_branch(condition, main_block, join_block);
         context.builder.position_at_end(main_block);
         self.block.into_llvm_local(context);
-        context.builder.build_unconditional_branch(join_block);
+        context.build_unconditional_branch(join_block);
         context.builder.position_at_end(join_block);
     }
 }

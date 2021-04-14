@@ -35,6 +35,7 @@ pub fn parse(input: &str) -> Result<Object, Error> {
 /// Parses and compiles the source code.
 ///
 pub fn compile(input: &str, optimization_level: usize) -> Result<String, Error> {
+    println!("{}", input);
     let object = parse(input)?;
 
     let optimization_level = match optimization_level {
@@ -48,6 +49,7 @@ pub fn compile(input: &str, optimization_level: usize) -> Result<String, Error> 
     context.create_module(object.identifier.as_str());
     object.into_llvm(&mut context);
     context.optimize();
+    println!("{}", context.module.print_to_string().to_string());
     context
         .verify()
         .map_err(|error| Error::LLVM(error.to_string()))?;

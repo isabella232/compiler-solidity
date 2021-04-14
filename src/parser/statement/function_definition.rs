@@ -144,8 +144,8 @@ impl ILLVMWritable for FunctionDefinition {
             })
             .collect();
 
-        let exit = context.llvm.append_basic_block(function, "exit");
-        context.leave_block = Some(exit);
+        let leave_block = context.llvm.append_basic_block(function, "exit");
+        context.leave_block = Some(leave_block);
 
         self.body.into_llvm_local(context);
 
@@ -157,18 +157,18 @@ impl ILLVMWritable for FunctionDefinition {
 
         match last_instruction {
             None => {
-                context.builder.build_unconditional_branch(exit);
+                context.build_unconditional_branch(leave_block);
             }
             Some(instruction) => match instruction.get_opcode() {
                 inkwell::values::InstructionOpcode::Br => (),
                 inkwell::values::InstructionOpcode::Switch => (),
                 _ => {
-                    context.builder.build_unconditional_branch(exit);
+                    context.build_unconditional_branch(leave_block);
                 }
             },
         };
 
-        context.builder.position_at_end(exit);
+        context.builder.position_at_end(leave_block);
 
         match return_pointer {
             Some(return_pointer) => {

@@ -69,7 +69,7 @@ dependencies = [
 [[package]]
 name = "compiler-const"
 version = "0.3.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-const?branch=main#8692c34aca5fb7fa9374458ac2e950b0521bd1ec"
+source = "git+ssh://git@github.com/matter-labs/compiler-const?branch=main#322654bed031656247ed26e6f2594daee1e7e739"
 
 [[package]]
 name = "crossbeam-channel"
@@ -397,9 +397,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94341e4e44e24f6b591b59e47a8a027df12e008d73fd5672dbea9cc22f4507d9"
+checksum = "8270314b5ccceb518e7e578952f0b72b88222d02e8f77f5ecf7abbb673539041"
 dependencies = [
  "bitflags",
 ]

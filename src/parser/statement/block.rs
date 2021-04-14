@@ -118,18 +118,13 @@ impl Block {
                 Statement::Switch(statement) => statement.into_llvm(context),
                 Statement::ForLoop(statement) => statement.into_llvm(context),
                 Statement::Leave => {
-                    context
-                        .builder
-                        .build_unconditional_branch(context.leave_block.expect("Always exists"));
+                    context.build_unconditional_branch(context.leave_block.expect("Always exists"));
                 }
                 Statement::Break => {
-                    context
-                        .builder
-                        .build_unconditional_branch(context.break_block.expect("Always exists"));
+                    context.build_unconditional_branch(context.break_block.expect("Always exists"));
                 }
                 Statement::Continue => {
                     context
-                        .builder
                         .build_unconditional_branch(context.continue_block.expect("Always exists"));
                 }
                 _ => {}

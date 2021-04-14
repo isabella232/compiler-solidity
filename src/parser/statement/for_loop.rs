@@ -64,7 +64,7 @@ impl ILLVMWritable for ForLoop {
         let exit = context
             .llvm
             .append_basic_block(context.function(), "for.exit");
-        context.builder.build_unconditional_branch(condition_block);
+        context.build_unconditional_branch(condition_block);
         context.builder.position_at_end(condition_block);
         let condition = context.builder.build_int_cast(
             self.condition
@@ -81,10 +81,10 @@ impl ILLVMWritable for ForLoop {
         context.continue_block = Some(increment_block);
         context.builder.position_at_end(body);
         self.body.into_llvm_local(context);
-        context.builder.build_unconditional_branch(increment_block);
+        context.build_unconditional_branch(increment_block);
         context.builder.position_at_end(increment_block);
         self.finalizer.into_llvm_local(context);
-        context.builder.build_unconditional_branch(condition_block);
+        context.build_unconditional_branch(condition_block);
         context.break_block = None;
         context.continue_block = None;
         context.builder.position_at_end(exit);

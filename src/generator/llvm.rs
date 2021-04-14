@@ -147,6 +147,28 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
+    /// Builds an unconditional branch.
+    ///
+    /// Checks if there are no other terminators in the block.
+    ///
+    pub fn build_unconditional_branch(
+        &self,
+        destination_block: inkwell::basic_block::BasicBlock<'ctx>,
+    ) {
+        if self
+            .builder
+            .get_insert_block()
+            .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION)
+            .get_terminator()
+            .is_some()
+        {
+            return;
+        }
+
+        self.builder.build_unconditional_branch(destination_block);
+    }
+
+    ///
     /// Returns the integer type of the specified bitlength.
     ///
     pub fn integer_type(&self, bitlength: usize) -> inkwell::types::IntType<'ctx> {
