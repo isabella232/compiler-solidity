@@ -6,12 +6,14 @@ pub mod error;
 pub mod generator;
 pub mod lexer;
 pub mod parser;
+pub mod target;
 
 pub use self::error::Error;
 pub use self::generator::llvm::Context as LLVMContext;
 pub use self::generator::ILLVMWritable;
 pub use self::lexer::Lexer;
 pub use self::parser::statement::object::Object;
+pub use self::target::Target;
 
 ///
 /// Removes the metadata put by `solc` at the beginning of the Yul input.
@@ -34,8 +36,12 @@ pub fn parse(input: &str) -> Result<Object, Error> {
 ///
 /// Parses and compiles the source code.
 ///
-pub fn compile(input: &str, optimization_level: usize) -> Result<String, Error> {
-    println!("{}", input);
+pub fn compile(
+    input: &str,
+    target: Target,
+    optimization_level: usize,
+    dump_llvm: bool,
+) -> Result<String, Error> {
     let object = parse(input)?;
 
     let optimization_level = match optimization_level {
@@ -49,20 +55,29 @@ pub fn compile(input: &str, optimization_level: usize) -> Result<String, Error> 
     context.create_module(object.identifier.as_str());
     object.into_llvm(&mut context);
     context.optimize();
-    println!("{}", context.module.print_to_string().to_string());
     context
         .verify()
         .map_err(|error| Error::LLVM(error.to_string()))?;
+    if dump_llvm || matches!(target, Target::LLVM) {
+        let llvm_code = context.module().print_to_string().to_string();
+        if let Target::LLVM = target {
+            return Ok(llvm_code);
+        }
+        if dump_llvm {
+            println!("The LLVM IR code:\n{}", llvm_code);
+        }
+    }
 
     inkwell::targets::Target::initialize_syncvm(&inkwell::targets::InitializationConfig::default());
-    let target = inkwell::targets::Target::from_name(compiler_const::virtual_machine::TARGET_NAME)
-        .ok_or_else(|| {
-            Error::LLVM(format!(
-                "Target `{}` not found",
-                compiler_const::virtual_machine::TARGET_NAME
-            ))
-        })?;
-    let target_machine = target
+    let llvm_target =
+        inkwell::targets::Target::from_name(compiler_const::virtual_machine::TARGET_NAME)
+            .ok_or_else(|| {
+                Error::LLVM(format!(
+                    "Target `{}` not found",
+                    compiler_const::virtual_machine::TARGET_NAME
+                ))
+            })?;
+    let llvm_target_machine = llvm_target
         .create_target_machine(
             &inkwell::targets::TargetTriple::create(compiler_const::virtual_machine::TARGET_NAME),
             "",
@@ -77,8 +92,8 @@ pub fn compile(input: &str, optimization_level: usize) -> Result<String, Error> 
                 compiler_const::virtual_machine::TARGET_NAME
             ))
         })?;
-    let buffer = target_machine
-        .write_to_memory_buffer(&context.module, inkwell::targets::FileType::Assembly)
+    let buffer = llvm_target_machine
+        .write_to_memory_buffer(context.module(), inkwell::targets::FileType::Assembly)
         .map_err(|error| Error::LLVM(format!("Code compiling error: {}", error)))?;
     let assembly = String::from_utf8_lossy(buffer.as_slice()).to_string();
 

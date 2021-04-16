@@ -18,6 +18,14 @@ pub struct Arguments {
     /// Sets the LLVM optimization level.
     #[structopt(short = "O", long = "opt-level", default_value = "0")]
     pub optimization_level: usize,
+
+    /// The target name. Either `llvm` or `zkevm`. The default is `zkevm`.
+    #[structopt(short = "t", long = "target", default_value = "zkevm")]
+    pub target: String,
+
+    /// Whether to dump the LLVM code to the terminal.
+    #[structopt(long = "dump-llvm")]
+    pub dump_llvm: bool,
 }
 
 impl Arguments {

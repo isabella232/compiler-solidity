@@ -10,6 +10,8 @@ use crate::parser::error::Error as ParserError;
 ///
 #[derive(Debug)]
 pub enum Error {
+    /// The target error.
+    Target(String),
     /// The reader error.
     Reader(std::io::Error),
     /// The lexer error.

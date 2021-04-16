@@ -4,6 +4,8 @@
 
 pub mod name;
 
+use std::convert::TryInto;
+
 use inkwell::values::BasicValue;
 
 use crate::error::Error;
@@ -75,310 +77,235 @@ impl FunctionCall {
     ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
         match self.name {
             Name::Add => {
-                let value = context.builder.build_int_add(
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    "",
-                );
-                Some(value.as_basic_value_enum())
+                let arguments = self.pop_arguments::<2>(context);
+                let result = context
+                    .builder
+                    .build_int_add(
+                        arguments[0].into_int_value(),
+                        arguments[1].into_int_value(),
+                        "",
+                    )
+                    .as_basic_value_enum();
+                Some(result)
             }
             Name::Sub => {
-                let value = context.builder.build_int_sub(
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    "",
-                );
-                Some(value.as_basic_value_enum())
+                let arguments = self.pop_arguments::<2>(context);
+                let result = context
+                    .builder
+                    .build_int_sub(
+                        arguments[0].into_int_value(),
+                        arguments[1].into_int_value(),
+                        "",
+                    )
+                    .as_basic_value_enum();
+                Some(result)
             }
             Name::Mul => {
-                let value = context.builder.build_int_mul(
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    "",
-                );
-                Some(value.as_basic_value_enum())
+                let arguments = self.pop_arguments::<2>(context);
+                let result = context
+                    .builder
+                    .build_int_mul(
+                        arguments[0].into_int_value(),
+                        arguments[1].into_int_value(),
+                        "",
+                    )
+                    .as_basic_value_enum();
+                Some(result)
             }
             Name::Div => {
-                let value = context.builder.build_int_unsigned_div(
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
+                let mut arguments = self.pop_arguments::<2>(context);
+                let allowed_type = context.integer_type(128);
+                arguments[0] = context
+                    .builder
+                    .build_int_cast(arguments[0].into_int_value(), allowed_type, "")
+                    .as_basic_value_enum();
+                arguments[1] = context
+                    .builder
+                    .build_int_cast(arguments[1].into_int_value(), allowed_type, "")
+                    .as_basic_value_enum();
+                let mut result = context.builder.build_int_unsigned_div(
+                    arguments[0].into_int_value(),
+                    arguments[1].into_int_value(),
                     "",
                 );
-                Some(value.as_basic_value_enum())
-            }
-            Name::Mod => {
-                let value = context.builder.build_int_unsigned_rem(
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    "",
-                );
-                Some(value.as_basic_value_enum())
-            }
-            Name::Not => {
-                let value = context.builder.build_not(
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    "",
-                );
-                let value = context.builder.build_int_cast(
-                    value,
+                result = context.builder.build_int_cast(
+                    result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
+                Some(result.as_basic_value_enum())
+            }
+            Name::Mod => {
+                let mut arguments = self.pop_arguments::<2>(context);
+                let allowed_type = context.integer_type(128);
+                arguments[0] = context
+                    .builder
+                    .build_int_cast(arguments[0].into_int_value(), allowed_type, "")
+                    .as_basic_value_enum();
+                arguments[1] = context
+                    .builder
+                    .build_int_cast(arguments[0].into_int_value(), allowed_type, "")
+                    .as_basic_value_enum();
+                let mut result = context.builder.build_int_unsigned_rem(
+                    arguments[0].into_int_value(),
+                    arguments[1].into_int_value(),
+                    "",
+                );
+                result = context.builder.build_int_cast(
+                    result,
+                    context.integer_type(compiler_const::bitlength::FIELD),
+                    "",
+                );
+                Some(result.as_basic_value_enum())
+            }
+            Name::Not => {
+                let arguments = self.pop_arguments::<1>(context);
+                let value = context.builder.build_not(arguments[0].into_int_value(), "");
                 Some(value.as_basic_value_enum())
             }
             Name::Lt => {
-                let value = context.builder.build_int_compare(
+                let arguments = self.pop_arguments::<2>(context);
+                let mut result = context.builder.build_int_compare(
                     inkwell::IntPredicate::ULT,
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
+                    arguments[0].into_int_value(),
+                    arguments[1].into_int_value(),
                     "",
                 );
-                let value = context.builder.build_int_cast(
-                    value,
+                result = context.builder.build_int_cast(
+                    result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
-                Some(value.as_basic_value_enum())
+                Some(result.as_basic_value_enum())
             }
             Name::Gt => {
-                let value = context.builder.build_int_compare(
+                let arguments = self.pop_arguments::<2>(context);
+                let mut result = context.builder.build_int_compare(
                     inkwell::IntPredicate::UGT,
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
+                    arguments[0].into_int_value(),
+                    arguments[1].into_int_value(),
                     "",
                 );
-                let value = context.builder.build_int_cast(
-                    value,
+                result = context.builder.build_int_cast(
+                    result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
-                Some(value.as_basic_value_enum())
+                Some(result.as_basic_value_enum())
             }
             Name::Eq => {
-                let value = context.builder.build_int_compare(
+                let arguments = self.pop_arguments::<2>(context);
+                let mut result = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
+                    arguments[0].into_int_value(),
+                    arguments[1].into_int_value(),
                     "",
                 );
-                let value = context.builder.build_int_cast(
-                    value,
+                result = context.builder.build_int_cast(
+                    result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
-                Some(value.as_basic_value_enum())
+                Some(result.as_basic_value_enum())
             }
             Name::IsZero => {
-                let value = context.builder.build_int_compare(
+                let arguments = self.pop_arguments::<1>(context);
+                let mut result = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
+                    arguments[0].into_int_value(),
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
                         .const_zero(),
                     "",
                 );
-                let value = context.builder.build_int_cast(
-                    value,
+                result = context.builder.build_int_cast(
+                    result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
-                Some(value.as_basic_value_enum())
+                Some(result.as_basic_value_enum())
             }
             Name::And => {
-                let value = context.builder.build_and(
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
+                let arguments = self.pop_arguments::<2>(context);
+                let mut result = context.builder.build_and(
+                    arguments[0].into_int_value(),
+                    arguments[1].into_int_value(),
                     "",
                 );
-                let value = context.builder.build_int_cast(
-                    value,
+                result = context.builder.build_int_cast(
+                    result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
-                Some(value.as_basic_value_enum())
+                Some(result.as_basic_value_enum())
             }
             Name::Or => {
-                let value = context.builder.build_or(
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
+                let arguments = self.pop_arguments::<2>(context);
+                let mut result = context.builder.build_or(
+                    arguments[0].into_int_value(),
+                    arguments[1].into_int_value(),
                     "",
                 );
-                let value = context.builder.build_int_cast(
-                    value,
+                result = context.builder.build_int_cast(
+                    result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
-                Some(value.as_basic_value_enum())
+                Some(result.as_basic_value_enum())
             }
             Name::Xor => {
-                let value = context.builder.build_xor(
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
-                    self.arguments
-                        .remove(0)
-                        .into_llvm(context)
-                        .expect("Always exists")
-                        .into_int_value(),
+                let arguments = self.pop_arguments::<2>(context);
+                let mut result = context.builder.build_xor(
+                    arguments[0].into_int_value(),
+                    arguments[1].into_int_value(),
                     "",
                 );
-                let value = context.builder.build_int_cast(
-                    value,
+                result = context.builder.build_int_cast(
+                    result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
-                Some(value.as_basic_value_enum())
+                Some(result.as_basic_value_enum())
             }
             Name::AddMod => {
-                // println!("{:?}", self.name);
-                None
+                let arguments = self.pop_arguments::<3>(context);
+                Some(
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero()
+                        .as_basic_value_enum(),
+                )
             }
             Name::MulMod => {
-                // println!("{:?}", self.name);
-                None
+                let arguments = self.pop_arguments::<3>(context);
+                Some(
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero()
+                        .as_basic_value_enum(),
+                )
             }
 
             Name::Sdiv => {
-                self.arguments.remove(0);
-                self.arguments.remove(0);
+                let _arguments = self.pop_arguments::<2>(context);
                 Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
                         .const_zero()
                         .as_basic_value_enum(),
                 )
-                // let value = context.builder.build_int_signed_div(
-                //     self.arguments
-                //         .remove(0)
-                //         .into_llvm(context)
-                //         .expect("Always exists")
-                //         .into_int_value(),
-                //     self.arguments
-                //         .remove(0)
-                //         .into_llvm(context)
-                //         .expect("Always exists")
-                //         .into_int_value(),
-                //     "",
-                // );
-                // Some(value.as_basic_value_enum())
             }
             Name::Smod => {
-                self.arguments.remove(0);
-                self.arguments.remove(0);
+                let _arguments = self.pop_arguments::<2>(context);
                 Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
                         .const_zero()
                         .as_basic_value_enum(),
                 )
-                // let value = context.builder.build_int_signed_rem(
-                //     self.arguments
-                //         .remove(0)
-                //         .into_llvm(context)
-                //         .expect("Always exists")
-                //         .into_int_value(),
-                //     self.arguments
-                //         .remove(0)
-                //         .into_llvm(context)
-                //         .expect("Always exists")
-                //         .into_int_value(),
-                //     "",
-                // );
-                // Some(value.as_basic_value_enum())
             }
             Name::Exp => {
-                self.arguments.remove(0);
-                self.arguments.remove(0);
+                let arguments = self.pop_arguments::<2>(context);
                 Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
@@ -387,68 +314,25 @@ impl FunctionCall {
                 )
             }
             Name::Slt => {
-                self.arguments.remove(0);
-                self.arguments.remove(0);
+                let _arguments = self.pop_arguments::<2>(context);
                 Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
                         .const_zero()
                         .as_basic_value_enum(),
                 )
-                // let value = context.builder.build_int_compare(
-                //     inkwell::IntPredicate::SLT,
-                //     self.arguments
-                //         .remove(0)
-                //         .into_llvm(context)
-                //         .expect("Always exists")
-                //         .into_int_value(),
-                //     self.arguments
-                //         .remove(0)
-                //         .into_llvm(context)
-                //         .expect("Always exists")
-                //         .into_int_value(),
-                //     "",
-                // );
-                // let value = context.builder.build_int_cast(
-                //     value,
-                //     context.integer_type(compiler_const::bitlength::FIELD),
-                //     "",
-                // );
-                // Some(value.as_basic_value_enum())
             }
             Name::Sgt => {
-                self.arguments.remove(0);
-                self.arguments.remove(0);
+                let _arguments = self.pop_arguments::<2>(context);
                 Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
                         .const_zero()
                         .as_basic_value_enum(),
                 )
-                // let value = context.builder.build_int_compare(
-                //     inkwell::IntPredicate::SGT,
-                //     self.arguments
-                //         .remove(0)
-                //         .into_llvm(context)
-                //         .expect("Always exists")
-                //         .into_int_value(),
-                //     self.arguments
-                //         .remove(0)
-                //         .into_llvm(context)
-                //         .expect("Always exists")
-                //         .into_int_value(),
-                //     "",
-                // );
-                // let value = context.builder.build_int_cast(
-                //     value,
-                //     context.integer_type(compiler_const::bitlength::FIELD),
-                //     "",
-                // );
-                // Some(value.as_basic_value_enum())
             }
             Name::Byte => {
-                self.arguments.remove(0);
-                self.arguments.remove(0);
+                let arguments = self.pop_arguments::<2>(context);
                 Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
@@ -457,82 +341,34 @@ impl FunctionCall {
                 )
             }
             Name::Shl => {
-                self.arguments.remove(0);
-                self.arguments.remove(0);
+                let _arguments = self.pop_arguments::<2>(context);
                 Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
                         .const_zero()
                         .as_basic_value_enum(),
                 )
-                // let value = context.builder.build_left_shift(
-                //     self.arguments
-                //         .remove(0)
-                //         .into_llvm(context)
-                //         .expect("Always exists")
-                //         .into_int_value(),
-                //     self.arguments
-                //         .remove(0)
-                //         .into_llvm(context)
-                //         .expect("Always exists")
-                //         .into_int_value(),
-                //     "",
-                // );
-                // Some(value.as_basic_value_enum())
             }
             Name::Shr => {
-                self.arguments.remove(0);
-                self.arguments.remove(0);
+                let _arguments = self.pop_arguments::<2>(context);
                 Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
                         .const_zero()
                         .as_basic_value_enum(),
                 )
-                // let value = context.builder.build_right_shift(
-                //     self.arguments
-                //         .remove(0)
-                //         .into_llvm(context)
-                //         .expect("Always exists")
-                //         .into_int_value(),
-                //     self.arguments
-                //         .remove(0)
-                //         .into_llvm(context)
-                //         .expect("Always exists")
-                //         .into_int_value(),
-                //     false,
-                //     "",
-                // );
-                // Some(value.as_basic_value_enum())
             }
             Name::Sar => {
-                self.arguments.remove(0);
-                self.arguments.remove(0);
+                let _arguments = self.pop_arguments::<2>(context);
                 Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
                         .const_zero()
                         .as_basic_value_enum(),
                 )
-                // let value = context.builder.build_right_shift(
-                //     self.arguments
-                //         .remove(0)
-                //         .into_llvm(context)
-                //         .expect("Always exists")
-                //         .into_int_value(),
-                //     self.arguments
-                //         .remove(0)
-                //         .into_llvm(context)
-                //         .expect("Always exists")
-                //         .into_int_value(),
-                //     true,
-                //     "",
-                // );
-                // Some(value.as_basic_value_enum())
             }
             Name::SignExtend => {
-                self.arguments.remove(0);
-                self.arguments.remove(0);
+                let _arguments = self.pop_arguments::<2>(context);
                 Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
@@ -541,20 +377,17 @@ impl FunctionCall {
                 )
             }
             Name::Keccak256 => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Pc => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
 
             Name::Pop => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::MLoad => {
-                self.arguments.remove(0);
+                let _arguments = self.pop_arguments::<1>(context);
                 Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
@@ -563,200 +396,156 @@ impl FunctionCall {
                 )
             }
             Name::MStore => {
-                self.arguments.remove(0);
-                self.arguments.remove(0);
+                let _arguments = self.pop_arguments::<2>(context);
                 None
             }
             Name::MStore8 => {
-                self.arguments.remove(0);
-                self.arguments.remove(0);
+                let _arguments = self.pop_arguments::<2>(context);
                 None
             }
 
-            Name::SLoad => {
-                // println!("{:?}", self.name);
-                None
-            }
-            Name::SStore => {
-                // println!("{:?}", self.name);
-                None
-            }
+            Name::SLoad => None,
+            Name::SStore => None,
 
             Name::Caller => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::CallValue => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::CallDataLoad => {
-                // println!("{:?}", self.name);
-                None
+                let _arguments = self.pop_arguments::<1>(context);
+                Some(
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero()
+                        .as_basic_value_enum(),
+                )
             }
             Name::CallDataSize => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::CallDataCopy => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
 
             Name::MSize => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Gas => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Address => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Balance => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::SelfBalance => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
 
             Name::ChainId => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Origin => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::GasPrice => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::BlockHash => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::CoinBase => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Timestamp => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Number => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Difficulty => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::GasLimit => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
 
             Name::Create => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Create2 => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
 
             Name::Log0 => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Log1 => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Log2 => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Log3 => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Log4 => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
 
             Name::Call => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::CallCode => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::DelegateCall => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::StaticCall => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
 
             Name::CodeSize => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::CodeCopy => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::ExtCodeSize => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::ExtCodeCopy => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::ReturnCodeSize => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::ReturnCodeCopy => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::ExtCodeHash => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
 
             Name::Stop => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Return => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Revert => {
-                self.arguments.remove(0);
-                self.arguments.remove(0);
+                let _arguments = self.pop_arguments::<2>(context);
                 None
             }
             Name::SelfDestruct => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Invalid => {
-                // println!("{:?}", self.name);
-                None
+                panic!("The `{:?}` instruction is unsupported", self.name);
             }
 
             Name::UserDefined(name) => {
@@ -766,7 +555,7 @@ impl FunctionCall {
                     .filter_map(|argument| argument.into_llvm(context))
                     .collect();
                 let function = context
-                    .module
+                    .module()
                     .get_function(name.as_str())
                     .unwrap_or_else(|| panic!("Undeclared function {}", name));
                 let return_value = context
@@ -776,6 +565,21 @@ impl FunctionCall {
                 return_value.left()
             }
         }
+    }
+
+    ///
+    /// Pops the specified number of arguments.
+    ///
+    fn pop_arguments<'ctx, const N: usize>(
+        &mut self,
+        context: &LLVMContext<'ctx>,
+    ) -> [inkwell::values::BasicValueEnum<'ctx>; N] {
+        self.arguments
+            .drain(0..N)
+            .map(|argument| argument.into_llvm(context).expect("Always exists"))
+            .collect::<Vec<inkwell::values::BasicValueEnum<'ctx>>>()
+            .try_into()
+            .expect("Always successful")
     }
 }
 

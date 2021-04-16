@@ -24,6 +24,9 @@ case "${2}" in
         ;;
 esac
 
+# Prevents the stack overflow when running some unit tests
+export RUST_MIN_STACK=$(( 64 * 1024 * 1024 ))
+
 cargo fmt --all
 cargo clippy
 cargo test

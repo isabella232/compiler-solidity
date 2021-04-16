@@ -15,7 +15,7 @@ pub struct Context<'ctx> {
     /// The LLVM builder.
     pub builder: inkwell::builder::Builder<'ctx>,
     /// The current module.
-    pub module: inkwell::module::Module<'ctx>,
+    pub module: Option<inkwell::module::Module<'ctx>>,
     /// The current function.
     pub function: Option<inkwell::values::FunctionValue<'ctx>>,
 
@@ -35,6 +35,8 @@ pub struct Context<'ctx> {
     optimization_level: inkwell::OptimizationLevel,
     /// The optimization pass manager builder.
     pass_manager_builder: inkwell::passes::PassManagerBuilder,
+    /// The module optimization pass manager.
+    pass_manager_module: Option<inkwell::passes::PassManager<inkwell::module::Module<'ctx>>>,
     /// The function optimization pass manager.
     pass_manager_function:
         Option<inkwell::passes::PassManager<inkwell::values::FunctionValue<'ctx>>>,
@@ -66,7 +68,7 @@ impl<'ctx> Context<'ctx> {
         Self {
             llvm,
             builder: llvm.create_builder(),
-            module: llvm.create_module("module"),
+            module: None,
             function: None,
 
             break_block: None,
@@ -78,6 +80,7 @@ impl<'ctx> Context<'ctx> {
 
             optimization_level,
             pass_manager_builder,
+            pass_manager_module: None,
             pass_manager_function: None,
         }
     }
@@ -95,13 +98,19 @@ impl<'ctx> Context<'ctx> {
     /// Should be only run when the entire module has been translated.
     ///
     pub fn optimize(&self) {
-        let pass_manager = self
+        let pass_manager_function = self
             .pass_manager_function
             .as_ref()
-            .expect("Pass manager is created with the module");
+            .expect("Pass managers are created with the module");
         for (_, function) in self.functions.iter() {
-            pass_manager.run_on(function);
+            pass_manager_function.run_on(function);
         }
+
+        let pass_manager_module = self
+            .pass_manager_module
+            .as_ref()
+            .expect("Pass managers are created with the module");
+        pass_manager_module.run_on(self.module());
     }
 
     ///
@@ -111,7 +120,7 @@ impl<'ctx> Context<'ctx> {
     /// If verification fails.
     ///
     pub fn verify(&self) -> Result<(), inkwell::support::LLVMString> {
-        self.module.verify()
+        self.module().verify()
     }
 
     ///
@@ -119,11 +128,27 @@ impl<'ctx> Context<'ctx> {
     ///
     pub fn create_module(&mut self, name: &str) {
         let module = self.llvm.create_module(name);
-        let pass_manager = inkwell::passes::PassManager::create(&module);
+
+        let pass_manager_module = inkwell::passes::PassManager::create(());
         self.pass_manager_builder
-            .populate_function_pass_manager(&pass_manager);
-        self.pass_manager_function = Some(pass_manager);
-        self.module = module;
+            .populate_module_pass_manager(&pass_manager_module);
+        self.pass_manager_module = Some(pass_manager_module);
+
+        let pass_manager_function = inkwell::passes::PassManager::create(&module);
+        self.pass_manager_builder
+            .populate_function_pass_manager(&pass_manager_function);
+        self.pass_manager_function = Some(pass_manager_function);
+
+        self.module = Some(module);
+    }
+
+    ///
+    /// Returns the current module reference.
+    ///
+    pub fn module(&self) -> &inkwell::module::Module<'ctx> {
+        self.module
+            .as_ref()
+            .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION)
     }
 
     ///
@@ -134,7 +159,7 @@ impl<'ctx> Context<'ctx> {
         name: &str,
         r#type: inkwell::types::FunctionType<'ctx>,
     ) -> inkwell::values::FunctionValue<'ctx> {
-        let function = self.module.add_function(name, r#type, None);
+        let function = self.module().add_function(name, r#type, None);
         self.functions.insert(name.to_string(), function);
         function
     }

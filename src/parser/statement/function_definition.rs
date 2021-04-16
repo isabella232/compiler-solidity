@@ -106,7 +106,7 @@ impl ILLVMWritable for FunctionDefinition {
             .collect();
 
         let function = context
-            .module
+            .module()
             .get_function(self.name.as_str())
             .expect("Function always exists");
         let return_types = function.get_type().get_return_type();
