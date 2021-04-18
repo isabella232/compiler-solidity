@@ -73,7 +73,7 @@ impl FunctionCall {
     ///
     pub fn into_llvm<'ctx>(
         mut self,
-        context: &LLVMContext<'ctx>,
+        context: &mut LLVMContext<'ctx>,
     ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
         match self.name {
             Name::Add => {
@@ -354,7 +354,7 @@ impl FunctionCall {
                 Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
-                        .const_zero()
+                        .const_int(0x67f239dd, false)
                         .as_basic_value_enum(),
                 )
             }
@@ -387,16 +387,45 @@ impl FunctionCall {
                 panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::MLoad => {
-                let _arguments = self.pop_arguments::<1>(context);
-                Some(
-                    context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .const_zero()
-                        .as_basic_value_enum(),
-                )
+                let arguments = self.pop_arguments::<1>(context);
+
+                let pointer = context.heap.expect("Always exists");
+                let pointer = unsafe {
+                    context.builder.build_gep(
+                        pointer,
+                        &[
+                            context
+                                .integer_type(compiler_const::bitlength::BYTE * 4)
+                                .const_zero(),
+                            arguments[0].into_int_value(),
+                        ],
+                        "",
+                    )
+                };
+
+                let value = context.builder.build_load(pointer, "");
+
+                Some(value)
             }
             Name::MStore => {
-                let _arguments = self.pop_arguments::<2>(context);
+                let arguments = self.pop_arguments::<2>(context);
+
+                let pointer = context.heap.expect("Always exists");
+                let pointer = unsafe {
+                    context.builder.build_gep(
+                        pointer,
+                        &[
+                            context
+                                .integer_type(compiler_const::bitlength::BYTE * 4)
+                                .const_zero(),
+                            arguments[0].into_int_value(),
+                        ],
+                        "",
+                    )
+                };
+
+                context.builder.build_store(pointer, arguments[1]);
+
                 None
             }
             Name::MStore8 => {
@@ -410,9 +439,12 @@ impl FunctionCall {
             Name::Caller => {
                 panic!("The `{:?}` instruction is unsupported", self.name);
             }
-            Name::CallValue => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
+            Name::CallValue => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
             Name::CallDataLoad => {
                 let _arguments = self.pop_arguments::<1>(context);
                 Some(
@@ -422,9 +454,12 @@ impl FunctionCall {
                         .as_basic_value_enum(),
                 )
             }
-            Name::CallDataSize => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
+            Name::CallDataSize => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_int(4, false)
+                    .as_basic_value_enum(),
+            ),
             Name::CallDataCopy => {
                 panic!("The `{:?}` instruction is unsupported", self.name);
             }
@@ -513,7 +548,8 @@ impl FunctionCall {
                 panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::CodeCopy => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let _arguments = self.pop_arguments::<3>(context);
+                None
             }
             Name::ExtCodeSize => {
                 panic!("The `{:?}` instruction is unsupported", self.name);
@@ -531,14 +567,100 @@ impl FunctionCall {
                 panic!("The `{:?}` instruction is unsupported", self.name);
             }
 
+            Name::DataSize => {
+                let _arguments = self.pop_arguments::<1>(context);
+                Some(
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero()
+                        .as_basic_value_enum(),
+                )
+            }
+            Name::DataOffset => {
+                let _arguments = self.pop_arguments::<1>(context);
+                Some(
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero()
+                        .as_basic_value_enum(),
+                )
+            }
+            Name::DataCopy => {
+                let _arguments = self.pop_arguments::<3>(context);
+                None
+            }
+
             Name::Stop => {
                 panic!("The `{:?}` instruction is unsupported", self.name);
             }
             Name::Return => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let arguments = self.pop_arguments::<2>(context);
+
+                let function = context.function().to_owned();
+
+                let pointer = context.heap.expect("Always exists");
+                let pointer = unsafe {
+                    context.builder.build_gep(
+                        pointer,
+                        &[
+                            context
+                                .integer_type(compiler_const::bitlength::BYTE * 4)
+                                .const_zero(),
+                            arguments[0].into_int_value(),
+                        ],
+                        "",
+                    )
+                };
+
+                if let Some(return_pointer) = function.return_pointer {
+                    context
+                        .builder
+                        .build_memcpy(
+                            return_pointer,
+                            (compiler_const::size::FIELD) as u32,
+                            pointer,
+                            (compiler_const::size::FIELD) as u32,
+                            arguments[1].into_int_value(),
+                        )
+                        .expect("Return memory copy failed");
+                }
+
+                context.build_unconditional_branch(function.return_block);
+                None
             }
             Name::Revert => {
-                let _arguments = self.pop_arguments::<2>(context);
+                let arguments = self.pop_arguments::<2>(context);
+
+                let function = context.function().to_owned();
+
+                let pointer = context.heap.expect("Always exists");
+                let pointer = unsafe {
+                    context.builder.build_gep(
+                        pointer,
+                        &[
+                            context
+                                .integer_type(compiler_const::bitlength::BYTE * 4)
+                                .const_zero(),
+                            arguments[0].into_int_value(),
+                        ],
+                        "",
+                    )
+                };
+
+                if let Some(return_pointer) = function.return_pointer {
+                    context
+                        .builder
+                        .build_memcpy(
+                            return_pointer,
+                            (compiler_const::size::FIELD) as u32,
+                            pointer,
+                            (compiler_const::size::FIELD) as u32,
+                            arguments[1].into_int_value(),
+                        )
+                        .expect("Revert memory copy failed");
+                }
+
+                context.build_unconditional_branch(function.return_block);
                 None
             }
             Name::SelfDestruct => {
@@ -572,7 +694,7 @@ impl FunctionCall {
     ///
     fn pop_arguments<'ctx, const N: usize>(
         &mut self,
-        context: &LLVMContext<'ctx>,
+        context: &mut LLVMContext<'ctx>,
     ) -> [inkwell::values::BasicValueEnum<'ctx>; N] {
         self.arguments
             .drain(0..N)

@@ -51,7 +51,7 @@ impl Type {
     ///
     pub fn into_llvm<'ctx>(self, context: &LLVMContext<'ctx>) -> inkwell::types::IntType<'ctx> {
         match self {
-            Self::Bool => context.llvm.bool_type(),
+            Self::Bool => context.integer_type(compiler_const::bitlength::BOOLEAN),
             Self::Int(bitlength) => context.integer_type(bitlength),
             Self::UInt(bitlength) => context.integer_type(bitlength),
             Self::Custom(_) => todo!(),

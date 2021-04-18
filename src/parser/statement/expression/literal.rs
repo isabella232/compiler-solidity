@@ -89,7 +89,10 @@ impl Literal {
                 .expect("The value is valid")
                 .as_basic_value_enum()
             }
-            LexicalLiteral::String(_inner) => todo!(),
+            LexicalLiteral::String(_inner) => context
+                .integer_type(compiler_const::bitlength::FIELD)
+                .const_zero()
+                .as_basic_value_enum(),
         }
     }
 }

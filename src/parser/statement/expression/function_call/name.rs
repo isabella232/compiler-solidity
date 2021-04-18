@@ -165,6 +165,13 @@ pub enum Name {
     /// code hash of address `a`
     ExtCodeHash,
 
+    /// returns the size in the data area
+    DataSize,
+    /// returns the offset in the data area
+    DataOffset,
+    ///  is equivalent to `CodeCopy`
+    DataCopy,
+
     /// stop execution, identical to `return(0, 0)`
     Stop,
     /// end execution, return data `mem[p…(p+s))`
@@ -263,6 +270,10 @@ impl From<&str> for Name {
             "returncodesize" => Self::ReturnCodeSize,
             "returncodecopy" => Self::ReturnCodeCopy,
             "extcodehash" => Self::ExtCodeHash,
+
+            "datasize" => Self::DataSize,
+            "dataoffset" => Self::DataOffset,
+            "datacopy" => Self::DataCopy,
 
             "stop" => Self::Stop,
             "return" => Self::Return,

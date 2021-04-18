@@ -2,34 +2,37 @@
 //! The LLVM context.
 //!
 
+pub mod function;
+pub mod r#loop;
+
 use std::collections::HashMap;
 
 use crate::parser::identifier::Identifier;
+
+use self::function::Function;
+use self::r#loop::Loop;
 
 ///
 /// The LLVM context.
 ///
 pub struct Context<'ctx> {
-    /// The inner LLVM context.
-    pub llvm: &'ctx inkwell::context::Context,
     /// The LLVM builder.
     pub builder: inkwell::builder::Builder<'ctx>,
-    /// The current module.
-    pub module: Option<inkwell::module::Module<'ctx>>,
-    /// The current function.
-    pub function: Option<inkwell::values::FunctionValue<'ctx>>,
-
-    /// The block where the `continue` statement jumps to.
-    pub continue_block: Option<inkwell::basic_block::BasicBlock<'ctx>>,
-    /// The block where the `break` statement jumps to.
-    pub break_block: Option<inkwell::basic_block::BasicBlock<'ctx>>,
-    /// The block where the `leave` statement jumps to.
-    pub leave_block: Option<inkwell::basic_block::BasicBlock<'ctx>>,
-
-    /// The declared variables.
-    pub variables: HashMap<String, inkwell::values::PointerValue<'ctx>>,
     /// The declared functions.
-    pub functions: HashMap<String, inkwell::values::FunctionValue<'ctx>>,
+    pub functions: HashMap<String, Function<'ctx>>,
+    /// The heap representation.
+    pub heap: Option<inkwell::values::PointerValue<'ctx>>,
+
+    /// The inner LLVM context.
+    llvm: &'ctx inkwell::context::Context,
+    /// The current module.
+    module: Option<inkwell::module::Module<'ctx>>,
+    /// The current object name.
+    object: Option<String>,
+    /// The current function.
+    function: Option<Function<'ctx>>,
+    /// The loop context stack.
+    loop_stack: Vec<Loop<'ctx>>,
 
     /// The optimization level.
     optimization_level: inkwell::OptimizationLevel,
@@ -43,10 +46,10 @@ pub struct Context<'ctx> {
 }
 
 impl<'ctx> Context<'ctx> {
-    /// The variables hashmap default capacity.
-    const VARIABLE_HASHMAP_INITIAL_CAPACITY: usize = 64;
     /// The functions hashmap default capacity.
     const FUNCTION_HASHMAP_INITIAL_CAPACITY: usize = 64;
+    /// The loop stack default capacity.
+    const LOOP_STACK_INITIAL_CAPACITY: usize = 16;
 
     ///
     /// Initializes a new LLVM context.
@@ -66,17 +69,15 @@ impl<'ctx> Context<'ctx> {
         pass_manager_builder.set_optimization_level(optimization_level);
 
         Self {
-            llvm,
             builder: llvm.create_builder(),
-            module: None,
-            function: None,
-
-            break_block: None,
-            continue_block: None,
-            leave_block: None,
-
-            variables: HashMap::with_capacity(Self::VARIABLE_HASHMAP_INITIAL_CAPACITY),
             functions: HashMap::with_capacity(Self::FUNCTION_HASHMAP_INITIAL_CAPACITY),
+            heap: None,
+
+            llvm,
+            module: None,
+            object: None,
+            function: None,
+            loop_stack: Vec::with_capacity(Self::LOOP_STACK_INITIAL_CAPACITY),
 
             optimization_level,
             pass_manager_builder,
@@ -103,7 +104,7 @@ impl<'ctx> Context<'ctx> {
             .as_ref()
             .expect("Pass managers are created with the module");
         for (_, function) in self.functions.iter() {
-            pass_manager_function.run_on(function);
+            function.optimize(&pass_manager_function);
         }
 
         let pass_manager_module = self
@@ -152,23 +153,148 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
-    /// Writes the newly function to the hashmap.
+    /// Sets the current YUL object name.
     ///
-    pub fn create_function(
-        &mut self,
-        name: &str,
-        r#type: inkwell::types::FunctionType<'ctx>,
-    ) -> inkwell::values::FunctionValue<'ctx> {
-        let function = self.module().add_function(name, r#type, None);
-        self.functions.insert(name.to_string(), function);
-        function
+    pub fn set_object(&mut self, name: String) {
+        self.object = Some(name);
+    }
+
+    ///
+    /// Returns the current YUL object name.
+    ///
+    pub fn object(&self) -> &str {
+        self.object.as_ref().expect("Always exists")
+    }
+
+    ///
+    /// Allocates the heap, if it has not been allocated yet.
+    ///
+    pub fn allocate_heap(&mut self, size: usize) {
+        if self.heap.is_some() {
+            return;
+        }
+
+        let heap_type = self
+            .integer_type(compiler_const::bitlength::FIELD)
+            .array_type(size as u32);
+        let heap = self
+            .builder
+            .build_malloc(heap_type, "")
+            .expect("Heap allocation error");
+        self.heap = Some(heap);
+    }
+
+    ///
+    /// Appends a function to the current module.
+    ///
+    pub fn add_function(&mut self, name: &str, r#type: inkwell::types::FunctionType<'ctx>) {
+        let value = self.module().add_function(name, r#type, None);
+
+        let entry_block = self.llvm.append_basic_block(value, "entry");
+        let return_block = self.llvm.append_basic_block(value, "return");
+
+        let function = Function::new(name.to_owned(), value, entry_block, return_block, None);
+        self.functions.insert(name.to_string(), function.clone());
+        self.function = Some(function);
     }
 
     ///
     /// Returns the current function.
     ///
-    pub fn function(&self) -> inkwell::values::FunctionValue<'ctx> {
-        self.function.expect("Always exists")
+    pub fn function(&self) -> &Function<'ctx> {
+        self.function
+            .as_ref()
+            .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION)
+    }
+
+    ///
+    /// Returns the current function as a mutable reference.
+    ///
+    pub fn function_mut(&mut self) -> &mut Function<'ctx> {
+        self.function
+            .as_mut()
+            .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION)
+    }
+
+    ///
+    /// Sets the current function.
+    ///
+    /// # Panics
+    /// If the function with `name` does not exist.
+    ///
+    pub fn set_function(&mut self, name: &str) {
+        self.function = Some(
+            self.functions
+                .get(name)
+                .cloned()
+                .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION),
+        );
+    }
+
+    ///
+    /// Updates the current function, setting the return and heap pointers.
+    ///
+    /// # Panics
+    /// If the function with `name` does not exist.
+    ///
+    pub fn update_function(
+        &mut self,
+        return_pointer: Option<inkwell::values::PointerValue<'ctx>>,
+    ) -> Function<'ctx> {
+        let name = self.function().name.clone();
+
+        if let Some(return_pointer) = return_pointer {
+            self.functions
+                .get_mut(name.as_str())
+                .expect("Always exists")
+                .return_pointer = Some(return_pointer);
+            self.function_mut().return_pointer = Some(return_pointer);
+        }
+
+        self.function().to_owned()
+    }
+
+    ///
+    /// Appends a new basic block to the current function.
+    ///
+    pub fn append_basic_block(&self, name: &str) -> inkwell::basic_block::BasicBlock<'ctx> {
+        self.llvm.append_basic_block(self.function().value, name)
+    }
+
+    ///
+    /// Sets the current basic block.
+    ///
+    pub fn set_basic_block(&mut self, block: inkwell::basic_block::BasicBlock<'ctx>) {
+        self.builder.position_at_end(block);
+    }
+
+    ///
+    /// Pushes a new loop context to the stack.
+    ///
+    pub fn push_loop(
+        &mut self,
+        body_block: inkwell::basic_block::BasicBlock<'ctx>,
+        continue_block: inkwell::basic_block::BasicBlock<'ctx>,
+        break_block: inkwell::basic_block::BasicBlock<'ctx>,
+    ) {
+        self.loop_stack
+            .push(Loop::new(body_block, continue_block, break_block));
+    }
+
+    ///
+    /// Pops the current loop context from the stack.
+    ///
+    pub fn pop_loop(&mut self) {
+        self.loop_stack.pop();
+    }
+
+    ///
+    /// Returns the current loop context.
+    ///
+    pub fn r#loop(&self) -> &Loop<'ctx> {
+        self.loop_stack
+            .last()
+            .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION)
     }
 
     ///

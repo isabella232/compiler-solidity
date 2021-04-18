@@ -21,6 +21,10 @@ esac
 case "${2}" in
     release)
         export RELEASE_FLAG="--release"
+        export LLVM_SYS_110_PREFIX="${HOME}/opt/llvm-release/"
+        ;;
+    *)
+        export LLVM_SYS_110_PREFIX="${HOME}/opt/llvm-debug/"
         ;;
 esac
 

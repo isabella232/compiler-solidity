@@ -78,7 +78,7 @@ impl ILLVMWritable for Assignment {
             let name = self.bindings.remove(0);
             context
                 .builder
-                .build_store(context.variables[name.as_str()], value);
+                .build_store(context.function().stack[name.as_str()], value);
             return;
         }
 
@@ -102,7 +102,7 @@ impl ILLVMWritable for Assignment {
 
             context
                 .builder
-                .build_store(context.variables[binding.as_str()], value);
+                .build_store(context.function().stack[binding.as_str()], value);
         }
     }
 }

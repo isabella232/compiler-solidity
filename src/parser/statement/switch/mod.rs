@@ -87,42 +87,36 @@ impl Switch {
 
 impl ILLVMWritable for Switch {
     fn into_llvm<'ctx>(mut self, context: &mut LLVMContext<'ctx>) {
-        let default = context
-            .llvm
-            .append_basic_block(context.function(), "switch.default");
-        let join_block = context
-            .llvm
-            .append_basic_block(context.function(), "switch.join");
+        let default = context.append_basic_block("switch.default");
+        let join_block = context.append_basic_block("switch.join");
         let mut cases: Vec<(
             inkwell::values::IntValue<'ctx>,
             inkwell::basic_block::BasicBlock<'ctx>,
         )> = Vec::with_capacity(self.cases.len());
         for case in self.cases.iter() {
             let value = case.literal.to_owned().into_llvm(context).into_int_value();
-            let basic_block = context
-                .llvm
-                .append_basic_block(context.function(), "switch.case");
+            let basic_block = context.append_basic_block("switch.case");
             cases.push((value, basic_block));
         }
-        context.builder.build_switch(
-            self.expression
-                .into_llvm(context)
-                .expect("Always exists")
-                .into_int_value(),
-            default,
-            &cases,
-        );
+        let switch_expression = self
+            .expression
+            .into_llvm(context)
+            .expect("Always exists")
+            .into_int_value();
+        context
+            .builder
+            .build_switch(switch_expression, default, &cases);
         for (_value, basic_block) in cases.into_iter() {
-            context.builder.position_at_end(basic_block);
+            context.set_basic_block(basic_block);
             self.cases.remove(0).block.into_llvm_local(context);
             context.build_unconditional_branch(join_block);
         }
-        context.builder.position_at_end(default);
+        context.set_basic_block(default);
         if let Some(block) = self.default.take() {
             block.into_llvm_local(context);
         }
         context.build_unconditional_branch(join_block);
-        context.builder.position_at_end(join_block);
+        context.set_basic_block(join_block);
     }
 }
 

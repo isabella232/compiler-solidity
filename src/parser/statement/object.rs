@@ -67,6 +67,8 @@ impl Object {
 
 impl ILLVMWritable for Object {
     fn into_llvm(self, context: &mut LLVMContext) {
+        context.set_object(self.identifier);
+
         self.code.into_llvm(context);
 
         if let Some(object) = self.object {

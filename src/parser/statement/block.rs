@@ -85,6 +85,8 @@ impl Block {
     ///
     pub fn into_llvm_object(self, context: &mut LLVMContext) {
         let mut functions = Vec::with_capacity(self.statements.len());
+        let mut blocks = Vec::with_capacity(self.statements.len());
+
         for statement in self.statements.into_iter() {
             match statement {
                 Statement::Object(object) => object.into_llvm(context),
@@ -93,12 +95,38 @@ impl Block {
                     statement.declare(context);
                     functions.push(statement);
                 }
+                Statement::Block(block) => {
+                    blocks.push(block);
+                }
                 _ => {}
             }
         }
 
         for function in functions.into_iter() {
             function.into_llvm(context);
+        }
+
+        for block in blocks.into_iter() {
+            let name = context.object().to_owned();
+
+            let return_type = context.integer_type(compiler_const::bitlength::FIELD);
+            let function_type = return_type.fn_type(&[], false);
+            context.add_function(name.as_str(), function_type);
+            let function = context.function().to_owned();
+            context.set_basic_block(function.entry_block);
+
+            context.allocate_heap(1024);
+
+            let return_pointer = context.builder.build_alloca(return_type, "result");
+            let function = context.update_function(Some(return_pointer));
+
+            block.into_llvm_local(context);
+
+            context.set_basic_block(function.return_block);
+            let return_value = context.builder.build_load(return_pointer, "");
+            context.builder.build_return(Some(&return_value));
+
+            context.heap = None;
         }
     }
 
@@ -117,15 +145,14 @@ impl Block {
                 Statement::IfConditional(statement) => statement.into_llvm(context),
                 Statement::Switch(statement) => statement.into_llvm(context),
                 Statement::ForLoop(statement) => statement.into_llvm(context),
-                Statement::Leave => {
-                    context.build_unconditional_branch(context.leave_block.expect("Always exists"));
+                Statement::Continue => {
+                    context.build_unconditional_branch(context.r#loop().continue_block);
                 }
                 Statement::Break => {
-                    context.build_unconditional_branch(context.break_block.expect("Always exists"));
+                    context.build_unconditional_branch(context.r#loop().break_block);
                 }
-                Statement::Continue => {
-                    context
-                        .build_unconditional_branch(context.continue_block.expect("Always exists"));
+                Statement::Leave => {
+                    context.build_unconditional_branch(context.function().return_block);
                 }
                 _ => {}
             }

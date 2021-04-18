@@ -11,6 +11,7 @@ use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
 use crate::parser::identifier::Identifier;
 use crate::parser::statement::block::Block;
+use inkwell::types::BasicType;
 
 ///
 /// The function definition statement.
@@ -83,19 +84,36 @@ impl FunctionDefinition {
             .iter()
             .map(|argument| {
                 let yul_type = argument.yul_type.to_owned().unwrap_or_default();
-                inkwell::types::BasicTypeEnum::IntType(yul_type.into_llvm(context))
+                yul_type.into_llvm(context).as_basic_type_enum()
             })
             .collect();
 
         let function_type =
             context.function_type(self.result.as_slice(), argument_types.as_slice());
 
-        context.create_function(self.name.as_str(), function_type);
+        context.add_function(self.name.as_str(), function_type);
     }
 }
 
 impl ILLVMWritable for FunctionDefinition {
     fn into_llvm(self, context: &mut LLVMContext) {
+        let function = context
+            .functions
+            .get(self.name.as_str())
+            .cloned()
+            .expect("Function always exists");
+        context.set_function(self.name.as_str());
+
+        context.set_basic_block(function.entry_block);
+        let return_types = function.value.get_type().get_return_type();
+        let return_pointer = match return_types {
+            Some(r#type) => Some(context.builder.build_alloca(r#type, "result")),
+            None => None,
+        };
+        let function = context.update_function(return_pointer);
+
+        context.allocate_heap(1024);
+
         let argument_types: Vec<_> = self
             .arguments
             .iter()
@@ -104,32 +122,22 @@ impl ILLVMWritable for FunctionDefinition {
                 yul_type.into_llvm(context)
             })
             .collect();
-
-        let function = context
-            .module()
-            .get_function(self.name.as_str())
-            .expect("Function always exists");
-        let return_types = function.get_type().get_return_type();
-        context.function = Some(function);
-
-        let entry = context.llvm.append_basic_block(function, "entry");
-        context.builder.position_at_end(entry);
-
         for (index, argument) in self.arguments.iter().enumerate() {
             let pointer = context
                 .builder
                 .build_alloca(argument_types[index], argument.name.as_str());
-            context.variables.insert(argument.name.clone(), pointer);
+            context
+                .function_mut()
+                .stack
+                .insert(argument.name.clone(), pointer);
             context.builder.build_store(
                 pointer,
-                function.get_nth_param(index as u32).expect("Always exists"),
+                function
+                    .value
+                    .get_nth_param(index as u32)
+                    .expect("Always exists"),
             );
         }
-
-        let return_pointer = match return_types {
-            Some(r#type) => Some(context.builder.build_alloca(r#type, "result")),
-            None => None,
-        };
 
         let mut return_values: Vec<_> = self
             .result
@@ -139,13 +147,13 @@ impl ILLVMWritable for FunctionDefinition {
                 let value = context
                     .builder
                     .build_alloca(r#type.into_llvm(context), identifier.name.as_str());
-                context.variables.insert(identifier.name.clone(), value);
+                context
+                    .function_mut()
+                    .stack
+                    .insert(identifier.name.clone(), value);
                 value
             })
             .collect();
-
-        let leave_block = context.llvm.append_basic_block(function, "exit");
-        context.leave_block = Some(leave_block);
 
         self.body.into_llvm_local(context);
 
@@ -157,24 +165,24 @@ impl ILLVMWritable for FunctionDefinition {
 
         match last_instruction {
             None => {
-                context.build_unconditional_branch(leave_block);
+                context.build_unconditional_branch(function.return_block);
             }
             Some(instruction) => match instruction.get_opcode() {
                 inkwell::values::InstructionOpcode::Br => (),
                 inkwell::values::InstructionOpcode::Switch => (),
                 _ => {
-                    context.build_unconditional_branch(leave_block);
+                    context.build_unconditional_branch(function.return_block);
                 }
             },
         };
 
-        context.builder.position_at_end(leave_block);
+        context.set_basic_block(function.return_block);
 
         match return_pointer {
             Some(return_pointer) => {
                 if return_values.len() == 1 {
                     let return_value = context.builder.build_load(return_values.remove(0), "");
-                    context.builder.build_return(Some(&return_value))
+                    context.builder.build_return(Some(&return_value));
                 } else {
                     for (index, value) in return_values.iter().enumerate() {
                         context.builder.build_store(
@@ -186,11 +194,15 @@ impl ILLVMWritable for FunctionDefinition {
                         );
                     }
                     let return_value = context.builder.build_load(return_pointer, "");
-                    context.builder.build_return(Some(&return_value))
+                    context.builder.build_return(Some(&return_value));
                 }
             }
-            None => context.builder.build_return(None),
-        };
+            None => {
+                context.builder.build_return(None);
+            }
+        }
+
+        context.heap = None;
     }
 }
 

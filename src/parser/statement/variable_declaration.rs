@@ -65,7 +65,10 @@ impl ILLVMWritable for VariableDeclaration {
             let pointer = context
                 .builder
                 .build_alloca(value.get_type(), identifier.name.as_str());
-            context.variables.insert(identifier.name, pointer);
+            context
+                .function_mut()
+                .stack
+                .insert(identifier.name, pointer);
             context.builder.build_store(pointer, value);
             return;
         }
@@ -92,7 +95,7 @@ impl ILLVMWritable for VariableDeclaration {
             let pointer = context
                 .builder
                 .build_alloca(yul_type.as_basic_type_enum(), binding.name.as_str());
-            context.variables.insert(binding.name, pointer);
+            context.function_mut().stack.insert(binding.name, pointer);
             context.builder.build_store(pointer, value);
         }
     }
