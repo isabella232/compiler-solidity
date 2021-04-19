@@ -12,6 +12,8 @@ use crate::parser::error::Error as ParserError;
 use crate::parser::statement::assignment::Assignment;
 use crate::parser::statement::expression::Expression;
 use crate::parser::statement::Statement;
+use crate::target::Target;
+use inkwell::values::BasicValue;
 
 ///
 /// The source code block.
@@ -109,24 +111,32 @@ impl Block {
         for block in blocks.into_iter() {
             let name = context.object().to_owned();
 
-            let return_type = context.integer_type(compiler_const::bitlength::FIELD);
+            let return_type = match context.target {
+                Target::LLVM => context.integer_type(compiler_const::bitlength::WORD),
+                Target::zkEVM => context.integer_type(compiler_const::bitlength::FIELD),
+            };
             let function_type = return_type.fn_type(&[], false);
             context.add_function(name.as_str(), function_type);
             let function = context.function().to_owned();
             context.set_basic_block(function.entry_block);
 
-            context.allocate_heap(1024);
-
-            let return_pointer = context.builder.build_alloca(return_type, "result");
+            let return_pointer = context.builder.build_alloca(
+                context.integer_type(compiler_const::bitlength::FIELD),
+                "result",
+            );
             let function = context.update_function(Some(return_pointer));
 
             block.into_llvm_local(context);
 
             context.set_basic_block(function.return_block);
-            let return_value = context.builder.build_load(return_pointer, "");
+            let mut return_value = context.builder.build_load(return_pointer, "");
+            if let Target::LLVM = context.target {
+                return_value = context
+                    .builder
+                    .build_int_truncate(return_value.into_int_value(), return_type, "")
+                    .as_basic_value_enum();
+            }
             context.builder.build_return(Some(&return_value));
-
-            context.heap = None;
         }
     }
 
@@ -149,7 +159,7 @@ impl Block {
                     context.build_unconditional_branch(context.r#loop().continue_block);
                 }
                 Statement::Break => {
-                    context.build_unconditional_branch(context.r#loop().break_block);
+                    context.build_unconditional_branch(context.r#loop().join_block);
                 }
                 Statement::Leave => {
                     context.build_unconditional_branch(context.function().return_block);

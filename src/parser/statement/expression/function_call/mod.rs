@@ -15,6 +15,7 @@ use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
 use crate::parser::statement::expression::Expression;
+use crate::target::Target;
 
 use self::name::Name;
 
@@ -114,54 +115,62 @@ impl FunctionCall {
             }
             Name::Div => {
                 let mut arguments = self.pop_arguments::<2>(context);
-                let allowed_type = context.integer_type(128);
-                arguments[0] = context
-                    .builder
-                    .build_int_cast(arguments[0].into_int_value(), allowed_type, "")
-                    .as_basic_value_enum();
-                arguments[1] = context
-                    .builder
-                    .build_int_cast(arguments[1].into_int_value(), allowed_type, "")
-                    .as_basic_value_enum();
+                if let Target::LLVM = context.target {
+                    let allowed_type = context.integer_type(128);
+                    arguments[0] = context
+                        .builder
+                        .build_int_truncate(arguments[0].into_int_value(), allowed_type, "")
+                        .as_basic_value_enum();
+                    arguments[1] = context
+                        .builder
+                        .build_int_truncate(arguments[1].into_int_value(), allowed_type, "")
+                        .as_basic_value_enum();
+                }
                 let mut result = context.builder.build_int_unsigned_div(
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
                     "",
                 );
-                result = context.builder.build_int_cast(
-                    result,
-                    context.integer_type(compiler_const::bitlength::FIELD),
-                    "",
-                );
+                if let Target::LLVM = context.target {
+                    result = context.builder.build_int_z_extend(
+                        result,
+                        context.integer_type(compiler_const::bitlength::FIELD),
+                        "",
+                    );
+                }
                 Some(result.as_basic_value_enum())
             }
             Name::Mod => {
                 let mut arguments = self.pop_arguments::<2>(context);
-                let allowed_type = context.integer_type(128);
-                arguments[0] = context
-                    .builder
-                    .build_int_cast(arguments[0].into_int_value(), allowed_type, "")
-                    .as_basic_value_enum();
-                arguments[1] = context
-                    .builder
-                    .build_int_cast(arguments[0].into_int_value(), allowed_type, "")
-                    .as_basic_value_enum();
+                if let Target::LLVM = context.target {
+                    let allowed_type = context.integer_type(128);
+                    arguments[0] = context
+                        .builder
+                        .build_int_truncate(arguments[0].into_int_value(), allowed_type, "")
+                        .as_basic_value_enum();
+                    arguments[1] = context
+                        .builder
+                        .build_int_truncate(arguments[1].into_int_value(), allowed_type, "")
+                        .as_basic_value_enum();
+                }
                 let mut result = context.builder.build_int_unsigned_rem(
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
                     "",
                 );
-                result = context.builder.build_int_cast(
-                    result,
-                    context.integer_type(compiler_const::bitlength::FIELD),
-                    "",
-                );
+                if let Target::LLVM = context.target {
+                    result = context.builder.build_int_z_extend(
+                        result,
+                        context.integer_type(compiler_const::bitlength::FIELD),
+                        "",
+                    );
+                }
                 Some(result.as_basic_value_enum())
             }
             Name::Not => {
                 let arguments = self.pop_arguments::<1>(context);
-                let value = context.builder.build_not(arguments[0].into_int_value(), "");
-                Some(value.as_basic_value_enum())
+                let result = context.builder.build_not(arguments[0].into_int_value(), "");
+                Some(result.as_basic_value_enum())
             }
             Name::Lt => {
                 let arguments = self.pop_arguments::<2>(context);
@@ -171,7 +180,7 @@ impl FunctionCall {
                     arguments[1].into_int_value(),
                     "",
                 );
-                result = context.builder.build_int_cast(
+                result = context.builder.build_int_z_extend(
                     result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
@@ -186,7 +195,7 @@ impl FunctionCall {
                     arguments[1].into_int_value(),
                     "",
                 );
-                result = context.builder.build_int_cast(
+                result = context.builder.build_int_z_extend(
                     result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
@@ -201,7 +210,7 @@ impl FunctionCall {
                     arguments[1].into_int_value(),
                     "",
                 );
-                result = context.builder.build_int_cast(
+                result = context.builder.build_int_z_extend(
                     result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
@@ -218,7 +227,7 @@ impl FunctionCall {
                         .const_zero(),
                     "",
                 );
-                result = context.builder.build_int_cast(
+                result = context.builder.build_int_z_extend(
                     result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
@@ -227,63 +236,146 @@ impl FunctionCall {
             }
             Name::And => {
                 let arguments = self.pop_arguments::<2>(context);
-                let mut result = context.builder.build_and(
+                let result = context.builder.build_and(
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
-                    "",
-                );
-                result = context.builder.build_int_cast(
-                    result,
-                    context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
                 Some(result.as_basic_value_enum())
             }
             Name::Or => {
                 let arguments = self.pop_arguments::<2>(context);
-                let mut result = context.builder.build_or(
+                let result = context.builder.build_or(
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
-                    "",
-                );
-                result = context.builder.build_int_cast(
-                    result,
-                    context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
                 Some(result.as_basic_value_enum())
             }
             Name::Xor => {
                 let arguments = self.pop_arguments::<2>(context);
-                let mut result = context.builder.build_xor(
+                let result = context.builder.build_xor(
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
-                    "",
-                );
-                result = context.builder.build_int_cast(
-                    result,
-                    context.integer_type(compiler_const::bitlength::FIELD),
                     "",
                 );
                 Some(result.as_basic_value_enum())
             }
             Name::AddMod => {
-                let arguments = self.pop_arguments::<3>(context);
-                Some(
+                let mut arguments = self.pop_arguments::<3>(context);
+
+                let zero_block = context.append_basic_block("zero");
+                let non_zero_block = context.append_basic_block("non_zero");
+                let join_block = context.append_basic_block("join");
+
+                let result_pointer = context
+                    .builder
+                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                context.builder.build_conditional_branch(
+                    arguments[2].into_int_value(),
+                    non_zero_block,
+                    zero_block,
+                );
+
+                context.set_basic_block(non_zero_block);
+                let mut result = context.builder.build_int_add(
+                    arguments[0].into_int_value(),
+                    arguments[1].into_int_value(),
+                    "",
+                );
+                if let Target::LLVM = context.target {
+                    let allowed_type = context.integer_type(128);
+                    result = context.builder.build_int_truncate(result, allowed_type, "");
+                    arguments[2] = context
+                        .builder
+                        .build_int_truncate(arguments[2].into_int_value(), allowed_type, "")
+                        .as_basic_value_enum();
+                }
+                let mut result = context.builder.build_int_unsigned_rem(
+                    result,
+                    arguments[2].into_int_value(),
+                    "",
+                );
+                if let Target::LLVM = context.target {
+                    result = context.builder.build_int_z_extend(
+                        result,
+                        context.integer_type(compiler_const::bitlength::FIELD),
+                        "",
+                    );
+                }
+                context.builder.build_store(result_pointer, result);
+                context.build_unconditional_branch(join_block);
+
+                context.set_basic_block(non_zero_block);
+                context.builder.build_store(
+                    result_pointer,
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
-                        .const_zero()
-                        .as_basic_value_enum(),
-                )
+                        .const_zero(),
+                );
+                context.build_unconditional_branch(join_block);
+
+                context.set_basic_block(join_block);
+
+                Some(result.as_basic_value_enum())
             }
             Name::MulMod => {
-                let arguments = self.pop_arguments::<3>(context);
-                Some(
+                let mut arguments = self.pop_arguments::<3>(context);
+
+                let zero_block = context.append_basic_block("zero");
+                let non_zero_block = context.append_basic_block("non_zero");
+                let join_block = context.append_basic_block("join");
+
+                let result_pointer = context
+                    .builder
+                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                context.builder.build_conditional_branch(
+                    arguments[2].into_int_value(),
+                    non_zero_block,
+                    zero_block,
+                );
+
+                context.set_basic_block(non_zero_block);
+                let mut result = context.builder.build_int_mul(
+                    arguments[0].into_int_value(),
+                    arguments[1].into_int_value(),
+                    "",
+                );
+                if let Target::LLVM = context.target {
+                    let allowed_type = context.integer_type(128);
+                    result = context.builder.build_int_truncate(result, allowed_type, "");
+                    arguments[2] = context
+                        .builder
+                        .build_int_truncate(arguments[2].into_int_value(), allowed_type, "")
+                        .as_basic_value_enum();
+                }
+                let mut result = context.builder.build_int_unsigned_rem(
+                    result,
+                    arguments[2].into_int_value(),
+                    "",
+                );
+                if let Target::LLVM = context.target {
+                    result = context.builder.build_int_z_extend(
+                        result,
+                        context.integer_type(compiler_const::bitlength::FIELD),
+                        "",
+                    );
+                }
+                context.builder.build_store(result_pointer, result);
+                context.build_unconditional_branch(join_block);
+
+                context.set_basic_block(non_zero_block);
+                context.builder.build_store(
+                    result_pointer,
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
-                        .const_zero()
-                        .as_basic_value_enum(),
-                )
+                        .const_zero(),
+                );
+                context.build_unconditional_branch(join_block);
+
+                context.set_basic_block(join_block);
+
+                Some(result.as_basic_value_enum())
             }
 
             Name::Sdiv => {
@@ -305,7 +397,7 @@ impl FunctionCall {
                 )
             }
             Name::Exp => {
-                let arguments = self.pop_arguments::<2>(context);
+                let _arguments = self.pop_arguments::<2>(context);
                 Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
@@ -332,7 +424,7 @@ impl FunctionCall {
                 )
             }
             Name::Byte => {
-                let arguments = self.pop_arguments::<2>(context);
+                let _arguments = self.pop_arguments::<2>(context);
                 Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
@@ -351,12 +443,15 @@ impl FunctionCall {
             }
             Name::Shr => {
                 let _arguments = self.pop_arguments::<2>(context);
-                Some(
-                    context
+                let result = match context.target {
+                    Target::LLVM => context
                         .integer_type(compiler_const::bitlength::FIELD)
-                        .const_int(0x67f239dd, false)
-                        .as_basic_value_enum(),
-                )
+                        .const_int(0x67f239dd, false),
+                    Target::zkEVM => context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero(),
+                };
+                Some(result.as_basic_value_enum())
             }
             Name::Sar => {
                 let _arguments = self.pop_arguments::<2>(context);
@@ -389,19 +484,7 @@ impl FunctionCall {
             Name::MLoad => {
                 let arguments = self.pop_arguments::<1>(context);
 
-                let pointer = context.heap.expect("Always exists");
-                let pointer = unsafe {
-                    context.builder.build_gep(
-                        pointer,
-                        &[
-                            context
-                                .integer_type(compiler_const::bitlength::BYTE * 4)
-                                .const_zero(),
-                            arguments[0].into_int_value(),
-                        ],
-                        "",
-                    )
-                };
+                let pointer = context.access_heap(arguments[0].into_int_value(), None);
 
                 let value = context.builder.build_load(pointer, "");
 
@@ -410,26 +493,29 @@ impl FunctionCall {
             Name::MStore => {
                 let arguments = self.pop_arguments::<2>(context);
 
-                let pointer = context.heap.expect("Always exists");
-                let pointer = unsafe {
-                    context.builder.build_gep(
-                        pointer,
-                        &[
-                            context
-                                .integer_type(compiler_const::bitlength::BYTE * 4)
-                                .const_zero(),
-                            arguments[0].into_int_value(),
-                        ],
-                        "",
-                    )
-                };
+                let pointer = context.access_heap(arguments[0].into_int_value(), None);
 
                 context.builder.build_store(pointer, arguments[1]);
 
                 None
             }
             Name::MStore8 => {
-                let _arguments = self.pop_arguments::<2>(context);
+                let arguments = self.pop_arguments::<2>(context);
+
+                let pointer = context.access_heap(
+                    arguments[0].into_int_value(),
+                    Some(context.integer_type(compiler_const::bitlength::BYTE)),
+                );
+
+                let byte_mask = context
+                    .integer_type(compiler_const::bitlength::BYTE)
+                    .const_int(0xff, false);
+                let value = context
+                    .builder
+                    .build_and(arguments[1].into_int_value(), byte_mask, "");
+
+                context.builder.build_store(pointer, value);
+
                 None
             }
 
@@ -598,28 +684,19 @@ impl FunctionCall {
 
                 let function = context.function().to_owned();
 
-                let pointer = context.heap.expect("Always exists");
-                let pointer = unsafe {
-                    context.builder.build_gep(
-                        pointer,
-                        &[
-                            context
-                                .integer_type(compiler_const::bitlength::BYTE * 4)
-                                .const_zero(),
-                            arguments[0].into_int_value(),
-                        ],
-                        "",
-                    )
-                };
+                let pointer = context.access_heap(
+                    arguments[0].into_int_value(),
+                    Some(context.integer_type(compiler_const::bitlength::BYTE)),
+                );
 
                 if let Some(return_pointer) = function.return_pointer {
                     context
                         .builder
                         .build_memcpy(
                             return_pointer,
-                            (compiler_const::size::FIELD) as u32,
+                            (compiler_const::size::BYTE) as u32,
                             pointer,
-                            (compiler_const::size::FIELD) as u32,
+                            (compiler_const::size::BYTE) as u32,
                             arguments[1].into_int_value(),
                         )
                         .expect("Return memory copy failed");
@@ -633,28 +710,19 @@ impl FunctionCall {
 
                 let function = context.function().to_owned();
 
-                let pointer = context.heap.expect("Always exists");
-                let pointer = unsafe {
-                    context.builder.build_gep(
-                        pointer,
-                        &[
-                            context
-                                .integer_type(compiler_const::bitlength::BYTE * 4)
-                                .const_zero(),
-                            arguments[0].into_int_value(),
-                        ],
-                        "",
-                    )
-                };
+                let pointer = context.access_heap(
+                    arguments[0].into_int_value(),
+                    Some(context.integer_type(compiler_const::bitlength::BYTE)),
+                );
 
                 if let Some(return_pointer) = function.return_pointer {
                     context
                         .builder
                         .build_memcpy(
                             return_pointer,
-                            (compiler_const::size::FIELD) as u32,
+                            (compiler_const::size::BYTE) as u32,
                             pointer,
-                            (compiler_const::size::FIELD) as u32,
+                            (compiler_const::size::BYTE) as u32,
                             arguments[1].into_int_value(),
                         )
                         .expect("Revert memory copy failed");

@@ -112,8 +112,6 @@ impl ILLVMWritable for FunctionDefinition {
         };
         let function = context.update_function(return_pointer);
 
-        context.allocate_heap(1024);
-
         let argument_types: Vec<_> = self
             .arguments
             .iter()
@@ -201,8 +199,6 @@ impl ILLVMWritable for FunctionDefinition {
                 context.builder.build_return(None);
             }
         }
-
-        context.heap = None;
     }
 }
 

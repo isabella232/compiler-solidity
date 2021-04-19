@@ -38,13 +38,13 @@ impl IfConditional {
 
 impl ILLVMWritable for IfConditional {
     fn into_llvm(self, context: &mut LLVMContext) {
-        let condition_expression = self
+        let condition = self
             .condition
             .into_llvm(context)
             .expect("Always exists")
             .into_int_value();
-        let condition = context.builder.build_int_cast(
-            condition_expression,
+        let condition = context.builder.build_int_truncate(
+            condition,
             context.integer_type(compiler_const::bitlength::BOOLEAN),
             "",
         );

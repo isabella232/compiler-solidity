@@ -8,6 +8,7 @@ pub mod r#loop;
 use std::collections::HashMap;
 
 use crate::parser::identifier::Identifier;
+use crate::target::Target;
 
 use self::function::Function;
 use self::r#loop::Loop;
@@ -16,12 +17,14 @@ use self::r#loop::Loop;
 /// The LLVM context.
 ///
 pub struct Context<'ctx> {
+    /// The target to build for.
+    pub target: Target,
     /// The LLVM builder.
     pub builder: inkwell::builder::Builder<'ctx>,
     /// The declared functions.
     pub functions: HashMap<String, Function<'ctx>>,
     /// The heap representation.
-    pub heap: Option<inkwell::values::PointerValue<'ctx>>,
+    pub heap: Option<inkwell::values::GlobalValue<'ctx>>,
 
     /// The inner LLVM context.
     llvm: &'ctx inkwell::context::Context,
@@ -54,8 +57,8 @@ impl<'ctx> Context<'ctx> {
     ///
     /// Initializes a new LLVM context.
     ///
-    pub fn new(llvm: &'ctx inkwell::context::Context) -> Self {
-        Self::new_with_optimizer(llvm, inkwell::OptimizationLevel::None)
+    pub fn new(llvm: &'ctx inkwell::context::Context, target: Target) -> Self {
+        Self::new_with_optimizer(llvm, target, inkwell::OptimizationLevel::None)
     }
 
     ///
@@ -63,12 +66,14 @@ impl<'ctx> Context<'ctx> {
     ///
     pub fn new_with_optimizer(
         llvm: &'ctx inkwell::context::Context,
+        target: Target,
         optimization_level: inkwell::OptimizationLevel,
     ) -> Self {
         let pass_manager_builder = inkwell::passes::PassManagerBuilder::create();
         pass_manager_builder.set_optimization_level(optimization_level);
 
         Self {
+            target,
             builder: llvm.create_builder(),
             functions: HashMap::with_capacity(Self::FUNCTION_HASHMAP_INITIAL_CAPACITY),
             heap: None,
@@ -174,14 +179,43 @@ impl<'ctx> Context<'ctx> {
             return;
         }
 
-        let heap_type = self
-            .integer_type(compiler_const::bitlength::FIELD)
+        let r#type = self
+            .integer_type(compiler_const::bitlength::BYTE)
             .array_type(size as u32);
-        let heap = self
-            .builder
-            .build_malloc(heap_type, "")
-            .expect("Heap allocation error");
-        self.heap = Some(heap);
+        let global = self.module().add_global(r#type, None, "heap");
+        if let Target::LLVM = self.target {
+            global.set_initializer(&r#type.const_zero());
+        }
+        self.heap = Some(global);
+    }
+
+    ///
+    /// Returns the heap pointer with the `offset` bytes offset, optionally casted to `r#type`.
+    ///
+    pub fn access_heap(
+        &self,
+        offset: inkwell::values::IntValue<'ctx>,
+        r#type: Option<inkwell::types::IntType<'ctx>>,
+    ) -> inkwell::values::PointerValue<'ctx> {
+        let pointer = self.heap.expect("Always exists").as_pointer_value();
+        let pointer = unsafe {
+            self.builder.build_gep(
+                pointer,
+                &[
+                    self.integer_type(compiler_const::bitlength::BYTE * 4)
+                        .const_zero(),
+                    offset,
+                ],
+                "",
+            )
+        };
+        let r#type = r#type.unwrap_or_else(|| self.integer_type(compiler_const::bitlength::FIELD));
+        let pointer = self.builder.build_pointer_cast(
+            pointer,
+            r#type.ptr_type(inkwell::AddressSpace::Local),
+            "",
+        );
+        pointer
     }
 
     ///
@@ -275,10 +309,10 @@ impl<'ctx> Context<'ctx> {
         &mut self,
         body_block: inkwell::basic_block::BasicBlock<'ctx>,
         continue_block: inkwell::basic_block::BasicBlock<'ctx>,
-        break_block: inkwell::basic_block::BasicBlock<'ctx>,
+        join_block: inkwell::basic_block::BasicBlock<'ctx>,
     ) {
         self.loop_stack
-            .push(Loop::new(body_block, continue_block, break_block));
+            .push(Loop::new(body_block, continue_block, join_block));
     }
 
     ///

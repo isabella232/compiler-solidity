@@ -51,7 +51,7 @@ pub fn compile(
         _ => inkwell::OptimizationLevel::Aggressive,
     };
     let llvm = inkwell::context::Context::create();
-    let mut context = LLVMContext::new_with_optimizer(&llvm, optimization_level);
+    let mut context = LLVMContext::new_with_optimizer(&llvm, target, optimization_level);
     context.create_module(object.identifier.as_str());
     object.into_llvm(&mut context);
     context.optimize();
