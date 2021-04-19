@@ -142,14 +142,17 @@ impl ILLVMWritable for FunctionDefinition {
             .into_iter()
             .map(|identifier| {
                 let r#type = identifier.yul_type.unwrap_or_default();
-                let value = context
+                let pointer = context
                     .builder
-                    .build_alloca(r#type.into_llvm(context), identifier.name.as_str());
+                    .build_alloca(r#type.clone().into_llvm(context), identifier.name.as_str());
+                context
+                    .builder
+                    .build_store(pointer, r#type.into_llvm(context).const_zero());
                 context
                     .function_mut()
                     .stack
-                    .insert(identifier.name.clone(), value);
-                value
+                    .insert(identifier.name.clone(), pointer);
+                pointer
             })
             .collect();
 
