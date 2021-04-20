@@ -433,34 +433,16 @@ impl FunctionCall {
                 )
             }
             Name::Shl => {
-                let _arguments = self.pop_arguments::<2>(context);
-                Some(
-                    context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .const_zero()
-                        .as_basic_value_enum(),
-                )
+                let arguments = self.pop_arguments::<2>(context);
+                Some(arguments[1])
             }
             Name::Shr => {
-                let _arguments = self.pop_arguments::<2>(context);
-                let result = match context.target {
-                    Target::LLVM => context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .const_int(0x67f239dd, false),
-                    Target::zkEVM => context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .const_zero(),
-                };
-                Some(result.as_basic_value_enum())
+                let arguments = self.pop_arguments::<2>(context);
+                Some(arguments[1])
             }
             Name::Sar => {
-                let _arguments = self.pop_arguments::<2>(context);
-                Some(
-                    context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .const_zero()
-                        .as_basic_value_enum(),
-                )
+                let arguments = self.pop_arguments::<2>(context);
+                Some(arguments[1])
             }
             Name::SignExtend => {
                 let _arguments = self.pop_arguments::<2>(context);
@@ -533,12 +515,17 @@ impl FunctionCall {
             ),
             Name::CallDataLoad => {
                 let _arguments = self.pop_arguments::<1>(context);
-                Some(
-                    context
+                let hash = match context.test_entry_hash {
+                    Some(ref hash) => context
                         .integer_type(compiler_const::bitlength::FIELD)
-                        .const_zero()
-                        .as_basic_value_enum(),
-                )
+                        .const_int_from_string(hash, inkwell::types::StringRadix::Hexadecimal)
+                        .expect(compiler_const::panic::TEST_DATA_VALID),
+                    None => context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero(),
+                }
+                .as_basic_value_enum();
+                Some(hash)
             }
             Name::CallDataSize => Some(
                 context

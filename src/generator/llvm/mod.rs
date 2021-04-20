@@ -46,6 +46,9 @@ pub struct Context<'ctx> {
     /// The function optimization pass manager.
     pass_manager_function:
         Option<inkwell::passes::PassManager<inkwell::values::FunctionValue<'ctx>>>,
+
+    /// The test entry hash.
+    pub test_entry_hash: Option<String>,
 }
 
 impl<'ctx> Context<'ctx> {
@@ -88,6 +91,8 @@ impl<'ctx> Context<'ctx> {
             pass_manager_builder,
             pass_manager_module: None,
             pass_manager_function: None,
+
+            test_entry_hash: None,
         }
     }
 
@@ -179,13 +184,22 @@ impl<'ctx> Context<'ctx> {
             return;
         }
 
-        let r#type = self
-            .integer_type(compiler_const::bitlength::BYTE)
-            .array_type(size as u32);
-        let global = self.module().add_global(r#type, None, "heap");
-        if let Target::LLVM = self.target {
-            global.set_initializer(&r#type.const_zero());
-        }
+        let global = match self.target {
+            Target::LLVM => {
+                let r#type = self
+                    .integer_type(compiler_const::bitlength::BYTE)
+                    .array_type(size as u32);
+                let global = self.module().add_global(r#type, None, "heap");
+                global.set_initializer(&r#type.const_zero());
+                global
+            }
+            Target::zkEVM => {
+                let r#type = self
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(inkwell::AddressSpace::Local);
+                self.module().add_global(r#type, None, "heap")
+            }
+        };
         self.heap = Some(global);
     }
 
@@ -198,17 +212,15 @@ impl<'ctx> Context<'ctx> {
         r#type: Option<inkwell::types::IntType<'ctx>>,
     ) -> inkwell::values::PointerValue<'ctx> {
         let pointer = self.heap.expect("Always exists").as_pointer_value();
-        let pointer = unsafe {
-            self.builder.build_gep(
-                pointer,
-                &[
-                    self.integer_type(compiler_const::bitlength::BYTE * 4)
-                        .const_zero(),
-                    offset,
-                ],
-                "",
-            )
-        };
+        let mut indexes = Vec::with_capacity(2);
+        if let Target::LLVM = self.target {
+            indexes.push(
+                self.integer_type(compiler_const::bitlength::BYTE * 4)
+                    .const_zero(),
+            );
+        }
+        indexes.push(offset);
+        let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
         let r#type = r#type.unwrap_or_else(|| self.integer_type(compiler_const::bitlength::FIELD));
         let pointer = self.builder.build_pointer_cast(
             pointer,
@@ -396,5 +408,12 @@ impl<'ctx> Context<'ctx> {
             .collect();
         let return_type = self.llvm.struct_type(return_types.as_slice(), false);
         return_type.fn_type(argument_types, false)
+    }
+
+    ///
+    /// Sets the test entry hash, extracted using the `solc` compiler.
+    ///
+    pub fn set_test_entry_hash(&mut self, hash: String) {
+        self.test_entry_hash = Some(hash);
     }
 }

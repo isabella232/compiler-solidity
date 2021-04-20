@@ -89,15 +89,17 @@ impl ILLVMWritable for Switch {
     fn into_llvm<'ctx>(mut self, context: &mut LLVMContext<'ctx>) {
         let default = context.append_basic_block("switch.default");
         let join_block = context.append_basic_block("switch.join");
+
         let mut cases: Vec<(
             inkwell::values::IntValue<'ctx>,
             inkwell::basic_block::BasicBlock<'ctx>,
         )> = Vec::with_capacity(self.cases.len());
-        for case in self.cases.iter() {
+        for (index, case) in self.cases.iter().enumerate() {
             let value = case.literal.to_owned().into_llvm(context).into_int_value();
-            let basic_block = context.append_basic_block("switch.case");
+            let basic_block = context.append_basic_block(format!("switch.case.{}", index).as_str());
             cases.push((value, basic_block));
         }
+
         let switch_expression = self
             .expression
             .into_llvm(context)
@@ -106,15 +108,18 @@ impl ILLVMWritable for Switch {
         context
             .builder
             .build_switch(switch_expression, default, &cases);
+
         for (_value, basic_block) in cases.into_iter() {
             context.set_basic_block(basic_block);
             self.cases.remove(0).block.into_llvm_local(context);
             context.build_unconditional_branch(join_block);
         }
+
         context.set_basic_block(default);
         if let Some(block) = self.default.take() {
             block.into_llvm_local(context);
         }
+
         context.build_unconditional_branch(join_block);
         context.set_basic_block(join_block);
     }
