@@ -3,6 +3,7 @@
 //!
 
 use inkwell::types::BasicType;
+use inkwell::values::BasicValue;
 
 use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
@@ -10,8 +11,8 @@ use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
-use crate::parser::error::Error as ParserError;
 use crate::parser::identifier::Identifier;
+use crate::parser::r#type::Type;
 use crate::parser::statement::expression::Expression;
 
 ///
@@ -29,74 +30,111 @@ impl VariableDeclaration {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+    pub fn parse(
+        lexer: &mut Lexer,
+        initial: Option<Lexeme>,
+    ) -> Result<(Self, Option<Lexeme>), Error> {
         let lexeme = crate::parser::take_or_next(initial, lexer)?;
 
         let (bindings, next) = Identifier::parse_typed_list(lexer, Some(lexeme))?;
 
         match crate::parser::take_or_next(next, lexer)? {
             Lexeme::Symbol(Symbol::Assignment) => {}
-            lexeme => return Err(ParserError::expected_one_of(vec![":="], lexeme, None).into()),
+            lexeme => {
+                return Ok((
+                    Self {
+                        bindings,
+                        expression: None,
+                    },
+                    Some(lexeme),
+                ))
+            }
         }
 
         let expression = Expression::parse(lexer, None)?;
 
-        Ok(Self {
-            bindings,
-            expression: Some(expression),
-        })
+        Ok((
+            Self {
+                bindings,
+                expression: Some(expression),
+            },
+            None,
+        ))
     }
 }
 
 impl ILLVMWritable for VariableDeclaration {
     fn into_llvm(mut self, context: &mut LLVMContext) {
-        let expression = match self.expression.take() {
-            Some(expression) => expression,
-            None => return,
-        };
-
-        let value = match expression.into_llvm(context) {
-            Some(value) => value,
-            None => return,
-        };
-
         if self.bindings.len() == 1 {
             let identifier = self.bindings.remove(0);
+            let r#type = identifier
+                .yul_type
+                .unwrap_or_else(Type::default)
+                .into_llvm(context);
             let pointer = context
                 .builder
-                .build_alloca(value.get_type(), identifier.name.as_str());
+                .build_alloca(r#type, identifier.name.as_str());
             context
                 .function_mut()
                 .stack
                 .insert(identifier.name, pointer);
+            let value = if let Some(expression) = self.expression {
+                match expression.into_llvm(context) {
+                    Some(value) => value,
+                    None => r#type.const_zero().as_basic_value_enum(),
+                }
+            } else {
+                r#type.const_zero().as_basic_value_enum()
+            };
             context.builder.build_store(pointer, value);
             return;
         }
 
-        let llvm_type = value.into_struct_value().get_type();
+        let llvm_type = context.structure_type(
+            self.bindings
+                .iter()
+                .map(|binding| {
+                    binding
+                        .yul_type
+                        .to_owned()
+                        .unwrap_or_default()
+                        .into_llvm(context)
+                        .as_basic_type_enum()
+                })
+                .collect(),
+        );
         let pointer = context.builder.build_alloca(llvm_type, "");
-        context.builder.build_store(pointer, value);
+        match self.expression.take() {
+            Some(expression) => {
+                if let Some(value) = expression.into_llvm(context) {
+                    context.builder.build_store(pointer, value);
 
-        for (index, binding) in self.bindings.into_iter().enumerate() {
-            let pointer = unsafe {
-                context.builder.build_gep(
-                    pointer,
-                    &[
-                        context.integer_type(64).const_zero(),
-                        context.integer_type(32).const_int(index as u64, false),
-                    ],
-                    "",
-                )
-            };
+                    for (index, binding) in self.bindings.into_iter().enumerate() {
+                        let pointer = unsafe {
+                            context.builder.build_gep(
+                                pointer,
+                                &[
+                                    context.integer_type(64).const_zero(),
+                                    context.integer_type(32).const_int(index as u64, false),
+                                ],
+                                "",
+                            )
+                        };
 
-            let value = context.builder.build_load(pointer, binding.name.as_str());
+                        let value = context.builder.build_load(pointer, binding.name.as_str());
 
-            let yul_type = binding.yul_type.unwrap_or_default().into_llvm(context);
-            let pointer = context
-                .builder
-                .build_alloca(yul_type.as_basic_type_enum(), binding.name.as_str());
-            context.function_mut().stack.insert(binding.name, pointer);
-            context.builder.build_store(pointer, value);
+                        let yul_type = binding.yul_type.unwrap_or_default().into_llvm(context);
+                        let pointer = context
+                            .builder
+                            .build_alloca(yul_type.as_basic_type_enum(), binding.name.as_str());
+                        context.function_mut().stack.insert(binding.name, pointer);
+                        context.builder.build_store(pointer, value);
+                    }
+                }
+            }
+            None => {
+                context.builder.build_store(pointer, llvm_type.const_zero());
+            }
         }
     }
 }

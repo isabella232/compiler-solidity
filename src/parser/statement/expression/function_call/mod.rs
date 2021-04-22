@@ -534,7 +534,8 @@ impl FunctionCall {
                     .as_basic_value_enum(),
             ),
             Name::CallDataCopy => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let _arguments = self.pop_arguments::<3>(context);
+                None
             }
 
             Name::MSize => {

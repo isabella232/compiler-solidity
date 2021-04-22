@@ -118,7 +118,7 @@ mod tests {
         let input = r#"break"#;
 
         let result = Statement::parse(&mut Lexer::new(input.to_owned()), None);
-        assert_eq!(result, Ok(Statement::Break));
+        assert_eq!(result, Ok((Statement::Break, None)));
     }
 
     #[test]
@@ -126,7 +126,7 @@ mod tests {
         let input = r#"continue"#;
 
         let result = Statement::parse(&mut Lexer::new(input.to_owned()), None);
-        assert_eq!(result, Ok(Statement::Continue));
+        assert_eq!(result, Ok((Statement::Continue, None)));
     }
 
     #[test]
@@ -134,6 +134,6 @@ mod tests {
         let input = r#"leave"#;
 
         let result = Statement::parse(&mut Lexer::new(input.to_owned()), None);
-        assert_eq!(result, Ok(Statement::Leave));
+        assert_eq!(result, Ok((Statement::Leave, None)));
     }
 }

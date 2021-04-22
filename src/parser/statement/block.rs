@@ -38,10 +38,14 @@ impl Block {
             lexeme => return Err(ParserError::expected_one_of(vec!["{"], lexeme, None).into()),
         }
 
+        let mut remaining = None;
+
         loop {
-            match lexer.next()? {
+            match crate::parser::take_or_next(remaining.take(), lexer)? {
                 lexeme @ Lexeme::Keyword(_) => {
-                    statements.push(Statement::parse(lexer, Some(lexeme))?)
+                    let (statement, next) = Statement::parse(lexer, Some(lexeme))?;
+                    remaining = next;
+                    statements.push(statement);
                 }
                 lexeme @ Lexeme::Literal(_) => {
                     statements
