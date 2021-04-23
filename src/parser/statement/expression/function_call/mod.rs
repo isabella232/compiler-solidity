@@ -123,14 +123,17 @@ impl FunctionCall {
                 let result_pointer = context
                     .builder
                     .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
-                let condition = context.builder.build_int_truncate(
+                let condition = context.builder.build_int_compare(
+                    inkwell::IntPredicate::EQ,
                     arguments[1].into_int_value(),
-                    context.integer_type(compiler_const::bitlength::BOOLEAN),
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero(),
                     "",
                 );
                 context
                     .builder
-                    .build_conditional_branch(condition, non_zero_block, zero_block);
+                    .build_conditional_branch(condition, zero_block, non_zero_block);
 
                 context.set_basic_block(non_zero_block);
                 if let Target::LLVM = context.target {
@@ -183,14 +186,17 @@ impl FunctionCall {
                 let result_pointer = context
                     .builder
                     .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
-                let condition = context.builder.build_int_truncate(
+                let condition = context.builder.build_int_compare(
+                    inkwell::IntPredicate::EQ,
                     arguments[1].into_int_value(),
-                    context.integer_type(compiler_const::bitlength::BOOLEAN),
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero(),
                     "",
                 );
                 context
                     .builder
-                    .build_conditional_branch(condition, non_zero_block, zero_block);
+                    .build_conditional_branch(condition, zero_block, non_zero_block);
 
                 context.set_basic_block(non_zero_block);
                 if let Target::LLVM = context.target {
@@ -337,11 +343,17 @@ impl FunctionCall {
                 let result_pointer = context
                     .builder
                     .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
-                context.builder.build_conditional_branch(
+                let condition = context.builder.build_int_compare(
+                    inkwell::IntPredicate::EQ,
                     arguments[2].into_int_value(),
-                    non_zero_block,
-                    zero_block,
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero(),
+                    "",
                 );
+                context
+                    .builder
+                    .build_conditional_branch(condition, zero_block, non_zero_block);
 
                 context.set_basic_block(non_zero_block);
                 let mut result = context.builder.build_int_add(
@@ -396,11 +408,17 @@ impl FunctionCall {
                 let result_pointer = context
                     .builder
                     .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
-                context.builder.build_conditional_branch(
+                let condition = context.builder.build_int_compare(
+                    inkwell::IntPredicate::EQ,
                     arguments[2].into_int_value(),
-                    non_zero_block,
-                    zero_block,
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero(),
+                    "",
                 );
+                context
+                    .builder
+                    .build_conditional_branch(condition, zero_block, non_zero_block);
 
                 context.set_basic_block(non_zero_block);
                 let mut result = context.builder.build_int_mul(
