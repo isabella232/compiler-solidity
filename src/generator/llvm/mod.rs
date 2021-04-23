@@ -41,6 +41,8 @@ pub struct Context<'ctx> {
     optimization_level: inkwell::OptimizationLevel,
     /// The optimization pass manager builder.
     pass_manager_builder: inkwell::passes::PassManagerBuilder,
+    /// The link-time optimization pass manager.
+    pass_manager_link_time: Option<inkwell::passes::PassManager<inkwell::module::Module<'ctx>>>,
     /// The module optimization pass manager.
     pass_manager_module: Option<inkwell::passes::PassManager<inkwell::module::Module<'ctx>>>,
     /// The function optimization pass manager.
@@ -89,6 +91,7 @@ impl<'ctx> Context<'ctx> {
 
             optimization_level,
             pass_manager_builder,
+            pass_manager_link_time: None,
             pass_manager_module: None,
             pass_manager_function: None,
 
@@ -122,6 +125,12 @@ impl<'ctx> Context<'ctx> {
             .as_ref()
             .expect("Pass managers are created with the module");
         pass_manager_module.run_on(self.module());
+
+        let pass_manager_link_time = self
+            .pass_manager_link_time
+            .as_ref()
+            .expect("Pass managers are created with the module");
+        pass_manager_link_time.run_on(self.module());
     }
 
     ///
@@ -139,6 +148,11 @@ impl<'ctx> Context<'ctx> {
     ///
     pub fn create_module(&mut self, name: &str) {
         let module = self.llvm.create_module(name);
+
+        let pass_manager_link_time = inkwell::passes::PassManager::create(());
+        self.pass_manager_builder
+            .populate_lto_pass_manager(&pass_manager_link_time, true, true);
+        self.pass_manager_link_time = Some(pass_manager_link_time);
 
         let pass_manager_module = inkwell::passes::PassManager::create(());
         self.pass_manager_builder
@@ -233,8 +247,13 @@ impl<'ctx> Context<'ctx> {
     ///
     /// Appends a function to the current module.
     ///
-    pub fn add_function(&mut self, name: &str, r#type: inkwell::types::FunctionType<'ctx>) {
-        let value = self.module().add_function(name, r#type, None);
+    pub fn add_function(
+        &mut self,
+        name: &str,
+        r#type: inkwell::types::FunctionType<'ctx>,
+        linkage: Option<inkwell::module::Linkage>,
+    ) {
+        let value = self.module().add_function(name, r#type, linkage);
 
         let entry_block = self.llvm.append_basic_block(value, "entry");
         let return_block = self.llvm.append_basic_block(value, "return");
