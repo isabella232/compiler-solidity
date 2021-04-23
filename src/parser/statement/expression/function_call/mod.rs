@@ -434,7 +434,33 @@ impl FunctionCall {
             }
             Name::Shl => {
                 let arguments = self.pop_arguments::<2>(context);
-                Some(arguments[1])
+                let result = match context.target {
+                    Target::LLVM => {
+                        let bits = context
+                            .builder
+                            .build_int_truncate(
+                                arguments[0].into_int_value(),
+                                context.integer_type(compiler_const::bitlength::WORD),
+                                "",
+                            )
+                            .get_zero_extended_constant()
+                            .expect("Must be constant");
+                        let mut result = arguments[1].into_int_value();
+                        let multiplier = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(2, false);
+                        for _ in 0..bits {
+                            result = context.builder.build_int_mul(result, multiplier, "");
+                        }
+                        result
+                    }
+                    Target::zkEVM => context.builder.build_left_shift(
+                        arguments[1].into_int_value(),
+                        arguments[0].into_int_value(),
+                        "",
+                    ),
+                };
+                Some(result.as_basic_value_enum())
             }
             Name::Shr => {
                 let arguments = self.pop_arguments::<2>(context);
@@ -461,7 +487,8 @@ impl FunctionCall {
             }
 
             Name::Pop => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let _arguments = self.pop_arguments::<1>(context);
+                None
             }
             Name::MLoad => {
                 let arguments = self.pop_arguments::<1>(context);
