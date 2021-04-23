@@ -115,8 +115,26 @@ impl FunctionCall {
             }
             Name::Div => {
                 let mut arguments = self.pop_arguments::<2>(context);
+
+                let zero_block = context.append_basic_block("zero");
+                let non_zero_block = context.append_basic_block("non_zero");
+                let join_block = context.append_basic_block("join");
+
+                let result_pointer = context
+                    .builder
+                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                let condition = context.builder.build_int_truncate(
+                    arguments[1].into_int_value(),
+                    context.integer_type(compiler_const::bitlength::BOOLEAN),
+                    "",
+                );
+                context
+                    .builder
+                    .build_conditional_branch(condition, non_zero_block, zero_block);
+
+                context.set_basic_block(non_zero_block);
                 if let Target::LLVM = context.target {
-                    let allowed_type = context.integer_type(128);
+                    let allowed_type = context.integer_type(compiler_const::bitlength::WORD * 2);
                     arguments[0] = context
                         .builder
                         .build_int_truncate(arguments[0].into_int_value(), allowed_type, "")
@@ -138,12 +156,45 @@ impl FunctionCall {
                         "",
                     );
                 }
-                Some(result.as_basic_value_enum())
+                context.builder.build_store(result_pointer, result);
+                context.build_unconditional_branch(join_block);
+
+                context.set_basic_block(zero_block);
+                context.builder.build_store(
+                    result_pointer,
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero(),
+                );
+                context.build_unconditional_branch(join_block);
+
+                context.set_basic_block(join_block);
+                let result = context.builder.build_load(result_pointer, "");
+
+                Some(result)
             }
             Name::Mod => {
                 let mut arguments = self.pop_arguments::<2>(context);
+
+                let zero_block = context.append_basic_block("zero");
+                let non_zero_block = context.append_basic_block("non_zero");
+                let join_block = context.append_basic_block("join");
+
+                let result_pointer = context
+                    .builder
+                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                let condition = context.builder.build_int_truncate(
+                    arguments[1].into_int_value(),
+                    context.integer_type(compiler_const::bitlength::BOOLEAN),
+                    "",
+                );
+                context
+                    .builder
+                    .build_conditional_branch(condition, non_zero_block, zero_block);
+
+                context.set_basic_block(non_zero_block);
                 if let Target::LLVM = context.target {
-                    let allowed_type = context.integer_type(128);
+                    let allowed_type = context.integer_type(compiler_const::bitlength::WORD * 2);
                     arguments[0] = context
                         .builder
                         .build_int_truncate(arguments[0].into_int_value(), allowed_type, "")
@@ -165,7 +216,22 @@ impl FunctionCall {
                         "",
                     );
                 }
-                Some(result.as_basic_value_enum())
+                context.builder.build_store(result_pointer, result);
+                context.build_unconditional_branch(join_block);
+
+                context.set_basic_block(zero_block);
+                context.builder.build_store(
+                    result_pointer,
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero(),
+                );
+                context.build_unconditional_branch(join_block);
+
+                context.set_basic_block(join_block);
+                let result = context.builder.build_load(result_pointer, "");
+
+                Some(result)
             }
             Name::Not => {
                 let arguments = self.pop_arguments::<1>(context);
@@ -284,7 +350,7 @@ impl FunctionCall {
                     "",
                 );
                 if let Target::LLVM = context.target {
-                    let allowed_type = context.integer_type(128);
+                    let allowed_type = context.integer_type(compiler_const::bitlength::WORD * 2);
                     result = context.builder.build_int_truncate(result, allowed_type, "");
                     arguments[2] = context
                         .builder
@@ -306,7 +372,7 @@ impl FunctionCall {
                 context.builder.build_store(result_pointer, result);
                 context.build_unconditional_branch(join_block);
 
-                context.set_basic_block(non_zero_block);
+                context.set_basic_block(zero_block);
                 context.builder.build_store(
                     result_pointer,
                     context
@@ -316,8 +382,9 @@ impl FunctionCall {
                 context.build_unconditional_branch(join_block);
 
                 context.set_basic_block(join_block);
+                let result = context.builder.build_load(result_pointer, "");
 
-                Some(result.as_basic_value_enum())
+                Some(result)
             }
             Name::MulMod => {
                 let mut arguments = self.pop_arguments::<3>(context);
@@ -342,7 +409,7 @@ impl FunctionCall {
                     "",
                 );
                 if let Target::LLVM = context.target {
-                    let allowed_type = context.integer_type(128);
+                    let allowed_type = context.integer_type(compiler_const::bitlength::WORD * 2);
                     result = context.builder.build_int_truncate(result, allowed_type, "");
                     arguments[2] = context
                         .builder
@@ -364,7 +431,7 @@ impl FunctionCall {
                 context.builder.build_store(result_pointer, result);
                 context.build_unconditional_branch(join_block);
 
-                context.set_basic_block(non_zero_block);
+                context.set_basic_block(zero_block);
                 context.builder.build_store(
                     result_pointer,
                     context
@@ -374,8 +441,9 @@ impl FunctionCall {
                 context.build_unconditional_branch(join_block);
 
                 context.set_basic_block(join_block);
+                let result = context.builder.build_load(result_pointer, "");
 
-                Some(result.as_basic_value_enum())
+                Some(result)
             }
 
             Name::Sdiv => {

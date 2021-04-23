@@ -2,6 +2,8 @@
 //! The function definition statement.
 //!
 
+use inkwell::types::BasicType;
+
 use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
@@ -11,7 +13,6 @@ use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
 use crate::parser::identifier::Identifier;
 use crate::parser::statement::block::Block;
-use inkwell::types::BasicType;
 
 ///
 /// The function definition statement.
