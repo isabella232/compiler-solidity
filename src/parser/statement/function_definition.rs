@@ -108,7 +108,7 @@ impl ILLVMWritable for FunctionDefinition {
         context.set_basic_block(function.entry_block);
         let return_types = function.value.get_type().get_return_type();
         let return_pointer = match return_types {
-            Some(r#type) => Some(context.builder.build_alloca(r#type, "result")),
+            Some(r#type) => Some(context.build_alloca(r#type, "result")),
             None => None,
         };
         let function = context.update_function(return_pointer);
@@ -122,14 +122,12 @@ impl ILLVMWritable for FunctionDefinition {
             })
             .collect();
         for (index, argument) in self.arguments.iter().enumerate() {
-            let pointer = context
-                .builder
-                .build_alloca(argument_types[index], argument.name.as_str());
+            let pointer = context.build_alloca(argument_types[index], argument.name.as_str());
             context
                 .function_mut()
                 .stack
                 .insert(argument.name.clone(), pointer);
-            context.builder.build_store(
+            context.build_store(
                 pointer,
                 function
                     .value
@@ -144,11 +142,8 @@ impl ILLVMWritable for FunctionDefinition {
             .map(|identifier| {
                 let r#type = identifier.yul_type.unwrap_or_default();
                 let pointer = context
-                    .builder
                     .build_alloca(r#type.clone().into_llvm(context), identifier.name.as_str());
-                context
-                    .builder
-                    .build_store(pointer, r#type.into_llvm(context).const_zero());
+                context.build_store(pointer, r#type.into_llvm(context).const_zero());
                 context
                     .function_mut()
                     .stack
@@ -159,11 +154,7 @@ impl ILLVMWritable for FunctionDefinition {
 
         self.body.into_llvm_local(context);
 
-        let last_instruction = context
-            .builder
-            .get_insert_block()
-            .expect("Always exists")
-            .get_last_instruction();
+        let last_instruction = context.basic_block().get_last_instruction();
 
         match last_instruction {
             None => {
@@ -183,24 +174,24 @@ impl ILLVMWritable for FunctionDefinition {
         match return_pointer {
             Some(return_pointer) => {
                 if return_values.len() == 1 {
-                    let return_value = context.builder.build_load(return_values.remove(0), "");
-                    context.builder.build_return(Some(&return_value));
+                    let return_value = context.build_load(return_values.remove(0), "");
+                    context.build_return(Some(&return_value));
                 } else {
                     for (index, value) in return_values.iter().enumerate() {
-                        context.builder.build_store(
+                        context.build_store(
                             context
                                 .builder
                                 .build_struct_gep(return_pointer, index as u32, "")
                                 .expect("Always exists"),
-                            context.builder.build_load(*value, ""),
+                            context.build_load(*value, ""),
                         );
                     }
-                    let return_value = context.builder.build_load(return_pointer, "");
-                    context.builder.build_return(Some(&return_value));
+                    let return_value = context.build_load(return_pointer, "");
+                    context.build_return(Some(&return_value));
                 }
             }
             None => {
-                context.builder.build_return(None);
+                context.build_return(None);
             }
         }
     }

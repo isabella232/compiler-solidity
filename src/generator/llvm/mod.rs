@@ -7,6 +7,9 @@ pub mod r#loop;
 
 use std::collections::HashMap;
 
+use inkwell::types::BasicType;
+use inkwell::values::BasicValue;
+
 use crate::parser::identifier::Identifier;
 use crate::target::Target;
 
@@ -191,60 +194,6 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
-    /// Allocates the heap, if it has not been allocated yet.
-    ///
-    pub fn allocate_heap(&mut self, size: usize) {
-        if self.heap.is_some() {
-            return;
-        }
-
-        let global = match self.target {
-            Target::LLVM => {
-                let r#type = self
-                    .integer_type(compiler_const::bitlength::BYTE)
-                    .array_type(size as u32);
-                let global = self.module().add_global(r#type, None, "heap");
-                global.set_initializer(&r#type.const_zero());
-                global
-            }
-            Target::zkEVM => {
-                let r#type = self
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(inkwell::AddressSpace::Local);
-                self.module().add_global(r#type, None, "heap")
-            }
-        };
-        self.heap = Some(global);
-    }
-
-    ///
-    /// Returns the heap pointer with the `offset` bytes offset, optionally casted to `r#type`.
-    ///
-    pub fn access_heap(
-        &self,
-        offset: inkwell::values::IntValue<'ctx>,
-        r#type: Option<inkwell::types::IntType<'ctx>>,
-    ) -> inkwell::values::PointerValue<'ctx> {
-        let pointer = self.heap.expect("Always exists").as_pointer_value();
-        let mut indexes = Vec::with_capacity(2);
-        if let Target::LLVM = self.target {
-            indexes.push(
-                self.integer_type(compiler_const::bitlength::BYTE * 4)
-                    .const_zero(),
-            );
-        }
-        indexes.push(offset);
-        let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
-        let r#type = r#type.unwrap_or_else(|| self.integer_type(compiler_const::bitlength::FIELD));
-        let pointer = self.builder.build_pointer_cast(
-            pointer,
-            r#type.ptr_type(inkwell::AddressSpace::Local),
-            "",
-        );
-        pointer
-    }
-
-    ///
     /// Appends a function to the current module.
     ///
     pub fn add_function(
@@ -334,6 +283,13 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
+    /// Returns the current basic block.
+    ///
+    pub fn basic_block(&self) -> inkwell::basic_block::BasicBlock<'ctx> {
+        self.builder.get_insert_block().expect("Always exists")
+    }
+
+    ///
     /// Pushes a new loop context to the stack.
     ///
     pub fn push_loop(
@@ -363,6 +319,85 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
+    /// Builds a stack allocation instruction.
+    ///
+    /// Sets the alignment to 256 bits.
+    ///
+    pub fn build_alloca<T: BasicType<'ctx>>(
+        &self,
+        r#type: T,
+        name: &str,
+    ) -> inkwell::values::PointerValue<'ctx> {
+        let pointer = self.builder.build_alloca(r#type, name);
+        if let Target::zkEVM = self.target {
+            self.basic_block()
+                .get_last_instruction()
+                .expect("Always exists")
+                .set_alignment(compiler_const::size::FIELD as u32)
+                .expect("Alignment is valid");
+        }
+        pointer
+    }
+
+    ///
+    /// Builds a stack store instruction.
+    ///
+    /// Sets the alignment to 256 bits.
+    ///
+    pub fn build_store<V: BasicValue<'ctx>>(
+        &self,
+        pointer: inkwell::values::PointerValue<'ctx>,
+        value: V,
+    ) {
+        let instruction = self.builder.build_store(pointer, value);
+        if let Target::zkEVM = self.target {
+            instruction
+                .set_alignment(compiler_const::size::FIELD as u32)
+                .expect("Alignment is valid");
+        }
+    }
+
+    ///
+    /// Builds a stack load instruction.
+    ///
+    /// Sets the alignment to 256 bits.
+    ///
+    pub fn build_load(
+        &self,
+        pointer: inkwell::values::PointerValue<'ctx>,
+        name: &str,
+    ) -> inkwell::values::BasicValueEnum<'ctx> {
+        let value = self.builder.build_load(pointer, name);
+        if let Target::zkEVM = self.target {
+            self.basic_block()
+                .get_last_instruction()
+                .expect("Always exists")
+                .set_alignment(compiler_const::size::FIELD as u32)
+                .expect("Alignment is valid");
+        }
+        value
+    }
+
+    ///
+    /// Builds a conditional branch.
+    ///
+    /// Checks if there are no other terminators in the block.
+    ///
+    pub fn build_conditional_branch(
+        &self,
+        comparison: inkwell::values::IntValue<'ctx>,
+        then_block: inkwell::basic_block::BasicBlock<'ctx>,
+        else_block: inkwell::basic_block::BasicBlock<'ctx>,
+    ) {
+        if self.basic_block().get_terminator().is_some() {
+            return;
+        }
+
+        self.builder
+            .build_conditional_branch(comparison, then_block, else_block);
+    }
+
+    ///
     /// Builds an unconditional branch.
     ///
     /// Checks if there are no other terminators in the block.
@@ -371,17 +406,24 @@ impl<'ctx> Context<'ctx> {
         &self,
         destination_block: inkwell::basic_block::BasicBlock<'ctx>,
     ) {
-        if self
-            .builder
-            .get_insert_block()
-            .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION)
-            .get_terminator()
-            .is_some()
-        {
+        if self.basic_block().get_terminator().is_some() {
             return;
         }
 
         self.builder.build_unconditional_branch(destination_block);
+    }
+
+    ///
+    /// Builds a return.
+    ///
+    /// Checks if there are no other terminators in the block.
+    ///
+    pub fn build_return(&self, value: Option<&dyn BasicValue<'ctx>>) {
+        if self.basic_block().get_terminator().is_some() {
+            return;
+        }
+
+        self.builder.build_return(value);
     }
 
     ///
@@ -430,9 +472,86 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
+    /// Allocates the heap, if it has not been allocated yet.
+    ///
+    /// Mostly for testing.
+    ///
+    pub fn allocate_heap(&mut self, size: usize) {
+        if self.heap.is_some() {
+            return;
+        }
+
+        let global = match self.target {
+            Target::LLVM => {
+                let r#type = self
+                    .integer_type(compiler_const::bitlength::BYTE)
+                    .array_type(size as u32);
+                let global = self.module().add_global(r#type, None, "heap");
+                global.set_initializer(&r#type.const_zero());
+                global
+            }
+            Target::zkEVM => {
+                let r#type = self
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(inkwell::AddressSpace::Local);
+                self.module().add_global(r#type, None, "heap")
+            }
+        };
+        self.heap = Some(global);
+    }
+
+    ///
+    /// Returns the heap pointer with the `offset` bytes offset, optionally casted to `r#type`.
+    ///
+    /// Mostly for testing.
+    ///
+    pub fn access_heap(
+        &self,
+        offset: inkwell::values::IntValue<'ctx>,
+        r#type: Option<inkwell::types::IntType<'ctx>>,
+    ) -> inkwell::values::PointerValue<'ctx> {
+        let pointer = self.heap.expect("Always exists").as_pointer_value();
+        let mut indexes = Vec::with_capacity(2);
+        if let Target::LLVM = self.target {
+            indexes.push(
+                self.integer_type(compiler_const::bitlength::BYTE * 4)
+                    .const_zero(),
+            );
+        }
+        indexes.push(offset);
+        let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
+        let r#type = r#type.unwrap_or_else(|| self.integer_type(compiler_const::bitlength::FIELD));
+        let pointer = self.builder.build_pointer_cast(
+            pointer,
+            r#type.ptr_type(inkwell::AddressSpace::Local),
+            "",
+        );
+        pointer
+    }
+
+    ///
     /// Sets the test entry hash, extracted using the `solc` compiler.
+    ///
+    /// Only for testing.
     ///
     pub fn set_test_entry_hash(&mut self, hash: String) {
         self.test_entry_hash = Some(hash);
+    }
+
+    ///
+    /// Marks all functions except the specified `entry` with private linkage.
+    ///
+    /// Only for testing.
+    ///
+    pub fn set_test_linkage(&mut self, entry: &str) {
+        for (_type_id, function) in self.functions.iter_mut() {
+            function
+                .value
+                .set_linkage(if function.name.as_str() == entry {
+                    inkwell::module::Linkage::External
+                } else {
+                    inkwell::module::Linkage::Private
+                });
+        }
     }
 }

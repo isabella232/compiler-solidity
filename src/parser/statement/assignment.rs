@@ -76,15 +76,13 @@ impl ILLVMWritable for Assignment {
 
         if self.bindings.len() == 1 {
             let name = self.bindings.remove(0);
-            context
-                .builder
-                .build_store(context.function().stack[name.as_str()], value);
+            context.build_store(context.function().stack[name.as_str()], value);
             return;
         }
 
         let llvm_type = value.into_struct_value().get_type();
-        let pointer = context.builder.build_alloca(llvm_type, "");
-        context.builder.build_store(pointer, value);
+        let pointer = context.build_alloca(llvm_type, "");
+        context.build_store(pointer, value);
 
         for (index, binding) in self.bindings.into_iter().enumerate() {
             let pointer = unsafe {
@@ -98,11 +96,9 @@ impl ILLVMWritable for Assignment {
                 )
             };
 
-            let value = context.builder.build_load(pointer, binding.as_str());
+            let value = context.build_load(pointer, binding.as_str());
 
-            context
-                .builder
-                .build_store(context.function().stack[binding.as_str()], value);
+            context.build_store(context.function().stack[binding.as_str()], value);
         }
     }
 }

@@ -121,7 +121,6 @@ impl FunctionCall {
                 let join_block = context.append_basic_block("join");
 
                 let result_pointer = context
-                    .builder
                     .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
                 let condition = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
@@ -131,9 +130,7 @@ impl FunctionCall {
                         .const_zero(),
                     "",
                 );
-                context
-                    .builder
-                    .build_conditional_branch(condition, zero_block, non_zero_block);
+                context.build_conditional_branch(condition, zero_block, non_zero_block);
 
                 context.set_basic_block(non_zero_block);
                 if let Target::LLVM = context.target {
@@ -159,11 +156,11 @@ impl FunctionCall {
                         "",
                     );
                 }
-                context.builder.build_store(result_pointer, result);
+                context.build_store(result_pointer, result);
                 context.build_unconditional_branch(join_block);
 
                 context.set_basic_block(zero_block);
-                context.builder.build_store(
+                context.build_store(
                     result_pointer,
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
@@ -172,7 +169,7 @@ impl FunctionCall {
                 context.build_unconditional_branch(join_block);
 
                 context.set_basic_block(join_block);
-                let result = context.builder.build_load(result_pointer, "");
+                let result = context.build_load(result_pointer, "");
 
                 Some(result)
             }
@@ -184,7 +181,6 @@ impl FunctionCall {
                 let join_block = context.append_basic_block("join");
 
                 let result_pointer = context
-                    .builder
                     .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
                 let condition = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
@@ -194,9 +190,7 @@ impl FunctionCall {
                         .const_zero(),
                     "",
                 );
-                context
-                    .builder
-                    .build_conditional_branch(condition, zero_block, non_zero_block);
+                context.build_conditional_branch(condition, zero_block, non_zero_block);
 
                 context.set_basic_block(non_zero_block);
                 if let Target::LLVM = context.target {
@@ -222,11 +216,11 @@ impl FunctionCall {
                         "",
                     );
                 }
-                context.builder.build_store(result_pointer, result);
+                context.build_store(result_pointer, result);
                 context.build_unconditional_branch(join_block);
 
                 context.set_basic_block(zero_block);
-                context.builder.build_store(
+                context.build_store(
                     result_pointer,
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
@@ -235,7 +229,7 @@ impl FunctionCall {
                 context.build_unconditional_branch(join_block);
 
                 context.set_basic_block(join_block);
-                let result = context.builder.build_load(result_pointer, "");
+                let result = context.build_load(result_pointer, "");
 
                 Some(result)
             }
@@ -341,7 +335,6 @@ impl FunctionCall {
                 let join_block = context.append_basic_block("join");
 
                 let result_pointer = context
-                    .builder
                     .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
                 let condition = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
@@ -351,9 +344,7 @@ impl FunctionCall {
                         .const_zero(),
                     "",
                 );
-                context
-                    .builder
-                    .build_conditional_branch(condition, zero_block, non_zero_block);
+                context.build_conditional_branch(condition, zero_block, non_zero_block);
 
                 context.set_basic_block(non_zero_block);
                 let mut result = context.builder.build_int_add(
@@ -381,11 +372,11 @@ impl FunctionCall {
                         "",
                     );
                 }
-                context.builder.build_store(result_pointer, result);
+                context.build_store(result_pointer, result);
                 context.build_unconditional_branch(join_block);
 
                 context.set_basic_block(zero_block);
-                context.builder.build_store(
+                context.build_store(
                     result_pointer,
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
@@ -394,7 +385,7 @@ impl FunctionCall {
                 context.build_unconditional_branch(join_block);
 
                 context.set_basic_block(join_block);
-                let result = context.builder.build_load(result_pointer, "");
+                let result = context.build_load(result_pointer, "");
 
                 Some(result)
             }
@@ -406,7 +397,6 @@ impl FunctionCall {
                 let join_block = context.append_basic_block("join");
 
                 let result_pointer = context
-                    .builder
                     .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
                 let condition = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
@@ -416,9 +406,7 @@ impl FunctionCall {
                         .const_zero(),
                     "",
                 );
-                context
-                    .builder
-                    .build_conditional_branch(condition, zero_block, non_zero_block);
+                context.build_conditional_branch(condition, zero_block, non_zero_block);
 
                 context.set_basic_block(non_zero_block);
                 let mut result = context.builder.build_int_mul(
@@ -446,11 +434,11 @@ impl FunctionCall {
                         "",
                     );
                 }
-                context.builder.build_store(result_pointer, result);
+                context.build_store(result_pointer, result);
                 context.build_unconditional_branch(join_block);
 
                 context.set_basic_block(zero_block);
-                context.builder.build_store(
+                context.build_store(
                     result_pointer,
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
@@ -459,7 +447,7 @@ impl FunctionCall {
                 context.build_unconditional_branch(join_block);
 
                 context.set_basic_block(join_block);
-                let result = context.builder.build_load(result_pointer, "");
+                let result = context.build_load(result_pointer, "");
 
                 Some(result)
             }
@@ -581,7 +569,7 @@ impl FunctionCall {
 
                 let pointer = context.access_heap(arguments[0].into_int_value(), None);
 
-                let value = context.builder.build_load(pointer, "");
+                let value = context.build_load(pointer, "");
 
                 Some(value)
             }
@@ -590,7 +578,7 @@ impl FunctionCall {
 
                 let pointer = context.access_heap(arguments[0].into_int_value(), None);
 
-                context.builder.build_store(pointer, arguments[1]);
+                context.build_store(pointer, arguments[1]);
 
                 None
             }
@@ -609,7 +597,7 @@ impl FunctionCall {
                     .builder
                     .build_and(arguments[1].into_int_value(), byte_mask, "");
 
-                context.builder.build_store(pointer, value);
+                context.build_store(pointer, value);
 
                 None
             }

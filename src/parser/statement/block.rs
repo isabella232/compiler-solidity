@@ -120,7 +120,7 @@ impl Block {
             let function = context.function().to_owned();
             context.set_basic_block(function.entry_block);
 
-            let return_pointer = context.builder.build_alloca(
+            let return_pointer = context.build_alloca(
                 context.integer_type(compiler_const::bitlength::FIELD),
                 "result",
             );
@@ -129,14 +129,14 @@ impl Block {
             block.into_llvm_local(context);
 
             context.set_basic_block(function.return_block);
-            let mut return_value = context.builder.build_load(return_pointer, "");
+            let mut return_value = context.build_load(return_pointer, "");
             if let Target::LLVM = context.target {
                 return_value = context
                     .builder
                     .build_int_truncate(return_value.into_int_value(), return_type, "")
                     .as_basic_value_enum();
             }
-            context.builder.build_return(Some(&return_value));
+            context.build_return(Some(&return_value));
         }
 
         for function in functions.into_iter() {

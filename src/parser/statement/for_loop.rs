@@ -70,9 +70,7 @@ impl ILLVMWritable for ForLoop {
             context.integer_type(compiler_const::bitlength::BOOLEAN),
             "",
         );
-        context
-            .builder
-            .build_conditional_branch(condition, body_block, join_block);
+        context.build_conditional_branch(condition, body_block, join_block);
 
         context.push_loop(body_block, increment_block, join_block);
 

@@ -69,11 +69,9 @@ impl Expression {
     ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
         match self {
             Self::Literal(inner) => Some(inner.into_llvm(context)),
-            Self::Identifier(inner) => Some(
-                context
-                    .builder
-                    .build_load(context.function().stack[inner.as_str()], inner.as_str()),
-            ),
+            Self::Identifier(inner) => {
+                Some(context.build_load(context.function().stack[inner.as_str()], inner.as_str()))
+            }
             Self::FunctionCall(inner) => inner.into_llvm(context),
         }
     }

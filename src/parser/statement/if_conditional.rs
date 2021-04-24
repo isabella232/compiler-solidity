@@ -50,9 +50,7 @@ impl ILLVMWritable for IfConditional {
         );
         let main_block = context.append_basic_block("if.main");
         let join_block = context.append_basic_block("if.join");
-        context
-            .builder
-            .build_conditional_branch(condition, main_block, join_block);
+        context.build_conditional_branch(condition, main_block, join_block);
         context.set_basic_block(main_block);
         self.block.into_llvm_local(context);
         context.build_unconditional_branch(join_block);

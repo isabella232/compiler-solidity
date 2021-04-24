@@ -71,9 +71,7 @@ impl ILLVMWritable for VariableDeclaration {
                 .yul_type
                 .unwrap_or_else(Type::default)
                 .into_llvm(context);
-            let pointer = context
-                .builder
-                .build_alloca(r#type, identifier.name.as_str());
+            let pointer = context.build_alloca(r#type, identifier.name.as_str());
             context
                 .function_mut()
                 .stack
@@ -86,7 +84,7 @@ impl ILLVMWritable for VariableDeclaration {
             } else {
                 r#type.const_zero().as_basic_value_enum()
             };
-            context.builder.build_store(pointer, value);
+            context.build_store(pointer, value);
             return;
         }
 
@@ -103,11 +101,11 @@ impl ILLVMWritable for VariableDeclaration {
                 })
                 .collect(),
         );
-        let pointer = context.builder.build_alloca(llvm_type, "");
+        let pointer = context.build_alloca(llvm_type, "");
         match self.expression.take() {
             Some(expression) => {
                 if let Some(value) = expression.into_llvm(context) {
-                    context.builder.build_store(pointer, value);
+                    context.build_store(pointer, value);
 
                     for (index, binding) in self.bindings.into_iter().enumerate() {
                         let pointer = unsafe {
@@ -125,19 +123,18 @@ impl ILLVMWritable for VariableDeclaration {
                             )
                         };
 
-                        let value = context.builder.build_load(pointer, binding.name.as_str());
+                        let value = context.build_load(pointer, binding.name.as_str());
 
                         let yul_type = binding.yul_type.unwrap_or_default().into_llvm(context);
                         let pointer = context
-                            .builder
                             .build_alloca(yul_type.as_basic_type_enum(), binding.name.as_str());
                         context.function_mut().stack.insert(binding.name, pointer);
-                        context.builder.build_store(pointer, value);
+                        context.build_store(pointer, value);
                     }
                 }
             }
             None => {
-                context.builder.build_store(pointer, llvm_type.const_zero());
+                context.build_store(pointer, llvm_type.const_zero());
             }
         }
     }
