@@ -89,55 +89,50 @@ impl Block {
     ///
     /// Translates an object block into LLVM.
     ///
-    pub fn into_llvm_object(self, context: &mut LLVMContext) {
+    pub fn into_llvm_code(mut self, context: &mut LLVMContext) {
         let mut functions = Vec::with_capacity(self.statements.len());
-        let mut blocks = Vec::with_capacity(self.statements.len());
+        let mut local_statements = Vec::with_capacity(self.statements.len());
 
         for statement in self.statements.into_iter() {
             match statement {
-                Statement::Object(object) => object.into_llvm(context),
-                Statement::Code(code) => code.into_llvm(context),
                 Statement::FunctionDefinition(mut statement) => {
                     statement.declare(context);
                     functions.push(statement);
                 }
-                Statement::Block(block) => {
-                    blocks.push(block);
-                }
-                _ => {}
+                statement => local_statements.push(statement),
             }
         }
 
-        for block in blocks.into_iter() {
-            let name = context.object().to_owned();
+        let name = context.object().to_owned();
 
-            let return_type = match context.target {
-                Target::LLVM => context.integer_type(compiler_const::bitlength::WORD),
-                Target::zkEVM => context.integer_type(compiler_const::bitlength::FIELD),
-            };
-            let function_type = return_type.fn_type(&[], false);
-            context.add_function(name.as_str(), function_type, None);
-            let function = context.function().to_owned();
-            context.set_basic_block(function.entry_block);
+        let return_type = match context.target {
+            Target::LLVM => context.integer_type(compiler_const::bitlength::WORD),
+            Target::zkEVM => context.integer_type(compiler_const::bitlength::FIELD),
+        };
+        let function_type = return_type.fn_type(&[], false);
+        context.add_function(name.as_str(), function_type, None);
+        let function = context.function().to_owned();
+        context.set_basic_block(function.entry_block);
 
-            let return_pointer = context.build_alloca(
-                context.integer_type(compiler_const::bitlength::FIELD),
-                "result",
-            );
-            let function = context.update_function(Some(return_pointer));
+        let return_pointer = context.build_alloca(
+            context.integer_type(compiler_const::bitlength::FIELD),
+            "result",
+        );
+        let function = context.update_function(Some(return_pointer));
 
-            block.into_llvm_local(context);
+        self.statements = local_statements;
+        self.into_llvm_local(context);
+        context.build_unconditional_branch(function.return_block);
 
-            context.set_basic_block(function.return_block);
-            let mut return_value = context.build_load(return_pointer, "");
-            if let Target::LLVM = context.target {
-                return_value = context
-                    .builder
-                    .build_int_truncate(return_value.into_int_value(), return_type, "")
-                    .as_basic_value_enum();
-            }
-            context.build_return(Some(&return_value));
+        context.set_basic_block(function.return_block);
+        let mut return_value = context.build_load(return_pointer, "");
+        if let Target::LLVM = context.target {
+            return_value = context
+                .builder
+                .build_int_truncate(return_value.into_int_value(), return_type, "")
+                .as_basic_value_enum();
         }
+        context.build_return(Some(&return_value));
 
         for function in functions.into_iter() {
             function.into_llvm(context);

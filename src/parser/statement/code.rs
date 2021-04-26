@@ -52,6 +52,6 @@ impl Code {
 
 impl ILLVMWritable for Code {
     fn into_llvm(self, context: &mut LLVMContext) {
-        self.block.into_llvm_object(context);
+        self.block.into_llvm_code(context);
     }
 }
