@@ -3,6 +3,7 @@
 //!
 
 pub mod function;
+pub mod intrinsic;
 pub mod r#loop;
 
 use std::collections::HashMap;

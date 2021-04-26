@@ -9,6 +9,7 @@ use std::convert::TryInto;
 use inkwell::values::BasicValue;
 
 use crate::error::Error;
+use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
@@ -602,8 +603,32 @@ impl FunctionCall {
                 None
             }
 
-            Name::SLoad => None,
-            Name::SStore => None,
+            Name::SLoad => {
+                let arguments = self.pop_arguments::<1>(context);
+                let intrinsic = context
+                    .module()
+                    .get_intrinsic_function(Intrinsic::StorageLoad.into())
+                    .expect("Intrinsic exists");
+
+                let value = context
+                    .builder
+                    .build_call(intrinsic, &[arguments[0]], "")
+                    .try_as_basic_value()
+                    .expect_left("Contract storage always returns a value");
+                Some(value)
+            }
+            Name::SStore => {
+                let arguments = self.pop_arguments::<2>(context);
+                let intrinsic = context
+                    .module()
+                    .get_intrinsic_function(Intrinsic::StorageStore.into())
+                    .expect("Intrinsic exists");
+
+                context
+                    .builder
+                    .build_call(intrinsic, &[arguments[0], arguments[1]], "");
+                None
+            }
 
             Name::Caller => {
                 panic!("The `{:?}` instruction is unsupported", self.name);
