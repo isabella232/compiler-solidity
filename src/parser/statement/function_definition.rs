@@ -92,7 +92,11 @@ impl FunctionDefinition {
         let function_type =
             context.function_type(self.result.as_slice(), argument_types.as_slice());
 
-        context.add_function(self.name.as_str(), function_type, None);
+        context.add_function(
+            self.name.as_str(),
+            function_type,
+            Some(inkwell::module::Linkage::Private),
+        );
     }
 }
 

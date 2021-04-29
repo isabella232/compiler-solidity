@@ -562,16 +562,7 @@ impl FunctionCall {
             }
 
             Name::Pop => {
-                let arguments = self.pop_arguments::<1>(context);
-
-                let pointer = context.access_heap(arguments[0].into_int_value(), None);
-
-                context.build_store(
-                    pointer,
-                    context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .const_zero(),
-                );
+                let _arguments = self.pop_arguments::<1>(context);
 
                 None
             }

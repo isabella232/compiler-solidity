@@ -89,10 +89,25 @@ impl Literal {
                 .expect("The value is valid")
                 .as_basic_value_enum()
             }
-            LexicalLiteral::String(_inner) => context
-                .integer_type(compiler_const::bitlength::FIELD)
-                .const_zero()
-                .as_basic_value_enum(),
+            LexicalLiteral::String(inner) => {
+                let string = inner.to_string();
+                let r#type = self.yul_type.unwrap_or_default().into_llvm(context);
+                let mut hex_string = String::with_capacity(compiler_const::size::FIELD * 2);
+                for byte in string.bytes() {
+                    hex_string.push_str(format!("{:02x}", byte).as_str());
+                }
+                hex_string.push_str(
+                    "00".repeat(compiler_const::size::FIELD - string.len())
+                        .as_str(),
+                );
+                r#type
+                    .const_int_from_string(
+                        hex_string.as_str(),
+                        inkwell::types::StringRadix::Hexadecimal,
+                    )
+                    .expect("The value is valid")
+                    .as_basic_value_enum()
+            }
         }
     }
 }

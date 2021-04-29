@@ -110,7 +110,11 @@ impl Block {
             Target::zkEVM => context.integer_type(compiler_const::bitlength::FIELD),
         };
         let function_type = return_type.fn_type(&[], false);
-        context.add_function(name.as_str(), function_type, None);
+        context.add_function(
+            name.as_str(),
+            function_type,
+            Some(inkwell::module::Linkage::External),
+        );
         let function = context.function().to_owned();
         context.set_basic_block(function.entry_block);
 
