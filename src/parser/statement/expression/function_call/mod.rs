@@ -138,11 +138,19 @@ impl FunctionCall {
                     let allowed_type = context.integer_type(compiler_const::bitlength::WORD * 2);
                     arguments[0] = context
                         .builder
-                        .build_int_truncate(arguments[0].into_int_value(), allowed_type, "")
+                        .build_int_truncate_or_bit_cast(
+                            arguments[0].into_int_value(),
+                            allowed_type,
+                            "",
+                        )
                         .as_basic_value_enum();
                     arguments[1] = context
                         .builder
-                        .build_int_truncate(arguments[1].into_int_value(), allowed_type, "")
+                        .build_int_truncate_or_bit_cast(
+                            arguments[1].into_int_value(),
+                            allowed_type,
+                            "",
+                        )
                         .as_basic_value_enum();
                 }
                 let mut result = context.builder.build_int_unsigned_div(
@@ -151,7 +159,7 @@ impl FunctionCall {
                     "",
                 );
                 if let Target::LLVM = context.target {
-                    result = context.builder.build_int_z_extend(
+                    result = context.builder.build_int_z_extend_or_bit_cast(
                         result,
                         context.integer_type(compiler_const::bitlength::FIELD),
                         "",
@@ -198,11 +206,19 @@ impl FunctionCall {
                     let allowed_type = context.integer_type(compiler_const::bitlength::WORD * 2);
                     arguments[0] = context
                         .builder
-                        .build_int_truncate(arguments[0].into_int_value(), allowed_type, "")
+                        .build_int_truncate_or_bit_cast(
+                            arguments[0].into_int_value(),
+                            allowed_type,
+                            "",
+                        )
                         .as_basic_value_enum();
                     arguments[1] = context
                         .builder
-                        .build_int_truncate(arguments[1].into_int_value(), allowed_type, "")
+                        .build_int_truncate_or_bit_cast(
+                            arguments[1].into_int_value(),
+                            allowed_type,
+                            "",
+                        )
                         .as_basic_value_enum();
                 }
                 let mut result = context.builder.build_int_unsigned_rem(
@@ -211,7 +227,7 @@ impl FunctionCall {
                     "",
                 );
                 if let Target::LLVM = context.target {
-                    result = context.builder.build_int_z_extend(
+                    result = context.builder.build_int_z_extend_or_bit_cast(
                         result,
                         context.integer_type(compiler_const::bitlength::FIELD),
                         "",
@@ -247,7 +263,7 @@ impl FunctionCall {
                     arguments[1].into_int_value(),
                     "",
                 );
-                result = context.builder.build_int_z_extend(
+                result = context.builder.build_int_z_extend_or_bit_cast(
                     result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
@@ -262,7 +278,7 @@ impl FunctionCall {
                     arguments[1].into_int_value(),
                     "",
                 );
-                result = context.builder.build_int_z_extend(
+                result = context.builder.build_int_z_extend_or_bit_cast(
                     result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
@@ -277,7 +293,7 @@ impl FunctionCall {
                     arguments[1].into_int_value(),
                     "",
                 );
-                result = context.builder.build_int_z_extend(
+                result = context.builder.build_int_z_extend_or_bit_cast(
                     result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
@@ -294,7 +310,7 @@ impl FunctionCall {
                         .const_zero(),
                     "",
                 );
-                result = context.builder.build_int_z_extend(
+                result = context.builder.build_int_z_extend_or_bit_cast(
                     result,
                     context.integer_type(compiler_const::bitlength::FIELD),
                     "",
@@ -355,10 +371,17 @@ impl FunctionCall {
                 );
                 if let Target::LLVM = context.target {
                     let allowed_type = context.integer_type(compiler_const::bitlength::WORD * 2);
-                    result = context.builder.build_int_truncate(result, allowed_type, "");
+                    result =
+                        context
+                            .builder
+                            .build_int_truncate_or_bit_cast(result, allowed_type, "");
                     arguments[2] = context
                         .builder
-                        .build_int_truncate(arguments[2].into_int_value(), allowed_type, "")
+                        .build_int_truncate_or_bit_cast(
+                            arguments[2].into_int_value(),
+                            allowed_type,
+                            "",
+                        )
                         .as_basic_value_enum();
                 }
                 let mut result = context.builder.build_int_unsigned_rem(
@@ -367,7 +390,7 @@ impl FunctionCall {
                     "",
                 );
                 if let Target::LLVM = context.target {
-                    result = context.builder.build_int_z_extend(
+                    result = context.builder.build_int_z_extend_or_bit_cast(
                         result,
                         context.integer_type(compiler_const::bitlength::FIELD),
                         "",
@@ -417,10 +440,17 @@ impl FunctionCall {
                 );
                 if let Target::LLVM = context.target {
                     let allowed_type = context.integer_type(compiler_const::bitlength::WORD * 2);
-                    result = context.builder.build_int_truncate(result, allowed_type, "");
+                    result =
+                        context
+                            .builder
+                            .build_int_truncate_or_bit_cast(result, allowed_type, "");
                     arguments[2] = context
                         .builder
-                        .build_int_truncate(arguments[2].into_int_value(), allowed_type, "")
+                        .build_int_truncate_or_bit_cast(
+                            arguments[2].into_int_value(),
+                            allowed_type,
+                            "",
+                        )
                         .as_basic_value_enum();
                 }
                 let mut result = context.builder.build_int_unsigned_rem(
@@ -429,7 +459,7 @@ impl FunctionCall {
                     "",
                 );
                 if let Target::LLVM = context.target {
-                    result = context.builder.build_int_z_extend(
+                    result = context.builder.build_int_z_extend_or_bit_cast(
                         result,
                         context.integer_type(compiler_const::bitlength::FIELD),
                         "",
@@ -513,7 +543,7 @@ impl FunctionCall {
                     Target::LLVM => {
                         let bits = context
                             .builder
-                            .build_int_truncate(
+                            .build_int_truncate_or_bit_cast(
                                 arguments[0].into_int_value(),
                                 context.integer_type(compiler_const::bitlength::WORD),
                                 "",
@@ -539,7 +569,79 @@ impl FunctionCall {
             }
             Name::Shr => {
                 let arguments = self.pop_arguments::<2>(context);
-                Some(arguments[1])
+
+                let if_224_block = context.append_basic_block("if_224");
+                let if_not_224_block = context.append_basic_block("if_not_224");
+                let join_block = context.append_basic_block("join");
+
+                let result_pointer = context
+                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                let condition = context.builder.build_int_compare(
+                    inkwell::IntPredicate::EQ,
+                    arguments[0].into_int_value(),
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_int(
+                            (compiler_const::bitlength::FIELD
+                                - (compiler_const::bitlength::BYTE * 4))
+                                as u64,
+                            false,
+                        ),
+                    "",
+                );
+                context.build_conditional_branch(condition, if_224_block, if_not_224_block);
+
+                context.set_basic_block(if_not_224_block);
+                match context.target {
+                    Target::LLVM => {
+                        let bits = context
+                            .builder
+                            .build_int_truncate_or_bit_cast(
+                                arguments[0].into_int_value(),
+                                context.integer_type(compiler_const::bitlength::WORD),
+                                "",
+                            )
+                            .get_zero_extended_constant()
+                            .expect("Must be constant");
+                        let original_type = arguments[1].into_int_value().get_type();
+                        let mut result = context.builder.build_int_truncate_or_bit_cast(
+                            arguments[1].into_int_value(),
+                            context.integer_type(compiler_const::bitlength::WORD * 2),
+                            "",
+                        );
+                        let divider = context
+                            .integer_type(compiler_const::bitlength::WORD * 2)
+                            .const_int(2, false);
+                        for _ in 0..bits {
+                            result = context.builder.build_int_unsigned_div(result, divider, "");
+                        }
+                        result = context.builder.build_int_z_extend_or_bit_cast(
+                            result,
+                            original_type,
+                            "",
+                        );
+                        context.build_store(result_pointer, result);
+                    }
+                    Target::zkEVM => {
+                        let result = context.builder.build_right_shift(
+                            arguments[1].into_int_value(),
+                            arguments[0].into_int_value(),
+                            false,
+                            "",
+                        );
+                        context.build_store(result_pointer, result);
+                    }
+                };
+                context.build_unconditional_branch(join_block);
+
+                context.set_basic_block(if_224_block);
+                context.build_store(result_pointer, arguments[1]);
+                context.build_unconditional_branch(join_block);
+
+                context.set_basic_block(join_block);
+                let result = context.build_load(result_pointer, "");
+
+                Some(result)
             }
             Name::Sar => {
                 let arguments = self.pop_arguments::<2>(context);

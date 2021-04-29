@@ -65,7 +65,7 @@ impl ILLVMWritable for ForLoop {
             .into_llvm(context)
             .expect("Always exists")
             .into_int_value();
-        let condition = context.builder.build_int_truncate(
+        let condition = context.builder.build_int_truncate_or_bit_cast(
             condition_expression,
             context.integer_type(compiler_const::bitlength::BOOLEAN),
             "",

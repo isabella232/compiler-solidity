@@ -133,7 +133,7 @@ impl Block {
         if let Target::LLVM = context.target {
             return_value = context
                 .builder
-                .build_int_truncate(return_value.into_int_value(), return_type, "")
+                .build_int_truncate_or_bit_cast(return_value.into_int_value(), return_type, "")
                 .as_basic_value_enum();
         }
         context.build_return(Some(&return_value));
