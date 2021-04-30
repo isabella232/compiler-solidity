@@ -15,6 +15,7 @@ use crate::parser::identifier::Identifier;
 use crate::target::Target;
 
 use self::function::Function;
+use self::intrinsic::Intrinsic;
 use self::r#loop::Loop;
 
 ///
@@ -206,9 +207,17 @@ impl<'ctx> Context<'ctx> {
         let value = self.module().add_function(name, r#type, linkage);
 
         let entry_block = self.llvm.append_basic_block(value, "entry");
+        let revert_block = self.llvm.append_basic_block(value, "revert");
         let return_block = self.llvm.append_basic_block(value, "return");
 
-        let function = Function::new(name.to_owned(), value, entry_block, return_block, None);
+        let function = Function::new(
+            name.to_owned(),
+            value,
+            entry_block,
+            revert_block,
+            return_block,
+            None,
+        );
         self.functions.insert(name.to_string(), function.clone());
         self.function = Some(function);
     }
@@ -267,6 +276,18 @@ impl<'ctx> Context<'ctx> {
         }
 
         self.function().to_owned()
+    }
+
+    ///
+    /// Returns the specified intrinsic function.
+    ///
+    pub fn get_intrinsic_function(
+        &self,
+        intrinsic: Intrinsic,
+    ) -> inkwell::values::FunctionValue<'ctx> {
+        self.module()
+            .get_intrinsic_function(intrinsic.into())
+            .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION)
     }
 
     ///

@@ -159,9 +159,9 @@ pub enum Name {
     /// like `codecopy(t, f, s)` but take code at address `a`
     ExtCodeCopy,
     /// size of the last returndata
-    ReturnCodeSize,
+    ReturnDataSize,
     /// copy `s` bytes from returndata at position `f` to mem at position `t`
-    ReturnCodeCopy,
+    ReturnDataCopy,
     /// code hash of address `a`
     ExtCodeHash,
 
@@ -267,8 +267,8 @@ impl From<&str> for Name {
             "codecopy" => Self::CodeCopy,
             "extcodesize" => Self::ExtCodeSize,
             "extcodecopy" => Self::ExtCodeCopy,
-            "returncodesize" => Self::ReturnCodeSize,
-            "returncodecopy" => Self::ReturnCodeCopy,
+            "returndatasize" => Self::ReturnDataSize,
+            "returndatacopy" => Self::ReturnDataCopy,
             "extcodehash" => Self::ExtCodeHash,
 
             "datasize" => Self::DataSize,

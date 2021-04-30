@@ -13,6 +13,8 @@ pub enum Intrinsic {
     StorageStore,
     /// The contract storage set.
     SetStorage,
+    /// The event emitting.
+    Event,
 
     /// The contract context switch.
     SwitchContext,
@@ -22,6 +24,8 @@ pub enum Intrinsic {
     LocalCall,
     /// The another contract function call.
     FarCall,
+    /// The error throwing.
+    Throw,
 
     /// The hash absorbing.
     HashAbsorb,
@@ -37,11 +41,13 @@ impl From<Intrinsic> for &'static str {
             Intrinsic::StorageLoad => "llvm.syncvm.sload",
             Intrinsic::StorageStore => "llvm.syncvm.sstore",
             Intrinsic::SetStorage => "llvm.syncvm.setstorage",
+            Intrinsic::Event => "llvm.syncvm.event",
 
             Intrinsic::SwitchContext => "llvm.syncvm.switchcontext",
             Intrinsic::CyclesRemain => "llvm.syncvm.cyclesremain",
             Intrinsic::LocalCall => "llvm.syncvm.localcall",
             Intrinsic::FarCall => "llvm.syncvm.farcall",
+            Intrinsic::Throw => "llvm.syncvm.throw",
 
             Intrinsic::HashAbsorb => "llvm.syncvm.habs",
             Intrinsic::HashAbsorbReset => "llvm.syncvm.habsr",

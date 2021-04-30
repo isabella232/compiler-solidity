@@ -2,7 +2,10 @@
 //! The source code block.
 //!
 
+use inkwell::values::BasicValue;
+
 use crate::error::Error;
+use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
@@ -13,7 +16,6 @@ use crate::parser::statement::assignment::Assignment;
 use crate::parser::statement::expression::Expression;
 use crate::parser::statement::Statement;
 use crate::target::Target;
-use inkwell::values::BasicValue;
 
 ///
 /// The source code block.
@@ -127,6 +129,20 @@ impl Block {
         self.statements = local_statements;
         self.into_llvm_local(context);
         context.build_unconditional_branch(function.return_block);
+
+        context.set_basic_block(function.revert_block);
+        let mut return_value = context.build_load(return_pointer, "");
+        if let Target::LLVM = context.target {
+            return_value = context
+                .builder
+                .build_int_truncate_or_bit_cast(return_value.into_int_value(), return_type, "")
+                .as_basic_value_enum();
+        }
+        if let Target::zkEVM = context.target {
+            let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
+            context.builder.build_call(intrinsic, &[], "");
+        }
+        context.build_return(Some(&return_value));
 
         context.set_basic_block(function.return_block);
         let mut return_value = context.build_load(return_pointer, "");

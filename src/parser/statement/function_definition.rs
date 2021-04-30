@@ -5,6 +5,7 @@
 use inkwell::types::BasicType;
 
 use crate::error::Error;
+use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
@@ -13,6 +14,7 @@ use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
 use crate::parser::identifier::Identifier;
 use crate::parser::statement::block::Block;
+use crate::target::Target;
 
 ///
 /// The function definition statement.
@@ -158,29 +160,54 @@ impl ILLVMWritable for FunctionDefinition {
 
         self.body.into_llvm_local(context);
 
-        let last_instruction = context.basic_block().get_last_instruction();
-
-        match last_instruction {
-            None => {
-                context.build_unconditional_branch(function.return_block);
-            }
+        match context.basic_block().get_last_instruction() {
             Some(instruction) => match instruction.get_opcode() {
-                inkwell::values::InstructionOpcode::Br => (),
-                inkwell::values::InstructionOpcode::Switch => (),
+                inkwell::values::InstructionOpcode::Br => {}
+                inkwell::values::InstructionOpcode::Switch => {}
                 _ => {
                     context.build_unconditional_branch(function.return_block);
                 }
             },
+            None => {
+                context.build_unconditional_branch(function.return_block);
+            }
         };
-
-        context.set_basic_block(function.return_block);
 
         match return_pointer {
             Some(return_pointer) => {
                 if return_values.len() == 1 {
-                    let return_value = context.build_load(return_values.remove(0), "");
+                    let pointer = return_values.remove(0);
+
+                    context.set_basic_block(function.revert_block);
+                    let return_value = context.build_load(pointer, "");
+                    if let Target::zkEVM = context.target {
+                        let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
+                        context.builder.build_call(intrinsic, &[], "");
+                    }
+                    context.build_return(Some(&return_value));
+
+                    context.set_basic_block(function.return_block);
+                    let return_value = context.build_load(pointer, "");
                     context.build_return(Some(&return_value));
                 } else {
+                    context.set_basic_block(function.revert_block);
+                    for (index, value) in return_values.iter().enumerate() {
+                        context.build_store(
+                            context
+                                .builder
+                                .build_struct_gep(return_pointer, index as u32, "")
+                                .expect("Always exists"),
+                            context.build_load(*value, ""),
+                        );
+                    }
+                    let return_value = context.build_load(return_pointer, "");
+                    if let Target::zkEVM = context.target {
+                        let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
+                        context.builder.build_call(intrinsic, &[], "");
+                    }
+                    context.build_return(Some(&return_value));
+
+                    context.set_basic_block(function.return_block);
                     for (index, value) in return_values.iter().enumerate() {
                         context.build_store(
                             context
@@ -195,6 +222,14 @@ impl ILLVMWritable for FunctionDefinition {
                 }
             }
             None => {
+                context.set_basic_block(function.revert_block);
+                if let Target::zkEVM = context.target {
+                    let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
+                    context.builder.build_call(intrinsic, &[], "");
+                }
+                context.build_return(None);
+
+                context.set_basic_block(function.return_block);
                 context.build_return(None);
             }
         }

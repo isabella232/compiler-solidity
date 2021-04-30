@@ -135,7 +135,7 @@ impl FunctionCall {
 
                 context.set_basic_block(non_zero_block);
                 if let Target::LLVM = context.target {
-                    let allowed_type = context.integer_type(compiler_const::bitlength::WORD * 2);
+                    let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
                     arguments[0] = context
                         .builder
                         .build_int_truncate_or_bit_cast(
@@ -203,7 +203,7 @@ impl FunctionCall {
 
                 context.set_basic_block(non_zero_block);
                 if let Target::LLVM = context.target {
-                    let allowed_type = context.integer_type(compiler_const::bitlength::WORD * 2);
+                    let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
                     arguments[0] = context
                         .builder
                         .build_int_truncate_or_bit_cast(
@@ -370,7 +370,7 @@ impl FunctionCall {
                     "",
                 );
                 if let Target::LLVM = context.target {
-                    let allowed_type = context.integer_type(compiler_const::bitlength::WORD * 2);
+                    let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
                     result =
                         context
                             .builder
@@ -439,7 +439,7 @@ impl FunctionCall {
                     "",
                 );
                 if let Target::LLVM = context.target {
-                    let allowed_type = context.integer_type(compiler_const::bitlength::WORD * 2);
+                    let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
                     result =
                         context
                             .builder
@@ -502,13 +502,58 @@ impl FunctionCall {
                 )
             }
             Name::Exp => {
-                let _arguments = self.pop_arguments::<2>(context);
-                Some(
+                let arguments = self.pop_arguments::<2>(context);
+
+                let result_pointer = context.build_alloca(arguments[0].get_type(), "");
+                context.build_store(result_pointer, arguments[0]);
+
+                let condition_block = context.append_basic_block("condition");
+                let body_block = context.append_basic_block("body");
+                let increment_block = context.append_basic_block("increment");
+                let join_block = context.append_basic_block("join");
+
+                let index_pointer = context.build_alloca(arguments[1].get_type(), "");
+                let index_value = arguments[1]
+                    .get_type()
+                    .into_int_type()
+                    .const_zero()
+                    .as_basic_value_enum();
+                context.build_store(index_pointer, index_value);
+                context.build_unconditional_branch(condition_block);
+
+                context.set_basic_block(condition_block);
+                let index_value = context.build_load(index_pointer, "").into_int_value();
+                let condition = context.builder.build_int_compare(
+                    inkwell::IntPredicate::ULT,
+                    index_value,
+                    arguments[1].into_int_value(),
+                    "",
+                );
+                context.build_conditional_branch(condition, body_block, join_block);
+
+                context.set_basic_block(increment_block);
+                let index_value = context.build_load(index_pointer, "").into_int_value();
+                let incremented = context.builder.build_int_add(
+                    index_value,
+                    arguments[1].get_type().into_int_type().const_int(1, false),
+                    "",
+                );
+                context.build_store(index_pointer, incremented);
+                context.build_unconditional_branch(condition_block);
+
+                context.set_basic_block(body_block);
+                let intermediate = context.build_load(result_pointer, "").into_int_value();
+                let result =
                     context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .const_zero()
-                        .as_basic_value_enum(),
-                )
+                        .builder
+                        .build_int_mul(intermediate, arguments[0].into_int_value(), "");
+                context.build_store(result_pointer, result);
+                context.build_unconditional_branch(increment_block);
+
+                context.set_basic_block(join_block);
+                let result = context.build_load(result_pointer, "");
+
+                Some(result)
             }
             Name::Slt => {
                 let _arguments = self.pop_arguments::<2>(context);
@@ -539,106 +584,155 @@ impl FunctionCall {
             }
             Name::Shl => {
                 let arguments = self.pop_arguments::<2>(context);
-                let result = match context.target {
-                    Target::LLVM => {
-                        let bits = context
-                            .builder
-                            .build_int_truncate_or_bit_cast(
-                                arguments[0].into_int_value(),
-                                context.integer_type(compiler_const::bitlength::WORD),
-                                "",
-                            )
-                            .get_zero_extended_constant()
-                            .expect("Must be constant");
-                        let mut result = arguments[1].into_int_value();
-                        let multiplier = context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .const_int(2, false);
-                        for _ in 0..bits {
-                            result = context.builder.build_int_mul(result, multiplier, "");
-                        }
-                        result
-                    }
-                    Target::zkEVM => context.builder.build_left_shift(
-                        arguments[1].into_int_value(),
-                        arguments[0].into_int_value(),
-                        "",
-                    ),
-                };
-                Some(result.as_basic_value_enum())
+
+                let result_pointer = context.build_alloca(arguments[1].get_type(), "");
+                context.build_store(result_pointer, arguments[1]);
+
+                let condition_block = context.append_basic_block("condition");
+                let body_block = context.append_basic_block("body");
+                let increment_block = context.append_basic_block("increment");
+                let join_block = context.append_basic_block("join");
+
+                let index_pointer = context.build_alloca(arguments[0].get_type(), "");
+                let index_value = arguments[0]
+                    .get_type()
+                    .into_int_type()
+                    .const_zero()
+                    .as_basic_value_enum();
+                context.build_store(index_pointer, index_value);
+                context.build_unconditional_branch(condition_block);
+
+                context.set_basic_block(condition_block);
+                let index_value = context.build_load(index_pointer, "").into_int_value();
+                let condition = context.builder.build_int_compare(
+                    inkwell::IntPredicate::ULT,
+                    index_value,
+                    arguments[0].into_int_value(),
+                    "",
+                );
+                context.build_conditional_branch(condition, body_block, join_block);
+
+                context.set_basic_block(increment_block);
+                let index_value = context.build_load(index_pointer, "").into_int_value();
+                let incremented = context.builder.build_int_add(
+                    index_value,
+                    arguments[0].get_type().into_int_type().const_int(1, false),
+                    "",
+                );
+                context.build_store(index_pointer, incremented);
+                context.build_unconditional_branch(condition_block);
+
+                context.set_basic_block(body_block);
+                let intermediate = context.build_load(result_pointer, "").into_int_value();
+                let multiplier = arguments[1].get_type().into_int_type().const_int(2, false);
+                let result = context.builder.build_int_mul(intermediate, multiplier, "");
+                context.build_store(result_pointer, result);
+                context.build_unconditional_branch(increment_block);
+
+                context.set_basic_block(join_block);
+                let result = context.build_load(result_pointer, "");
+
+                Some(result)
             }
             Name::Shr => {
                 let arguments = self.pop_arguments::<2>(context);
 
-                let if_224_block = context.append_basic_block("if_224");
-                let if_not_224_block = context.append_basic_block("if_not_224");
-                let join_block = context.append_basic_block("join");
+                let result_pointer = context.build_alloca(arguments[1].get_type(), "");
 
-                let result_pointer = context
-                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                let if_224_block = context.append_basic_block("if.224");
+                let if_not_224_block = context.append_basic_block("if.not_224");
+                let if_join_block = context.append_basic_block("if.join");
+                let loop_condition_block = context.append_basic_block("loop.condition");
+                let loop_body_block = context.append_basic_block("loop.body");
+                let loop_increment_block = context.append_basic_block("loop.increment");
+                let loop_join_block = context.append_basic_block("loop.join");
+
                 let condition = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
                     arguments[0].into_int_value(),
-                    context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .const_int(
-                            (compiler_const::bitlength::FIELD
-                                - (compiler_const::bitlength::BYTE * 4))
-                                as u64,
-                            false,
-                        ),
+                    arguments[0]
+                        .get_type()
+                        .into_int_type()
+                        .const_int(224, false),
                     "",
                 );
                 context.build_conditional_branch(condition, if_224_block, if_not_224_block);
 
                 context.set_basic_block(if_not_224_block);
-                match context.target {
-                    Target::LLVM => {
-                        let bits = context
-                            .builder
-                            .build_int_truncate_or_bit_cast(
-                                arguments[0].into_int_value(),
-                                context.integer_type(compiler_const::bitlength::WORD),
-                                "",
-                            )
-                            .get_zero_extended_constant()
-                            .expect("Must be constant");
-                        let original_type = arguments[1].into_int_value().get_type();
-                        let mut result = context.builder.build_int_truncate_or_bit_cast(
+                let intermediate_initial_value = match context.target {
+                    Target::LLVM => context
+                        .builder
+                        .build_int_truncate_or_bit_cast(
                             arguments[1].into_int_value(),
-                            context.integer_type(compiler_const::bitlength::WORD * 2),
+                            context.integer_type(compiler_const::bitlength::BYTE * 16),
                             "",
-                        );
-                        let divider = context
-                            .integer_type(compiler_const::bitlength::WORD * 2)
-                            .const_int(2, false);
-                        for _ in 0..bits {
-                            result = context.builder.build_int_unsigned_div(result, divider, "");
-                        }
-                        result = context.builder.build_int_z_extend_or_bit_cast(
-                            result,
-                            original_type,
-                            "",
-                        );
-                        context.build_store(result_pointer, result);
-                    }
-                    Target::zkEVM => {
-                        let result = context.builder.build_right_shift(
-                            arguments[1].into_int_value(),
-                            arguments[0].into_int_value(),
-                            false,
-                            "",
-                        );
-                        context.build_store(result_pointer, result);
-                    }
+                        )
+                        .as_basic_value_enum(),
+                    Target::zkEVM => arguments[1],
                 };
-                context.build_unconditional_branch(join_block);
+                let intermediate_pointer =
+                    context.build_alloca(intermediate_initial_value.get_type(), "");
+                context.build_store(intermediate_pointer, intermediate_initial_value);
+                let index_pointer = context.build_alloca(arguments[0].get_type(), "");
+                let index_value = arguments[0]
+                    .get_type()
+                    .into_int_type()
+                    .const_zero()
+                    .as_basic_value_enum();
+                context.build_store(index_pointer, index_value);
+                context.build_unconditional_branch(loop_condition_block);
+
+                context.set_basic_block(loop_condition_block);
+                let index_value = context.build_load(index_pointer, "").into_int_value();
+                let condition = context.builder.build_int_compare(
+                    inkwell::IntPredicate::ULT,
+                    index_value,
+                    arguments[0].into_int_value(),
+                    "",
+                );
+                context.build_conditional_branch(condition, loop_body_block, loop_join_block);
+
+                context.set_basic_block(loop_increment_block);
+                let index_value = context.build_load(index_pointer, "").into_int_value();
+                let incremented = context.builder.build_int_add(
+                    index_value,
+                    arguments[0].get_type().into_int_type().const_int(1, false),
+                    "",
+                );
+                context.build_store(index_pointer, incremented);
+                context.build_unconditional_branch(loop_condition_block);
+
+                context.set_basic_block(loop_body_block);
+                let intermediate = context
+                    .build_load(intermediate_pointer, "")
+                    .into_int_value();
+                let divider = intermediate.get_type().const_int(2, false);
+                let result = context
+                    .builder
+                    .build_int_unsigned_div(intermediate, divider, "");
+                context.build_store(intermediate_pointer, result);
+                context.build_unconditional_branch(loop_increment_block);
+
+                context.set_basic_block(loop_join_block);
+                let mut result = context.build_load(intermediate_pointer, "");
+                if let Target::LLVM = context.target {
+                    result = context
+                        .builder
+                        .build_int_z_extend_or_bit_cast(
+                            result.into_int_value(),
+                            arguments[1].get_type().into_int_type(),
+                            "",
+                        )
+                        .as_basic_value_enum();
+                }
+                context.build_store(result_pointer, result);
+                context.build_unconditional_branch(if_join_block);
 
                 context.set_basic_block(if_224_block);
                 context.build_store(result_pointer, arguments[1]);
-                context.build_unconditional_branch(join_block);
+                context.build_unconditional_branch(if_join_block);
 
-                context.set_basic_block(join_block);
+                context.set_basic_block(if_join_block);
                 let result = context.build_load(result_pointer, "");
 
                 Some(result)
@@ -648,13 +742,8 @@ impl FunctionCall {
                 Some(arguments[1])
             }
             Name::SignExtend => {
-                let _arguments = self.pop_arguments::<2>(context);
-                Some(
-                    context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .const_zero()
-                        .as_basic_value_enum(),
-                )
+                let arguments = self.pop_arguments::<2>(context);
+                Some(arguments[1])
             }
             Name::Keccak256 => {
                 panic!("The `{:?}` instruction is unsupported", self.name);
@@ -708,34 +797,42 @@ impl FunctionCall {
 
             Name::SLoad => {
                 let arguments = self.pop_arguments::<1>(context);
-                let intrinsic = context
-                    .module()
-                    .get_intrinsic_function(Intrinsic::StorageLoad.into())
-                    .expect("Intrinsic exists");
+                let intrinsic = context.get_intrinsic_function(Intrinsic::StorageLoad);
 
+                let position = arguments[0];
+                let is_external_storage = context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum();
                 let value = context
                     .builder
-                    .build_call(intrinsic, &[arguments[0]], "")
+                    .build_call(intrinsic, &[position, is_external_storage], "")
                     .try_as_basic_value()
                     .expect_left("Contract storage always returns a value");
                 Some(value)
             }
             Name::SStore => {
                 let arguments = self.pop_arguments::<2>(context);
-                let intrinsic = context
-                    .module()
-                    .get_intrinsic_function(Intrinsic::StorageStore.into())
-                    .expect("Intrinsic exists");
+                let intrinsic = context.get_intrinsic_function(Intrinsic::StorageStore);
 
+                let position = arguments[0];
+                let value = arguments[1];
+                let is_external_storage = context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum();
                 context
                     .builder
-                    .build_call(intrinsic, &[arguments[0], arguments[1]], "");
+                    .build_call(intrinsic, &[position, value, is_external_storage], "");
                 None
             }
 
-            Name::Caller => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
+            Name::Caller => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
             Name::CallValue => Some(
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
@@ -847,27 +944,47 @@ impl FunctionCall {
                 panic!("The `{:?}` instruction is unsupported", self.name);
             }
 
-            Name::CodeSize => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
+            Name::CodeSize => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
             Name::CodeCopy => {
                 let _arguments = self.pop_arguments::<3>(context);
                 None
             }
             Name::ExtCodeSize => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let _arguments = self.pop_arguments::<1>(context);
+                Some(
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero()
+                        .as_basic_value_enum(),
+                )
             }
             Name::ExtCodeCopy => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let _arguments = self.pop_arguments::<4>(context);
+                None
             }
-            Name::ReturnCodeSize => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
-            Name::ReturnCodeCopy => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+            Name::ReturnDataSize => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
+            Name::ReturnDataCopy => {
+                let _arguments = self.pop_arguments::<3>(context);
+                None
             }
             Name::ExtCodeHash => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let _arguments = self.pop_arguments::<1>(context);
+                Some(
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero()
+                        .as_basic_value_enum(),
+                )
             }
 
             Name::DataSize => {
@@ -945,7 +1062,7 @@ impl FunctionCall {
                         .expect("Revert memory copy failed");
                 }
 
-                context.build_unconditional_branch(function.return_block);
+                context.build_unconditional_branch(function.revert_block);
                 None
             }
             Name::SelfDestruct => {
