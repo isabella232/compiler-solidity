@@ -113,7 +113,7 @@ impl ILLVMWritable for VariableDeclaration {
                                 pointer,
                                 &[
                                     context
-                                        .integer_type(compiler_const::bitlength::WORD)
+                                        .integer_type(compiler_const::bitlength::FIELD)
                                         .const_zero(),
                                     context
                                         .integer_type(compiler_const::bitlength::BYTE * 4)
