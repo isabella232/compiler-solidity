@@ -1,5 +1,5 @@
 //!
-//! The LLVM context.
+//! The LLVM generator context.
 //!
 
 pub mod function;
@@ -14,12 +14,13 @@ use inkwell::values::BasicValue;
 use crate::parser::identifier::Identifier;
 use crate::target::Target;
 
+use self::function::r#return::Return as FunctionReturn;
 use self::function::Function;
 use self::intrinsic::Intrinsic;
 use self::r#loop::Loop;
 
 ///
-/// The LLVM context.
+/// The LLVM generator context.
 ///
 pub struct Context<'ctx> {
     /// The target to build for.
@@ -256,24 +257,19 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
-    /// Updates the current function, setting the return and heap pointers.
+    /// Updates the current function, setting the return entity.
     ///
     /// # Panics
     /// If the function with `name` does not exist.
     ///
-    pub fn update_function(
-        &mut self,
-        return_pointer: Option<inkwell::values::PointerValue<'ctx>>,
-    ) -> Function<'ctx> {
+    pub fn update_function(&mut self, r#return: FunctionReturn<'ctx>) -> Function<'ctx> {
         let name = self.function().name.clone();
 
-        if let Some(return_pointer) = return_pointer {
-            self.functions
-                .get_mut(name.as_str())
-                .expect("Always exists")
-                .return_pointer = Some(return_pointer);
-            self.function_mut().return_pointer = Some(return_pointer);
-        }
+        self.functions
+            .get_mut(name.as_str())
+            .expect("Always exists")
+            .r#return = Some(r#return.clone());
+        self.function_mut().r#return = Some(r#return);
 
         self.function().to_owned()
     }
@@ -471,15 +467,20 @@ impl<'ctx> Context<'ctx> {
     pub fn function_type(
         &self,
         return_values: &[Identifier],
-        argument_types: &[inkwell::types::BasicTypeEnum<'ctx>],
+        mut argument_types: Vec<inkwell::types::BasicTypeEnum<'ctx>>,
     ) -> inkwell::types::FunctionType<'ctx> {
         if return_values.is_empty() {
-            return self.llvm.void_type().fn_type(argument_types, false);
+            return self
+                .llvm
+                .void_type()
+                .fn_type(argument_types.as_slice(), false);
         }
 
         if return_values.len() == 1 {
             let yul_type = return_values[0].yul_type.to_owned().unwrap_or_default();
-            return yul_type.into_llvm(self).fn_type(argument_types, false);
+            return yul_type
+                .into_llvm(self)
+                .fn_type(argument_types.as_slice(), false);
         }
 
         let return_types: Vec<_> = return_values
@@ -489,8 +490,12 @@ impl<'ctx> Context<'ctx> {
                 inkwell::types::BasicTypeEnum::IntType(yul_type.into_llvm(self))
             })
             .collect();
-        let return_type = self.llvm.struct_type(return_types.as_slice(), false);
-        return_type.fn_type(argument_types, false)
+        let return_type = self
+            .llvm
+            .struct_type(return_types.as_slice(), false)
+            .ptr_type(inkwell::AddressSpace::Generic);
+        argument_types.insert(0, return_type.as_basic_type_enum());
+        return_type.fn_type(argument_types.as_slice(), false)
     }
 
     ///
@@ -515,7 +520,7 @@ impl<'ctx> Context<'ctx> {
             Target::zkEVM => {
                 let r#type = self
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(inkwell::AddressSpace::Local);
+                    .ptr_type(inkwell::AddressSpace::Generic);
                 self.module().add_global(r#type, None, "heap")
             }
         };
@@ -545,7 +550,7 @@ impl<'ctx> Context<'ctx> {
         let r#type = r#type.unwrap_or_else(|| self.integer_type(compiler_const::bitlength::FIELD));
         let pointer = self.builder.build_pointer_cast(
             pointer,
-            r#type.ptr_type(inkwell::AddressSpace::Local),
+            r#type.ptr_type(inkwell::AddressSpace::Generic),
             "",
         );
         pointer

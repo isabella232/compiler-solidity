@@ -5,6 +5,7 @@
 use inkwell::values::BasicValue;
 
 use crate::error::Error;
+use crate::generator::llvm::function::r#return::Return as FunctionReturn;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
@@ -124,7 +125,8 @@ impl Block {
             context.integer_type(compiler_const::bitlength::FIELD),
             "result",
         );
-        let function = context.update_function(Some(return_pointer));
+        let r#return = FunctionReturn::primitive(return_pointer);
+        let function = context.update_function(r#return);
 
         self.statements = local_statements;
         self.into_llvm_local(context);

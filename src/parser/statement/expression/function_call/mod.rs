@@ -9,6 +9,7 @@ use std::convert::TryInto;
 use inkwell::values::BasicValue;
 
 use crate::error::Error;
+use crate::generator::llvm::function::r#return::Return as FunctionReturn;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::symbol::Symbol;
@@ -19,6 +20,7 @@ use crate::parser::statement::expression::Expression;
 use crate::target::Target;
 
 use self::name::Name;
+use inkwell::types::BasicType;
 
 ///
 /// The function call subexpression.
@@ -1023,7 +1025,7 @@ impl FunctionCall {
                     Some(context.integer_type(compiler_const::bitlength::BYTE)),
                 );
 
-                if let Some(return_pointer) = function.return_pointer {
+                if let Some(return_pointer) = function.return_pointer() {
                     context
                         .builder
                         .build_memcpy(
@@ -1049,7 +1051,7 @@ impl FunctionCall {
                     Some(context.integer_type(compiler_const::bitlength::BYTE)),
                 );
 
-                if let Some(return_pointer) = function.return_pointer {
+                if let Some(return_pointer) = function.return_pointer() {
                     context
                         .builder
                         .build_memcpy(
@@ -1073,20 +1075,40 @@ impl FunctionCall {
             }
 
             Name::UserDefined(name) => {
-                let arguments: Vec<inkwell::values::BasicValueEnum> = self
+                let mut arguments: Vec<inkwell::values::BasicValueEnum> = self
                     .arguments
                     .into_iter()
                     .filter_map(|argument| argument.into_llvm(context))
                     .collect();
                 let function = context
-                    .module()
-                    .get_function(name.as_str())
+                    .functions
+                    .get(name.as_str())
+                    .cloned()
                     .unwrap_or_else(|| panic!("Undeclared function {}", name));
+                if let Some(FunctionReturn::Compound { size, .. }) = function.r#return {
+                    let r#type = context.structure_type(vec![
+                        context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .as_basic_type_enum();
+                        size
+                    ]);
+                    let pointer = context.build_alloca(r#type, "");
+                    context.build_store(pointer, r#type.const_zero());
+                    arguments.insert(0, pointer.as_basic_value_enum());
+                }
                 let return_value = context
                     .builder
-                    .build_call(function, &arguments, "")
+                    .build_call(function.value, &arguments, "")
                     .try_as_basic_value();
-                return_value.left()
+                if let Some(FunctionReturn::Compound { .. }) = function.r#return {
+                    let return_pointer = return_value
+                        .expect_left("Always exists")
+                        .into_pointer_value();
+                    let return_value = context.build_load(return_pointer, "");
+                    Some(return_value)
+                } else {
+                    return_value.left()
+                }
             }
         }
     }

@@ -5,6 +5,7 @@
 use inkwell::types::BasicType;
 
 use crate::error::Error;
+use crate::generator::llvm::function::r#return::Return as FunctionReturn;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
@@ -91,19 +92,27 @@ impl FunctionDefinition {
             })
             .collect();
 
-        let function_type =
-            context.function_type(self.result.as_slice(), argument_types.as_slice());
+        let function_type = context.function_type(self.result.as_slice(), argument_types);
 
         context.add_function(
             self.name.as_str(),
             function_type,
             Some(inkwell::module::Linkage::Private),
         );
+
+        if self.result.len() > 1 {
+            let function = context.function().value;
+            let pointer = function
+                .get_first_param()
+                .expect("Always exists")
+                .into_pointer_value();
+            context.update_function(FunctionReturn::compound(pointer, self.result.len()));
+        }
     }
 }
 
 impl ILLVMWritable for FunctionDefinition {
-    fn into_llvm(self, context: &mut LLVMContext) {
+    fn into_llvm(mut self, context: &mut LLVMContext) {
         let function = context
             .functions
             .get(self.name.as_str())
@@ -112,12 +121,55 @@ impl ILLVMWritable for FunctionDefinition {
         context.set_function(self.name.as_str());
 
         context.set_basic_block(function.entry_block);
-        let return_types = function.value.get_type().get_return_type();
-        let return_pointer = match return_types {
-            Some(r#type) => Some(context.build_alloca(r#type, "result")),
-            None => None,
+        let r#return = match function.r#return {
+            Some(r#return) => {
+                for (index, identifier) in self.result.into_iter().enumerate() {
+                    let pointer = r#return.return_pointer().expect("Always exists");
+                    let pointer = unsafe {
+                        context.builder.build_gep(
+                            pointer,
+                            &[
+                                context
+                                    .integer_type(compiler_const::bitlength::FIELD)
+                                    .const_zero(),
+                                context
+                                    .integer_type(compiler_const::bitlength::BYTE * 4)
+                                    .const_int(index as u64, false),
+                            ],
+                            "",
+                        )
+                    };
+                    let pointer = context.builder.build_pointer_cast(
+                        pointer,
+                        context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .ptr_type(inkwell::AddressSpace::Generic),
+                        "",
+                    );
+                    context
+                        .function_mut()
+                        .stack
+                        .insert(identifier.name.clone(), pointer);
+                }
+                r#return
+            }
+            None => {
+                if let Some(identifier) = self.result.pop() {
+                    let r#type = identifier.yul_type.unwrap_or_default();
+                    let pointer = context
+                        .build_alloca(r#type.clone().into_llvm(context), identifier.name.as_str());
+                    context.build_store(pointer, r#type.into_llvm(context).const_zero());
+                    context
+                        .function_mut()
+                        .stack
+                        .insert(identifier.name.clone(), pointer);
+                    FunctionReturn::primitive(pointer)
+                } else {
+                    FunctionReturn::none()
+                }
+            }
         };
-        let function = context.update_function(return_pointer);
+        let function = context.update_function(r#return.clone());
 
         let argument_types: Vec<_> = self
             .arguments
@@ -127,12 +179,15 @@ impl ILLVMWritable for FunctionDefinition {
                 yul_type.into_llvm(context)
             })
             .collect();
-        for (index, argument) in self.arguments.iter().enumerate() {
+        for (mut index, argument) in self.arguments.iter().enumerate() {
             let pointer = context.build_alloca(argument_types[index], argument.name.as_str());
             context
                 .function_mut()
                 .stack
                 .insert(argument.name.clone(), pointer);
+            if let Some(FunctionReturn::Compound { .. }) = function.r#return {
+                index += 1;
+            }
             context.build_store(
                 pointer,
                 function
@@ -141,22 +196,6 @@ impl ILLVMWritable for FunctionDefinition {
                     .expect("Always exists"),
             );
         }
-
-        let mut return_values: Vec<_> = self
-            .result
-            .into_iter()
-            .map(|identifier| {
-                let r#type = identifier.yul_type.unwrap_or_default();
-                let pointer = context
-                    .build_alloca(r#type.clone().into_llvm(context), identifier.name.as_str());
-                context.build_store(pointer, r#type.into_llvm(context).const_zero());
-                context
-                    .function_mut()
-                    .stack
-                    .insert(identifier.name.clone(), pointer);
-                pointer
-            })
-            .collect();
 
         self.body.into_llvm_local(context);
 
@@ -173,55 +212,8 @@ impl ILLVMWritable for FunctionDefinition {
             }
         };
 
-        match return_pointer {
-            Some(return_pointer) => {
-                if return_values.len() == 1 {
-                    let pointer = return_values.remove(0);
-
-                    context.set_basic_block(function.revert_block);
-                    let return_value = context.build_load(pointer, "");
-                    if let Target::zkEVM = context.target {
-                        let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                        context.builder.build_call(intrinsic, &[], "");
-                    }
-                    context.build_return(Some(&return_value));
-
-                    context.set_basic_block(function.return_block);
-                    let return_value = context.build_load(pointer, "");
-                    context.build_return(Some(&return_value));
-                } else {
-                    context.set_basic_block(function.revert_block);
-                    for (index, value) in return_values.iter().enumerate() {
-                        context.build_store(
-                            context
-                                .builder
-                                .build_struct_gep(return_pointer, index as u32, "")
-                                .expect("Always exists"),
-                            context.build_load(*value, ""),
-                        );
-                    }
-                    let return_value = context.build_load(return_pointer, "");
-                    if let Target::zkEVM = context.target {
-                        let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                        context.builder.build_call(intrinsic, &[], "");
-                    }
-                    context.build_return(Some(&return_value));
-
-                    context.set_basic_block(function.return_block);
-                    for (index, value) in return_values.iter().enumerate() {
-                        context.build_store(
-                            context
-                                .builder
-                                .build_struct_gep(return_pointer, index as u32, "")
-                                .expect("Always exists"),
-                            context.build_load(*value, ""),
-                        );
-                    }
-                    let return_value = context.build_load(return_pointer, "");
-                    context.build_return(Some(&return_value));
-                }
-            }
-            None => {
+        match r#return {
+            FunctionReturn::None => {
                 context.set_basic_block(function.revert_block);
                 if let Target::zkEVM = context.target {
                     let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
@@ -231,6 +223,33 @@ impl ILLVMWritable for FunctionDefinition {
 
                 context.set_basic_block(function.return_block);
                 context.build_return(None);
+            }
+            FunctionReturn::Primitive { pointer } => {
+                context.set_basic_block(function.revert_block);
+                let return_value = context.build_load(pointer, "");
+                if let Target::zkEVM = context.target {
+                    let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
+                    context.builder.build_call(intrinsic, &[], "");
+                }
+                context.build_return(Some(&return_value));
+
+                context.set_basic_block(function.return_block);
+                let return_value = context.build_load(pointer, "");
+                context.build_return(Some(&return_value));
+            }
+            FunctionReturn::Compound {
+                pointer: return_pointer,
+                ..
+            } => {
+                context.set_basic_block(function.revert_block);
+                if let Target::zkEVM = context.target {
+                    let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
+                    context.builder.build_call(intrinsic, &[], "");
+                }
+                context.build_return(Some(&return_pointer));
+
+                context.set_basic_block(function.return_block);
+                context.build_return(Some(&return_pointer));
             }
         }
     }

@@ -1,9 +1,9 @@
 //!
-//! The LLVM generator loop context.
+//! The LLVM generator loop.
 //!
 
 ///
-/// The LLVM generator loop context.
+/// The LLVM generator loop.
 ///
 #[derive(Debug, Clone)]
 pub struct Loop<'ctx> {

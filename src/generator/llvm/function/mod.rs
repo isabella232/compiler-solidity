@@ -1,11 +1,15 @@
 //!
-//! The LLVM generator function context.
+//! The LLVM generator function.
 //!
+
+pub mod r#return;
 
 use std::collections::HashMap;
 
+use self::r#return::Return;
+
 ///
-/// The LLVM generator function context.
+/// The LLVM generator function.
 ///
 #[derive(Debug, Clone)]
 pub struct Function<'ctx> {
@@ -19,8 +23,8 @@ pub struct Function<'ctx> {
     pub revert_block: inkwell::basic_block::BasicBlock<'ctx>,
     /// The return or leave block.
     pub return_block: inkwell::basic_block::BasicBlock<'ctx>,
-    /// The return value pointer.
-    pub return_pointer: Option<inkwell::values::PointerValue<'ctx>>,
+    /// The return value entity.
+    pub r#return: Option<Return<'ctx>>,
     /// The stack representation.
     pub stack: HashMap<String, inkwell::values::PointerValue<'ctx>>,
 }
@@ -38,7 +42,7 @@ impl<'ctx> Function<'ctx> {
         entry_block: inkwell::basic_block::BasicBlock<'ctx>,
         revert_block: inkwell::basic_block::BasicBlock<'ctx>,
         return_block: inkwell::basic_block::BasicBlock<'ctx>,
-        return_pointer: Option<inkwell::values::PointerValue<'ctx>>,
+        r#return: Option<Return<'ctx>>,
     ) -> Self {
         Self {
             name,
@@ -46,9 +50,22 @@ impl<'ctx> Function<'ctx> {
             entry_block,
             revert_block,
             return_block,
-            return_pointer,
+            r#return,
             stack: HashMap::with_capacity(Self::STACK_HASHMAP_INITIAL_CAPACITY),
         }
+    }
+
+    ///
+    /// Returns the pointer to the function return value.
+    ///
+    /// # Panics
+    /// If the pointer has not been set yet.
+    ///
+    pub fn return_pointer(&self) -> Option<inkwell::values::PointerValue<'ctx>> {
+        self.r#return
+            .as_ref()
+            .expect("Always exists")
+            .return_pointer()
     }
 
     ///

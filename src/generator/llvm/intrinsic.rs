@@ -1,9 +1,9 @@
 //!
-//! The LLVM intrinsic function.
+//! The LLVM generator intrinsic function.
 //!
 
 ///
-/// The LLVM intrinsic function.
+/// The LLVM generator intrinsic function.
 ///
 #[derive(Debug, Clone)]
 pub enum Intrinsic {
