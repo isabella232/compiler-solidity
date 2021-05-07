@@ -136,6 +136,7 @@ impl FunctionCall {
                 context.build_conditional_branch(condition, zero_block, non_zero_block);
 
                 context.set_basic_block(non_zero_block);
+                let initial_type = arguments[0].get_type().into_int_type();
                 if let Target::LLVM = context.target {
                     let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
                     arguments[0] = context
@@ -161,11 +162,10 @@ impl FunctionCall {
                     "",
                 );
                 if let Target::LLVM = context.target {
-                    result = context.builder.build_int_z_extend_or_bit_cast(
-                        result,
-                        context.integer_type(compiler_const::bitlength::FIELD),
-                        "",
-                    );
+                    result =
+                        context
+                            .builder
+                            .build_int_z_extend_or_bit_cast(result, initial_type, "");
                 }
                 context.build_store(result_pointer, result);
                 context.build_unconditional_branch(join_block);
@@ -204,6 +204,7 @@ impl FunctionCall {
                 context.build_conditional_branch(condition, zero_block, non_zero_block);
 
                 context.set_basic_block(non_zero_block);
+                let initial_type = arguments[0].get_type().into_int_type();
                 if let Target::LLVM = context.target {
                     let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
                     arguments[0] = context
@@ -229,11 +230,10 @@ impl FunctionCall {
                     "",
                 );
                 if let Target::LLVM = context.target {
-                    result = context.builder.build_int_z_extend_or_bit_cast(
-                        result,
-                        context.integer_type(compiler_const::bitlength::FIELD),
-                        "",
-                    );
+                    result =
+                        context
+                            .builder
+                            .build_int_z_extend_or_bit_cast(result, initial_type, "");
                 }
                 context.build_store(result_pointer, result);
                 context.build_unconditional_branch(join_block);
@@ -371,6 +371,7 @@ impl FunctionCall {
                     arguments[1].into_int_value(),
                     "",
                 );
+                let initial_type = arguments[0].get_type().into_int_type();
                 if let Target::LLVM = context.target {
                     let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
                     result =
@@ -392,11 +393,10 @@ impl FunctionCall {
                     "",
                 );
                 if let Target::LLVM = context.target {
-                    result = context.builder.build_int_z_extend_or_bit_cast(
-                        result,
-                        context.integer_type(compiler_const::bitlength::FIELD),
-                        "",
-                    );
+                    result =
+                        context
+                            .builder
+                            .build_int_z_extend_or_bit_cast(result, initial_type, "");
                 }
                 context.build_store(result_pointer, result);
                 context.build_unconditional_branch(join_block);
@@ -440,6 +440,7 @@ impl FunctionCall {
                     arguments[1].into_int_value(),
                     "",
                 );
+                let initial_type = arguments[0].get_type().into_int_type();
                 if let Target::LLVM = context.target {
                     let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
                     result =
@@ -461,11 +462,10 @@ impl FunctionCall {
                     "",
                 );
                 if let Target::LLVM = context.target {
-                    result = context.builder.build_int_z_extend_or_bit_cast(
-                        result,
-                        context.integer_type(compiler_const::bitlength::FIELD),
-                        "",
-                    );
+                    result =
+                        context
+                            .builder
+                            .build_int_z_extend_or_bit_cast(result, initial_type, "");
                 }
                 context.build_store(result_pointer, result);
                 context.build_unconditional_branch(join_block);
@@ -661,6 +661,7 @@ impl FunctionCall {
                 context.build_conditional_branch(condition, if_224_block, if_not_224_block);
 
                 context.set_basic_block(if_not_224_block);
+                let initial_type = arguments[1].get_type().into_int_type();
                 let intermediate_initial_value = match context.target {
                     Target::LLVM => context
                         .builder
@@ -720,11 +721,7 @@ impl FunctionCall {
                 if let Target::LLVM = context.target {
                     result = context
                         .builder
-                        .build_int_z_extend_or_bit_cast(
-                            result.into_int_value(),
-                            arguments[1].get_type().into_int_type(),
-                            "",
-                        )
+                        .build_int_z_extend_or_bit_cast(result.into_int_value(), initial_type, "")
                         .as_basic_value_enum();
                 }
                 context.build_store(result_pointer, result);

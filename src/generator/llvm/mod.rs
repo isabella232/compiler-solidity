@@ -29,8 +29,6 @@ pub struct Context<'ctx> {
     pub builder: inkwell::builder::Builder<'ctx>,
     /// The declared functions.
     pub functions: HashMap<String, Function<'ctx>>,
-    /// The heap representation.
-    pub heap: Option<inkwell::values::GlobalValue<'ctx>>,
 
     /// The inner LLVM context.
     llvm: &'ctx inkwell::context::Context,
@@ -55,6 +53,8 @@ pub struct Context<'ctx> {
     pass_manager_function:
         Option<inkwell::passes::PassManager<inkwell::values::FunctionValue<'ctx>>>,
 
+    /// The test heap representation.
+    pub heap: Option<inkwell::values::GlobalValue<'ctx>>,
     /// The test entry hash.
     pub test_entry_hash: Option<String>,
 }
@@ -87,7 +87,6 @@ impl<'ctx> Context<'ctx> {
             target,
             builder: llvm.create_builder(),
             functions: HashMap::with_capacity(Self::FUNCTION_HASHMAP_INITIAL_CAPACITY),
-            heap: None,
 
             llvm,
             module: None,
@@ -101,6 +100,7 @@ impl<'ctx> Context<'ctx> {
             pass_manager_module: None,
             pass_manager_function: None,
 
+            heap: None,
             test_entry_hash: None,
         }
     }
