@@ -282,7 +282,7 @@ impl<'ctx> Context<'ctx> {
         intrinsic: Intrinsic,
     ) -> inkwell::values::FunctionValue<'ctx> {
         self.module()
-            .get_intrinsic_function(intrinsic.into())
+            .get_intrinsic_function(intrinsic.name(), intrinsic.argument_types(self).as_slice())
             .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION)
     }
 
