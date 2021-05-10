@@ -5,6 +5,7 @@
 use inkwell::types::BasicType;
 
 use crate::error::Error;
+use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
@@ -143,7 +144,7 @@ impl ILLVMWritable for FunctionDefinition {
                         pointer,
                         context
                             .integer_type(compiler_const::bitlength::FIELD)
-                            .ptr_type(inkwell::AddressSpace::Generic),
+                            .ptr_type(AddressSpace::Stack.into()),
                         "",
                     );
                     context

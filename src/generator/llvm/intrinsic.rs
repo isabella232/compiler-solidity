@@ -2,8 +2,10 @@
 //! The LLVM intrinsic function.
 //!
 
-use crate::generator::llvm::Context as LLVMContext;
 use inkwell::types::BasicType;
+
+use crate::generator::llvm::address_space::AddressSpace;
+use crate::generator::llvm::Context as LLVMContext;
 
 ///
 /// The LLVM intrinsic function.
@@ -38,9 +40,9 @@ pub enum Intrinsic {
     /// The memory copy.
     MemoryCopy,
     /// The memory copy to parent.
-    MemoryCopyToParent,
+    MemoryCopyFromParent,
     /// The memory copy from child.
-    MemoryCopyFromChild,
+    MemoryCopyToChild,
     /// The memory move.
     MemoryMove,
     /// The memory set.
@@ -68,8 +70,8 @@ impl Intrinsic {
             Intrinsic::HashOutput => "llvm.syncvm.hout",
 
             Intrinsic::MemoryCopy => "llvm.memcpy",
-            Intrinsic::MemoryCopyToParent => "llvm.memcpy",
-            Intrinsic::MemoryCopyFromChild => "llvm.memcpy",
+            Intrinsic::MemoryCopyFromParent => "llvm.memcpy",
+            Intrinsic::MemoryCopyToChild => "llvm.memcpy",
             Intrinsic::MemoryMove => "llvm.memmov",
             Intrinsic::MemorySet => "llvm.memset",
         }
@@ -100,37 +102,37 @@ impl Intrinsic {
             Self::MemoryCopy => vec![
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(inkwell::AddressSpace::Generic)
+                    .ptr_type(AddressSpace::Stack.into())
                     .as_basic_type_enum(),
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(inkwell::AddressSpace::Generic)
+                    .ptr_type(AddressSpace::Stack.into())
+                    .as_basic_type_enum(),
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .as_basic_type_enum(),
+            ],
+            Self::MemoryCopyFromParent => vec![
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(AddressSpace::Stack.into())
+                    .as_basic_type_enum(),
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(AddressSpace::Parent.into())
                     .as_basic_type_enum(),
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
                     .as_basic_type_enum(),
             ],
-            Self::MemoryCopyToParent => vec![
+            Self::MemoryCopyToChild => vec![
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(inkwell::AddressSpace::Generic)
+                    .ptr_type(AddressSpace::Child.into())
                     .as_basic_type_enum(),
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(inkwell::AddressSpace::Global)
-                    .as_basic_type_enum(), // TODO: change the address space '2'
-                context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .as_basic_type_enum(),
-            ],
-            Self::MemoryCopyFromChild => vec![
-                context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(inkwell::AddressSpace::Shared)
-                    .as_basic_type_enum(),
-                context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(inkwell::AddressSpace::Generic)
+                    .ptr_type(AddressSpace::Stack.into())
                     .as_basic_type_enum(),
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
@@ -139,11 +141,11 @@ impl Intrinsic {
             Self::MemoryMove => vec![
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(inkwell::AddressSpace::Generic)
+                    .ptr_type(AddressSpace::Stack.into())
                     .as_basic_type_enum(),
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(inkwell::AddressSpace::Generic)
+                    .ptr_type(AddressSpace::Stack.into())
                     .as_basic_type_enum(),
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
@@ -152,7 +154,7 @@ impl Intrinsic {
             Self::MemorySet => vec![
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(inkwell::AddressSpace::Generic)
+                    .ptr_type(AddressSpace::Stack.into())
                     .as_basic_type_enum(),
                 context
                     .integer_type(compiler_const::bitlength::FIELD)

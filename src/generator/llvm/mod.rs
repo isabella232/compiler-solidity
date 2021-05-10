@@ -2,6 +2,7 @@
 //! The LLVM generator context.
 //!
 
+pub mod address_space;
 pub mod function;
 pub mod intrinsic;
 pub mod r#loop;
@@ -14,6 +15,7 @@ use inkwell::values::BasicValue;
 use crate::parser::identifier::Identifier;
 use crate::target::Target;
 
+use self::address_space::AddressSpace;
 use self::function::r#return::Return as FunctionReturn;
 use self::function::Function;
 use self::intrinsic::Intrinsic;
@@ -493,7 +495,7 @@ impl<'ctx> Context<'ctx> {
         let return_type = self
             .llvm
             .struct_type(return_types.as_slice(), false)
-            .ptr_type(inkwell::AddressSpace::Generic);
+            .ptr_type(AddressSpace::Stack.into());
         argument_types.insert(0, return_type.as_basic_type_enum());
         return_type.fn_type(argument_types.as_slice(), false)
     }
@@ -520,7 +522,7 @@ impl<'ctx> Context<'ctx> {
             Target::zkEVM => {
                 let r#type = self
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(inkwell::AddressSpace::Generic);
+                    .ptr_type(AddressSpace::Stack.into());
                 self.module().add_global(r#type, None, "heap")
             }
         };
@@ -550,7 +552,7 @@ impl<'ctx> Context<'ctx> {
         let r#type = r#type.unwrap_or_else(|| self.integer_type(compiler_const::bitlength::FIELD));
         let pointer = self.builder.build_pointer_cast(
             pointer,
-            r#type.ptr_type(inkwell::AddressSpace::Generic),
+            r#type.ptr_type(AddressSpace::Stack.into()),
             "",
         );
         pointer

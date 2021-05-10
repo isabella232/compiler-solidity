@@ -18,7 +18,7 @@ structopt = { version = "0.3", default-features = false }
 colored = "2.0"
 
 rand = "0.8"
-regex = "1.4"
+regex = "1.5"
 
 rayon = "1.5"
 
