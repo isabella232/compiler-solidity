@@ -68,7 +68,8 @@ impl Object {
 impl ILLVMWritable for Object {
     fn into_llvm(self, context: &mut LLVMContext) {
         context.set_object(self.identifier);
-        context.allocate_heap(compiler_const::size::FIELD * 1024);
+        context.allocate_heap(1024 * compiler_const::size::FIELD);
+        context.allocate_storage(1024);
 
         self.code.into_llvm(context);
 

@@ -796,33 +796,55 @@ impl FunctionCall {
 
             Name::SLoad => {
                 let arguments = self.pop_arguments::<1>(context);
-                let intrinsic = context.get_intrinsic_function(Intrinsic::StorageLoad);
 
-                let position = arguments[0];
-                let is_external_storage = context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .const_zero()
-                    .as_basic_value_enum();
-                let value = context
-                    .builder
-                    .build_call(intrinsic, &[position, is_external_storage], "")
-                    .try_as_basic_value()
-                    .expect_left("Contract storage always returns a value");
+                let value = match context.target {
+                    Target::LLVM => {
+                        let pointer = context.access_storage(arguments[0].into_int_value());
+                        let value = context.build_load(pointer, "");
+                        value
+                    }
+                    Target::zkEVM => {
+                        let intrinsic = context.get_intrinsic_function(Intrinsic::StorageLoad);
+                        let position = arguments[0];
+                        let is_external_storage = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_zero()
+                            .as_basic_value_enum();
+                        let value = context
+                            .builder
+                            .build_call(intrinsic, &[position, is_external_storage], "")
+                            .try_as_basic_value()
+                            .expect_left("Contract storage always returns a value");
+                        value
+                    }
+                };
+
                 Some(value)
             }
             Name::SStore => {
                 let arguments = self.pop_arguments::<2>(context);
-                let intrinsic = context.get_intrinsic_function(Intrinsic::StorageStore);
 
-                let position = arguments[0];
-                let value = arguments[1];
-                let is_external_storage = context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .const_zero()
-                    .as_basic_value_enum();
-                context
-                    .builder
-                    .build_call(intrinsic, &[position, value, is_external_storage], "");
+                match context.target {
+                    Target::LLVM => {
+                        let pointer = context.access_storage(arguments[0].into_int_value());
+                        context.build_store(pointer, arguments[1]);
+                    }
+                    Target::zkEVM => {
+                        let intrinsic = context.get_intrinsic_function(Intrinsic::StorageStore);
+                        let position = arguments[0];
+                        let value = arguments[1];
+                        let is_external_storage = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_zero()
+                            .as_basic_value_enum();
+                        context.builder.build_call(
+                            intrinsic,
+                            &[position, value, is_external_storage],
+                            "",
+                        );
+                    }
+                }
+
                 None
             }
 

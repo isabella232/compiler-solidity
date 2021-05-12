@@ -57,6 +57,8 @@ pub struct Context<'ctx> {
 
     /// The test heap representation.
     pub heap: Option<inkwell::values::GlobalValue<'ctx>>,
+    /// The test contract storage representation.
+    pub storage: Option<inkwell::values::GlobalValue<'ctx>>,
     /// The test entry hash.
     pub test_entry_hash: Option<String>,
 }
@@ -103,6 +105,7 @@ impl<'ctx> Context<'ctx> {
             pass_manager_function: None,
 
             heap: None,
+            storage: None,
             test_entry_hash: None,
         }
     }
@@ -555,6 +558,50 @@ impl<'ctx> Context<'ctx> {
             r#type.ptr_type(AddressSpace::Stack.into()),
             "",
         );
+        pointer
+    }
+
+    ///
+    /// Allocates the contract storage, if it has not been allocated yet.
+    ///
+    /// Mostly for testing.
+    ///
+    pub fn allocate_storage(&mut self, size: usize) {
+        if !matches!(self.target, Target::LLVM) {
+            return;
+        }
+
+        if self.storage.is_some() {
+            return;
+        }
+
+        let r#type = self
+            .integer_type(compiler_const::bitlength::FIELD)
+            .array_type(size as u32);
+        let global = self.module().add_global(r#type, None, "storage");
+        global.set_initializer(&r#type.const_zero());
+        self.storage = Some(global);
+    }
+
+    ///
+    /// Returns the storage pointer with the `offset` fields offset.
+    ///
+    /// Mostly for testing.
+    ///
+    pub fn access_storage(
+        &self,
+        offset: inkwell::values::IntValue<'ctx>,
+    ) -> inkwell::values::PointerValue<'ctx> {
+        let pointer = self.storage.expect("Always exists").as_pointer_value();
+        let mut indexes = Vec::with_capacity(2);
+        if let Target::LLVM = self.target {
+            indexes.push(
+                self.integer_type(compiler_const::bitlength::BYTE * 4)
+                    .const_zero(),
+            );
+        }
+        indexes.push(offset);
+        let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
         pointer
     }
 
