@@ -6,6 +6,7 @@ pub mod name;
 
 use std::convert::TryInto;
 
+use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
 
 use crate::error::Error;
@@ -20,7 +21,6 @@ use crate::parser::statement::expression::Expression;
 use crate::target::Target;
 
 use self::name::Name;
-use inkwell::types::BasicType;
 
 ///
 /// The function call subexpression.
@@ -321,29 +321,44 @@ impl FunctionCall {
             }
             Name::And => {
                 let arguments = self.pop_arguments::<2>(context);
-                let result = context.builder.build_and(
-                    arguments[0].into_int_value(),
-                    arguments[1].into_int_value(),
-                    "",
-                );
+                let result = match context.target {
+                    Target::LLVM => context.builder.build_and(
+                        arguments[0].into_int_value(),
+                        arguments[1].into_int_value(),
+                        "",
+                    ),
+                    Target::zkEVM => context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero(),
+                };
                 Some(result.as_basic_value_enum())
             }
             Name::Or => {
                 let arguments = self.pop_arguments::<2>(context);
-                let result = context.builder.build_or(
-                    arguments[0].into_int_value(),
-                    arguments[1].into_int_value(),
-                    "",
-                );
+                let result = match context.target {
+                    Target::LLVM => context.builder.build_or(
+                        arguments[0].into_int_value(),
+                        arguments[1].into_int_value(),
+                        "",
+                    ),
+                    Target::zkEVM => context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero(),
+                };
                 Some(result.as_basic_value_enum())
             }
             Name::Xor => {
                 let arguments = self.pop_arguments::<2>(context);
-                let result = context.builder.build_xor(
-                    arguments[0].into_int_value(),
-                    arguments[1].into_int_value(),
-                    "",
-                );
+                let result = match context.target {
+                    Target::LLVM => context.builder.build_xor(
+                        arguments[0].into_int_value(),
+                        arguments[1].into_int_value(),
+                        "",
+                    ),
+                    Target::zkEVM => context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero(),
+                };
                 Some(result.as_basic_value_enum())
             }
             Name::AddMod => {
@@ -744,9 +759,12 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<2>(context);
                 Some(arguments[1])
             }
-            Name::Keccak256 => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
+            Name::Keccak256 => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
             Name::Pc => {
                 panic!("The `{:?}` instruction is unsupported", self.name);
             }
@@ -800,8 +818,7 @@ impl FunctionCall {
                 let value = match context.target {
                     Target::LLVM => {
                         let pointer = context.access_storage(arguments[0].into_int_value());
-                        let value = context.build_load(pointer, "");
-                        value
+                        context.build_load(pointer, "")
                     }
                     Target::zkEVM => {
                         let intrinsic = context.get_intrinsic_function(Intrinsic::StorageLoad);
@@ -861,18 +878,24 @@ impl FunctionCall {
                     .as_basic_value_enum(),
             ),
             Name::CallDataLoad => {
-                let _arguments = self.pop_arguments::<1>(context);
-                let hash = match context.test_entry_hash {
-                    Some(ref hash) => context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .const_int_from_string(hash, inkwell::types::StringRadix::Hexadecimal)
-                        .expect(compiler_const::panic::TEST_DATA_VALID),
-                    None => context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .const_zero(),
+                let arguments = self.pop_arguments::<1>(context);
+
+                if let Some(ref test_entry_hash) = context.test_entry_hash {
+                    return Some(
+                        context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int_from_string(
+                                test_entry_hash,
+                                inkwell::types::StringRadix::Hexadecimal,
+                            )
+                            .expect(compiler_const::panic::TEST_DATA_VALID)
+                            .as_basic_value_enum(),
+                    );
                 }
-                .as_basic_value_enum();
-                Some(hash)
+
+                let pointer = context.access_calldata(arguments[0].into_int_value());
+                let value = context.build_load(pointer, "");
+                Some(value)
             }
             Name::CallDataSize => Some(
                 context
@@ -901,33 +924,60 @@ impl FunctionCall {
                 panic!("The `{:?}` instruction is unsupported", self.name);
             }
 
-            Name::ChainId => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
-            Name::Origin => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
-            Name::GasPrice => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
-            Name::BlockHash => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
-            Name::CoinBase => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
-            Name::Timestamp => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
-            Name::Number => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
-            Name::Difficulty => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
-            Name::GasLimit => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
+            Name::ChainId => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
+            Name::Origin => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
+            Name::GasPrice => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
+            Name::BlockHash => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
+            Name::CoinBase => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
+            Name::Timestamp => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
+            Name::Number => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
+            Name::Difficulty => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
+            Name::GasLimit => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
 
             Name::Create => {
                 panic!("The `{:?}` instruction is unsupported", self.name);
@@ -937,19 +987,24 @@ impl FunctionCall {
             }
 
             Name::Log0 => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let _arguments = self.pop_arguments::<2>(context);
+                None
             }
             Name::Log1 => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let _arguments = self.pop_arguments::<3>(context);
+                None
             }
             Name::Log2 => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let _arguments = self.pop_arguments::<4>(context);
+                None
             }
             Name::Log3 => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let _arguments = self.pop_arguments::<5>(context);
+                None
             }
             Name::Log4 => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let _arguments = self.pop_arguments::<6>(context);
+                None
             }
 
             Name::Call => {

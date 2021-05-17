@@ -70,6 +70,7 @@ impl ILLVMWritable for Object {
         context.set_object(self.identifier);
         context.allocate_heap(1024 * compiler_const::size::FIELD);
         context.allocate_storage(1024);
+        context.allocate_calldata(64);
 
         self.code.into_llvm(context);
 

@@ -59,6 +59,8 @@ pub struct Context<'ctx> {
     pub heap: Option<inkwell::values::GlobalValue<'ctx>>,
     /// The test contract storage representation.
     pub storage: Option<inkwell::values::GlobalValue<'ctx>>,
+    /// The test calldata representation.
+    pub calldata: Option<inkwell::values::GlobalValue<'ctx>>,
     /// The test entry hash.
     pub test_entry_hash: Option<String>,
 }
@@ -106,6 +108,7 @@ impl<'ctx> Context<'ctx> {
 
             heap: None,
             storage: None,
+            calldata: None,
             test_entry_hash: None,
         }
     }
@@ -504,35 +507,6 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
-    /// Allocates the heap, if it has not been allocated yet.
-    ///
-    /// Mostly for testing.
-    ///
-    pub fn allocate_heap(&mut self, size: usize) {
-        if self.heap.is_some() {
-            return;
-        }
-
-        let global = match self.target {
-            Target::LLVM => {
-                let r#type = self
-                    .integer_type(compiler_const::bitlength::BYTE)
-                    .array_type(size as u32);
-                let global = self.module().add_global(r#type, None, "heap");
-                global.set_initializer(&r#type.const_zero());
-                global
-            }
-            Target::zkEVM => {
-                let r#type = self
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Stack.into());
-                self.module().add_global(r#type, None, "heap")
-            }
-        };
-        self.heap = Some(global);
-    }
-
-    ///
     /// Returns the heap pointer with the `offset` bytes offset, optionally casted to `r#type`.
     ///
     /// Mostly for testing.
@@ -562,9 +536,82 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
-    /// Allocates the contract storage, if it has not been allocated yet.
+    /// Returns the storage pointer with the `offset` fields offset.
     ///
-    /// Mostly for testing.
+    /// Only for testing.
+    ///
+    pub fn access_storage(
+        &self,
+        offset: inkwell::values::IntValue<'ctx>,
+    ) -> inkwell::values::PointerValue<'ctx> {
+        let pointer = self.storage.expect("Always exists").as_pointer_value();
+        let indexes = vec![
+            self.integer_type(compiler_const::bitlength::BYTE * 4)
+                .const_zero(),
+            offset,
+        ];
+        let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
+        pointer
+    }
+
+    ///
+    /// Returns the calldata with the `offset` fields offset.
+    ///
+    pub fn access_calldata(
+        &self,
+        offset: inkwell::values::IntValue<'ctx>,
+    ) -> inkwell::values::PointerValue<'ctx> {
+        match self.target {
+            Target::LLVM => {
+                let pointer = self.calldata.expect("Always exists").as_pointer_value();
+                let indexes = vec![
+                    self.integer_type(compiler_const::bitlength::BYTE * 4)
+                        .const_zero(),
+                    offset,
+                ];
+                let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
+                pointer
+            }
+            Target::zkEVM => {
+                let pointer = self
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(AddressSpace::Child.into())
+                    .const_zero();
+                let pointer = unsafe { self.builder.build_gep(pointer, &[offset], "") };
+                pointer
+            }
+        }
+    }
+
+    ///
+    /// Allocates the heap, if it has not been allocated yet.
+    ///
+    pub fn allocate_heap(&mut self, size: usize) {
+        if self.heap.is_some() {
+            return;
+        }
+
+        let global = match self.target {
+            Target::LLVM => {
+                let r#type = self
+                    .integer_type(compiler_const::bitlength::BYTE)
+                    .array_type(size as u32);
+                let global = self.module().add_global(r#type, None, "heap");
+                global.set_initializer(&r#type.const_zero());
+                global
+            }
+            Target::zkEVM => {
+                let r#type = self
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(AddressSpace::Stack.into());
+                self.module().add_global(r#type, None, "heap")
+            }
+        };
+        self.heap = Some(global);
+    }
+
+    ///
+    /// Allocates the contract storage, if it has not been allocated yet.
     ///
     pub fn allocate_storage(&mut self, size: usize) {
         if !matches!(self.target, Target::LLVM) {
@@ -584,25 +631,23 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
-    /// Returns the storage pointer with the `offset` fields offset.
+    /// Allocates the calldata, if it has not been allocated yet.
     ///
-    /// Mostly for testing.
-    ///
-    pub fn access_storage(
-        &self,
-        offset: inkwell::values::IntValue<'ctx>,
-    ) -> inkwell::values::PointerValue<'ctx> {
-        let pointer = self.storage.expect("Always exists").as_pointer_value();
-        let mut indexes = Vec::with_capacity(2);
-        if let Target::LLVM = self.target {
-            indexes.push(
-                self.integer_type(compiler_const::bitlength::BYTE * 4)
-                    .const_zero(),
-            );
+    pub fn allocate_calldata(&mut self, size: usize) {
+        if !matches!(self.target, Target::LLVM) {
+            return;
         }
-        indexes.push(offset);
-        let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
-        pointer
+
+        if self.calldata.is_some() {
+            return;
+        }
+
+        let r#type = self
+            .integer_type(compiler_const::bitlength::FIELD)
+            .array_type(size as u32);
+        let global = self.module().add_global(r#type, None, "calldata");
+        global.set_initializer(&r#type.const_zero());
+        self.calldata = Some(global);
     }
 
     ///

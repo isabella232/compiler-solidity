@@ -58,6 +58,27 @@ impl Lexer {
         }
 
         loop {
+            if self.input[self.index..].starts_with('"') {
+                self.index += 1;
+                let mut string = String::new();
+                while !self.input[self.index..].starts_with('"') {
+                    string.push(
+                        self.input
+                            .chars()
+                            .nth(self.index)
+                            .expect(compiler_const::panic::VALUE_ALWAYS_EXISTS),
+                    );
+                    self.index += 1;
+                }
+                self.index += 1;
+                let string = string
+                    .strip_prefix('"')
+                    .and_then(|string| string.strip_suffix('"'))
+                    .unwrap_or_else(|| string.as_str())
+                    .to_owned();
+                return Ok(Lexeme::Literal(Literal::String(string.into())));
+            }
+
             let r#match = match self.regexp.find(&self.input[self.index..]) {
                 Some(r#match) => r#match,
                 None => return Ok(Lexeme::EndOfFile),
@@ -82,13 +103,6 @@ impl Lexer {
                             Lexeme::Literal(Literal::Integer(IntegerLiteral::new_hexadecimal(
                                 string,
                             )))
-                        } else if string.starts_with('"') {
-                            let string = string
-                                .strip_prefix('"')
-                                .and_then(|string| string.strip_suffix('"'))
-                                .unwrap_or_else(|| string.as_str())
-                                .to_owned();
-                            Lexeme::Literal(Literal::String(string.into()))
                         } else if Lexeme::is_identifier(string.as_str()) {
                             Lexeme::Identifier(string)
                         } else {
