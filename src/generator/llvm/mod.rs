@@ -516,23 +516,43 @@ impl<'ctx> Context<'ctx> {
         offset: inkwell::values::IntValue<'ctx>,
         r#type: Option<inkwell::types::IntType<'ctx>>,
     ) -> inkwell::values::PointerValue<'ctx> {
-        let pointer = self.heap.expect("Always exists").as_pointer_value();
-        let mut indexes = Vec::with_capacity(2);
-        if let Target::LLVM = self.target {
-            indexes.push(
-                self.integer_type(compiler_const::bitlength::BYTE * 4)
-                    .const_zero(),
-            );
+        match self.target {
+            Target::LLVM => {
+                let pointer = self.heap.expect("Always exists").as_pointer_value();
+                let mut indexes = Vec::with_capacity(2);
+                if let Target::LLVM = self.target {
+                    indexes.push(
+                        self.integer_type(compiler_const::bitlength::BYTE * 4)
+                            .const_zero(),
+                    );
+                }
+                indexes.push(offset);
+                let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
+                let r#type =
+                    r#type.unwrap_or_else(|| self.integer_type(compiler_const::bitlength::FIELD));
+                let pointer = self.builder.build_pointer_cast(
+                    pointer,
+                    r#type.ptr_type(AddressSpace::Stack.into()),
+                    "",
+                );
+                pointer
+            }
+            Target::zkEVM => {
+                let pointer = self
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(AddressSpace::Stack.into())
+                    .const_zero();
+                let pointer = unsafe { self.builder.build_gep(pointer, &[offset], "") };
+                let r#type =
+                    r#type.unwrap_or_else(|| self.integer_type(compiler_const::bitlength::FIELD));
+                let pointer = self.builder.build_pointer_cast(
+                    pointer,
+                    r#type.ptr_type(AddressSpace::Stack.into()),
+                    "",
+                );
+                pointer
+            }
         }
-        indexes.push(offset);
-        let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
-        let r#type = r#type.unwrap_or_else(|| self.integer_type(compiler_const::bitlength::FIELD));
-        let pointer = self.builder.build_pointer_cast(
-            pointer,
-            r#type.ptr_type(AddressSpace::Stack.into()),
-            "",
-        );
-        pointer
     }
 
     ///

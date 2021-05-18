@@ -10,6 +10,7 @@ use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
 
 use crate::error::Error;
+use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
@@ -765,9 +766,12 @@ impl FunctionCall {
                     .const_zero()
                     .as_basic_value_enum(),
             ),
-            Name::Pc => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
+            Name::Pc => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ),
 
             Name::Pop => {
                 let _arguments = self.pop_arguments::<1>(context);
@@ -869,7 +873,7 @@ impl FunctionCall {
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
                     .const_zero()
-                    .as_basic_value_enum(),
+                    .as_basic_value_enum(), // TODO: get from context
             ),
             Name::CallValue => Some(
                 context
@@ -897,12 +901,26 @@ impl FunctionCall {
                 let value = context.build_load(pointer, "");
                 Some(value)
             }
-            Name::CallDataSize => Some(
-                context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .const_int(4, false)
-                    .as_basic_value_enum(),
-            ),
+            Name::CallDataSize => match context.target {
+                Target::LLVM => Some(
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_int(4, false)
+                        .as_basic_value_enum(),
+                ),
+                Target::zkEVM => {
+                    let pointer = context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .ptr_type(AddressSpace::Parent.into())
+                        .const_zero();
+                    let offset = context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_int(1, false);
+                    let pointer = unsafe { context.builder.build_gep(pointer, &[offset], "") };
+                    let value = context.build_load(pointer, "");
+                    Some(value)
+                }
+            },
             Name::CallDataCopy => {
                 let _arguments = self.pop_arguments::<3>(context);
                 None
@@ -911,9 +929,12 @@ impl FunctionCall {
             Name::MSize => {
                 panic!("The `{:?}` instruction is unsupported", self.name);
             }
-            Name::Gas => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
-            }
+            Name::Gas => Some(
+                context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .const_zero()
+                    .as_basic_value_enum(), // TODO: get from context
+            ),
             Name::Address => {
                 panic!("The `{:?}` instruction is unsupported", self.name);
             }
@@ -958,13 +979,13 @@ impl FunctionCall {
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
                     .const_zero()
-                    .as_basic_value_enum(),
+                    .as_basic_value_enum(), // TODO: get from context
             ),
             Name::Number => Some(
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
                     .const_zero()
-                    .as_basic_value_enum(),
+                    .as_basic_value_enum(), // TODO: get from context
             ),
             Name::Difficulty => Some(
                 context
@@ -980,10 +1001,12 @@ impl FunctionCall {
             ),
 
             Name::Create => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let _arguments = self.pop_arguments::<3>(context);
+                None
             }
             Name::Create2 => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let _arguments = self.pop_arguments::<4>(context);
+                None
             }
 
             Name::Log0 => {
@@ -1008,16 +1031,464 @@ impl FunctionCall {
             }
 
             Name::Call => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let arguments = self.pop_arguments::<7>(context);
+
+                if let Target::LLVM = context.target {
+                    return Some(
+                        context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_zero()
+                            .as_basic_value_enum(),
+                    );
+                }
+
+                let address = arguments[1].into_int_value();
+                let input_offset = arguments[3].into_int_value();
+                let input_size = arguments[4].into_int_value();
+                let output_offset = arguments[5].into_int_value();
+                let output_size = arguments[6].into_int_value();
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::SwitchContext);
+                context.builder.build_call(intrinsic, &[], "");
+
+                let stack_pointer = context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(AddressSpace::Stack.into())
+                    .const_zero();
+                let child_pointer = context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(AddressSpace::Child.into())
+                    .const_zero();
+
+                let pointer = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(1, false)],
+                        "",
+                    )
+                };
+                context.build_store(pointer, input_size);
+                let pointer = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(2, false)],
+                        "",
+                    )
+                };
+                context.build_store(pointer, output_size);
+
+                let destination = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(8, false)],
+                        "",
+                    )
+                };
+                let source = unsafe {
+                    context
+                        .builder
+                        .build_gep(stack_pointer, &[input_offset], "")
+                };
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToChild);
+                context.builder.build_call(
+                    intrinsic,
+                    &[
+                        destination.as_basic_value_enum(),
+                        source.as_basic_value_enum(),
+                        input_size.as_basic_value_enum(),
+                    ],
+                    "",
+                );
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::FarCall);
+                context
+                    .builder
+                    .build_call(intrinsic, &[address.as_basic_value_enum()], "");
+
+                let destination = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(8, false)],
+                        "",
+                    )
+                };
+                let source = unsafe {
+                    context
+                        .builder
+                        .build_gep(stack_pointer, &[output_offset], "")
+                };
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyFromChild);
+                context.builder.build_call(
+                    intrinsic,
+                    &[
+                        destination.as_basic_value_enum(),
+                        source.as_basic_value_enum(),
+                        input_size.as_basic_value_enum(),
+                    ],
+                    "",
+                );
+
+                Some(
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_int(1, false)
+                        .as_basic_value_enum(),
+                )
             }
             Name::CallCode => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let arguments = self.pop_arguments::<7>(context);
+
+                if let Target::LLVM = context.target {
+                    return Some(
+                        context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_zero()
+                            .as_basic_value_enum(),
+                    );
+                }
+
+                let address = arguments[1].into_int_value();
+                let input_offset = arguments[3].into_int_value();
+                let input_size = arguments[4].into_int_value();
+                let output_offset = arguments[5].into_int_value();
+                let output_size = arguments[6].into_int_value();
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::SwitchContext);
+                context.builder.build_call(intrinsic, &[], "");
+
+                let stack_pointer = context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(AddressSpace::Stack.into())
+                    .const_zero();
+                let child_pointer = context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(AddressSpace::Child.into())
+                    .const_zero();
+
+                let pointer = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(1, false)],
+                        "",
+                    )
+                };
+                context.build_store(pointer, input_size);
+                let pointer = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(2, false)],
+                        "",
+                    )
+                };
+                context.build_store(pointer, output_size);
+
+                let destination = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(8, false)],
+                        "",
+                    )
+                };
+                let source = unsafe {
+                    context
+                        .builder
+                        .build_gep(stack_pointer, &[input_offset], "")
+                };
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToChild);
+                context.builder.build_call(
+                    intrinsic,
+                    &[
+                        destination.as_basic_value_enum(),
+                        source.as_basic_value_enum(),
+                        input_size.as_basic_value_enum(),
+                    ],
+                    "",
+                );
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::FarCall);
+                context
+                    .builder
+                    .build_call(intrinsic, &[address.as_basic_value_enum()], "");
+
+                let destination = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(8, false)],
+                        "",
+                    )
+                };
+                let source = unsafe {
+                    context
+                        .builder
+                        .build_gep(stack_pointer, &[output_offset], "")
+                };
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyFromChild);
+                context.builder.build_call(
+                    intrinsic,
+                    &[
+                        destination.as_basic_value_enum(),
+                        source.as_basic_value_enum(),
+                        input_size.as_basic_value_enum(),
+                    ],
+                    "",
+                );
+
+                Some(
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_int(1, false)
+                        .as_basic_value_enum(),
+                )
             }
             Name::DelegateCall => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let arguments = self.pop_arguments::<7>(context);
+
+                if let Target::LLVM = context.target {
+                    return Some(
+                        context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_zero()
+                            .as_basic_value_enum(),
+                    );
+                }
+
+                let address = arguments[1].into_int_value();
+                let input_offset = arguments[3].into_int_value();
+                let input_size = arguments[4].into_int_value();
+                let output_offset = arguments[5].into_int_value();
+                let output_size = arguments[6].into_int_value();
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::SwitchContext);
+                context.builder.build_call(intrinsic, &[], "");
+
+                let stack_pointer = context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(AddressSpace::Stack.into())
+                    .const_zero();
+                let child_pointer = context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(AddressSpace::Child.into())
+                    .const_zero();
+
+                let pointer = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(1, false)],
+                        "",
+                    )
+                };
+                context.build_store(pointer, input_size);
+                let pointer = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(2, false)],
+                        "",
+                    )
+                };
+                context.build_store(pointer, output_size);
+
+                let destination = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(8, false)],
+                        "",
+                    )
+                };
+                let source = unsafe {
+                    context
+                        .builder
+                        .build_gep(stack_pointer, &[input_offset], "")
+                };
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToChild);
+                context.builder.build_call(
+                    intrinsic,
+                    &[
+                        destination.as_basic_value_enum(),
+                        source.as_basic_value_enum(),
+                        input_size.as_basic_value_enum(),
+                    ],
+                    "",
+                );
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::FarCall);
+                context
+                    .builder
+                    .build_call(intrinsic, &[address.as_basic_value_enum()], "");
+
+                let destination = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(8, false)],
+                        "",
+                    )
+                };
+                let source = unsafe {
+                    context
+                        .builder
+                        .build_gep(stack_pointer, &[output_offset], "")
+                };
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyFromChild);
+                context.builder.build_call(
+                    intrinsic,
+                    &[
+                        destination.as_basic_value_enum(),
+                        source.as_basic_value_enum(),
+                        input_size.as_basic_value_enum(),
+                    ],
+                    "",
+                );
+
+                Some(
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_int(1, false)
+                        .as_basic_value_enum(),
+                )
             }
             Name::StaticCall => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let arguments = self.pop_arguments::<7>(context);
+
+                if let Target::LLVM = context.target {
+                    return Some(
+                        context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_zero()
+                            .as_basic_value_enum(),
+                    );
+                }
+
+                let address = arguments[1].into_int_value();
+                let input_offset = arguments[3].into_int_value();
+                let input_size = arguments[4].into_int_value();
+                let output_offset = arguments[5].into_int_value();
+                let output_size = arguments[6].into_int_value();
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::SwitchContext);
+                context.builder.build_call(intrinsic, &[], "");
+
+                let stack_pointer = context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(AddressSpace::Stack.into())
+                    .const_zero();
+                let child_pointer = context
+                    .integer_type(compiler_const::bitlength::FIELD)
+                    .ptr_type(AddressSpace::Child.into())
+                    .const_zero();
+
+                let pointer = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(1, false)],
+                        "",
+                    )
+                };
+                context.build_store(pointer, input_size);
+                let pointer = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(2, false)],
+                        "",
+                    )
+                };
+                context.build_store(pointer, output_size);
+
+                let destination = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(8, false)],
+                        "",
+                    )
+                };
+                let source = unsafe {
+                    context
+                        .builder
+                        .build_gep(stack_pointer, &[input_offset], "")
+                };
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToChild);
+                context.builder.build_call(
+                    intrinsic,
+                    &[
+                        destination.as_basic_value_enum(),
+                        source.as_basic_value_enum(),
+                        input_size.as_basic_value_enum(),
+                    ],
+                    "",
+                );
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::FarCall);
+                context
+                    .builder
+                    .build_call(intrinsic, &[address.as_basic_value_enum()], "");
+
+                let destination = unsafe {
+                    context.builder.build_gep(
+                        child_pointer,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(8, false)],
+                        "",
+                    )
+                };
+                let source = unsafe {
+                    context
+                        .builder
+                        .build_gep(stack_pointer, &[output_offset], "")
+                };
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyFromChild);
+                context.builder.build_call(
+                    intrinsic,
+                    &[
+                        destination.as_basic_value_enum(),
+                        source.as_basic_value_enum(),
+                        input_size.as_basic_value_enum(),
+                    ],
+                    "",
+                );
+
+                Some(
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_int(1, false)
+                        .as_basic_value_enum(),
+                )
             }
 
             Name::CodeSize => Some(
@@ -1043,12 +1514,26 @@ impl FunctionCall {
                 let _arguments = self.pop_arguments::<4>(context);
                 None
             }
-            Name::ReturnDataSize => Some(
-                context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .const_zero()
-                    .as_basic_value_enum(),
-            ),
+            Name::ReturnDataSize => match context.target {
+                Target::LLVM => Some(
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_zero()
+                        .as_basic_value_enum(),
+                ),
+                Target::zkEVM => {
+                    let pointer = context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .ptr_type(AddressSpace::Parent.into())
+                        .const_zero();
+                    let offset = context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_int(2, false);
+                    let pointer = unsafe { context.builder.build_gep(pointer, &[offset], "") };
+                    let value = context.build_load(pointer, "");
+                    Some(value)
+                }
+            },
             Name::ReturnDataCopy => {
                 let _arguments = self.pop_arguments::<3>(context);
                 None
@@ -1087,29 +1572,127 @@ impl FunctionCall {
             }
 
             Name::Stop => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let function = context.function().to_owned();
+
+                match context.target {
+                    Target::LLVM => {
+                        if let Some(return_pointer) = function.return_pointer() {
+                            let heap_type = match context.target {
+                                Target::LLVM => {
+                                    Some(context.integer_type(compiler_const::bitlength::BYTE))
+                                }
+                                Target::zkEVM => None,
+                            };
+
+                            let source = context.access_heap(
+                                context
+                                    .integer_type(compiler_const::bitlength::FIELD)
+                                    .const_zero(),
+                                heap_type,
+                            );
+                            let size = context
+                                .integer_type(compiler_const::bitlength::FIELD)
+                                .const_zero();
+                            context
+                                .builder
+                                .build_memcpy(
+                                    return_pointer,
+                                    (compiler_const::size::BYTE) as u32,
+                                    source,
+                                    (compiler_const::size::BYTE) as u32,
+                                    size,
+                                )
+                                .expect("Return memory copy failed");
+                        }
+                    }
+                    Target::zkEVM => {
+                        let intrinsic =
+                            context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
+                        let source = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .ptr_type(AddressSpace::Stack.into())
+                            .const_zero();
+                        let destination = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .ptr_type(AddressSpace::Parent.into())
+                            .const_zero();
+                        let size = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_zero();
+                        context.builder.build_call(
+                            intrinsic,
+                            &[
+                                destination.as_basic_value_enum(),
+                                source.as_basic_value_enum(),
+                                size.as_basic_value_enum(),
+                            ],
+                            "",
+                        );
+                    }
+                }
+
+                context.build_unconditional_branch(function.revert_block);
+                None
             }
             Name::Return => {
                 let arguments = self.pop_arguments::<2>(context);
 
                 let function = context.function().to_owned();
 
-                let pointer = context.access_heap(
-                    arguments[0].into_int_value(),
-                    Some(context.integer_type(compiler_const::bitlength::BYTE)),
-                );
+                match context.target {
+                    Target::LLVM => {
+                        let heap_type = match context.target {
+                            Target::LLVM => {
+                                Some(context.integer_type(compiler_const::bitlength::BYTE))
+                            }
+                            Target::zkEVM => None,
+                        };
 
-                if let Some(return_pointer) = function.return_pointer() {
-                    context
-                        .builder
-                        .build_memcpy(
-                            return_pointer,
-                            (compiler_const::size::BYTE) as u32,
-                            pointer,
-                            (compiler_const::size::BYTE) as u32,
-                            arguments[1].into_int_value(),
-                        )
-                        .expect("Return memory copy failed");
+                        let source = context.access_heap(arguments[0].into_int_value(), heap_type);
+
+                        if let Some(return_pointer) = function.return_pointer() {
+                            context
+                                .builder
+                                .build_memcpy(
+                                    return_pointer,
+                                    (compiler_const::size::BYTE) as u32,
+                                    source,
+                                    (compiler_const::size::BYTE) as u32,
+                                    arguments[1].into_int_value(),
+                                )
+                                .expect("Return memory copy failed");
+                        }
+                    }
+                    Target::zkEVM => {
+                        let intrinsic =
+                            context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
+
+                        let source = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .ptr_type(AddressSpace::Stack.into())
+                            .const_zero();
+                        let source = unsafe {
+                            context
+                                .builder
+                                .build_gep(source, &[arguments[0].into_int_value()], "")
+                        };
+                        let destination = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .ptr_type(AddressSpace::Parent.into())
+                            .const_zero();
+                        let size = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_zero();
+                        context.builder.build_call(
+                            intrinsic,
+                            &[
+                                destination.as_basic_value_enum(),
+                                source.as_basic_value_enum(),
+                                size.as_basic_value_enum(),
+                            ],
+                            "",
+                        );
+                    }
                 }
 
                 context.build_unconditional_branch(function.return_block);
@@ -1120,32 +1703,78 @@ impl FunctionCall {
 
                 let function = context.function().to_owned();
 
-                let pointer = context.access_heap(
-                    arguments[0].into_int_value(),
-                    Some(context.integer_type(compiler_const::bitlength::BYTE)),
-                );
+                match context.target {
+                    Target::LLVM => {
+                        let heap_type = match context.target {
+                            Target::LLVM => {
+                                Some(context.integer_type(compiler_const::bitlength::BYTE))
+                            }
+                            Target::zkEVM => None,
+                        };
 
-                if let Some(return_pointer) = function.return_pointer() {
-                    context
-                        .builder
-                        .build_memcpy(
-                            return_pointer,
-                            (compiler_const::size::BYTE) as u32,
-                            pointer,
-                            (compiler_const::size::BYTE) as u32,
-                            arguments[1].into_int_value(),
-                        )
-                        .expect("Revert memory copy failed");
+                        let source = context.access_heap(arguments[0].into_int_value(), heap_type);
+
+                        if let Some(return_pointer) = function.return_pointer() {
+                            context
+                                .builder
+                                .build_memcpy(
+                                    return_pointer,
+                                    (compiler_const::size::BYTE) as u32,
+                                    source,
+                                    (compiler_const::size::BYTE) as u32,
+                                    arguments[1].into_int_value(),
+                                )
+                                .expect("Return memory copy failed");
+                        }
+                    }
+                    Target::zkEVM => {
+                        let intrinsic =
+                            context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
+
+                        let source = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .ptr_type(AddressSpace::Stack.into())
+                            .const_zero();
+                        let source = unsafe {
+                            context
+                                .builder
+                                .build_gep(source, &[arguments[0].into_int_value()], "")
+                        };
+                        let destination = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .ptr_type(AddressSpace::Parent.into())
+                            .const_zero();
+                        let size = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_zero();
+                        context.builder.build_call(
+                            intrinsic,
+                            &[
+                                destination.as_basic_value_enum(),
+                                source.as_basic_value_enum(),
+                                size.as_basic_value_enum(),
+                            ],
+                            "",
+                        );
+                    }
                 }
 
                 context.build_unconditional_branch(function.revert_block);
                 None
             }
             Name::SelfDestruct => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let _arguments = self.pop_arguments::<1>(context);
+
+                let function = context.function().to_owned();
+
+                context.build_unconditional_branch(function.revert_block);
+                None
             }
             Name::Invalid => {
-                panic!("The `{:?}` instruction is unsupported", self.name);
+                let function = context.function().to_owned();
+
+                context.build_unconditional_branch(function.revert_block);
+                None
             }
 
             Name::UserDefined(name) => {
