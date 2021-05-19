@@ -1336,13 +1336,7 @@ impl FunctionCall {
                         .const_zero();
                     let source = unsafe { context.builder.build_gep(source, &[source_offset], "") };
 
-                    let size = context.builder.build_int_unsigned_div(
-                        arguments[2].into_int_value(),
-                        context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .const_int(compiler_const::size::FIELD as u64, false),
-                        "",
-                    );
+                    let size = arguments[2].into_int_value();
 
                     let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyFromChild);
                     let call_site_value = context.builder.build_call(
@@ -1462,13 +1456,7 @@ impl FunctionCall {
                             )
                         };
 
-                        let size = context.builder.build_int_unsigned_div(
-                            arguments[1].into_int_value(),
-                            context
-                                .integer_type(compiler_const::bitlength::FIELD)
-                                .const_int(compiler_const::size::FIELD as u64, false),
-                            "",
-                        );
+                        let size = arguments[1].into_int_value();
 
                         let call_site_value = context.builder.build_call(
                             intrinsic,
@@ -1556,13 +1544,7 @@ impl FunctionCall {
                             )
                         };
 
-                        let size = context.builder.build_int_unsigned_div(
-                            arguments[1].into_int_value(),
-                            context
-                                .integer_type(compiler_const::bitlength::FIELD)
-                                .const_int(compiler_const::size::FIELD as u64, false),
-                            "",
-                        );
+                        let size = arguments[1].into_int_value();
 
                         let call_site_value = context.builder.build_call(
                             intrinsic,
@@ -1592,83 +1574,34 @@ impl FunctionCall {
             Name::Stop => {
                 let function = context.function().to_owned();
 
-                match context.target {
-                    Target::LLVM => {
-                        if let Some(return_pointer) = function.return_pointer() {
-                            let heap_type = match context.target {
-                                Target::LLVM => {
-                                    Some(context.integer_type(compiler_const::bitlength::BYTE))
-                                }
-                                Target::zkEVM => None,
-                            };
-
-                            let source = context.access_heap(
-                                context
-                                    .integer_type(compiler_const::bitlength::FIELD)
-                                    .const_zero(),
-                                heap_type,
-                            );
-                            let size = context
-                                .integer_type(compiler_const::bitlength::FIELD)
-                                .const_zero();
-                            context
-                                .builder
-                                .build_memcpy(
-                                    return_pointer,
-                                    (compiler_const::size::BYTE) as u32,
-                                    source,
-                                    (compiler_const::size::BYTE) as u32,
-                                    size,
-                                )
-                                .expect("Return memory copy failed");
-                        }
-                    }
-                    Target::zkEVM => {
-                        let intrinsic =
-                            context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
-
-                        let source = context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .ptr_type(AddressSpace::Stack.into())
-                            .const_zero();
-
-                        let destination = context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .ptr_type(AddressSpace::Parent.into())
-                            .const_zero();
-                        let destination = unsafe {
-                            context.builder.build_gep(
-                                destination,
-                                &[context
-                                    .integer_type(compiler_const::bitlength::FIELD)
-                                    .const_int(8, false)],
-                                "",
-                            )
+                if let Target::LLVM = context.target {
+                    if let Some(return_pointer) = function.return_pointer() {
+                        let heap_type = match context.target {
+                            Target::LLVM => {
+                                Some(context.integer_type(compiler_const::bitlength::BYTE))
+                            }
+                            Target::zkEVM => None,
                         };
 
+                        let source = context.access_heap(
+                            context
+                                .integer_type(compiler_const::bitlength::FIELD)
+                                .const_zero(),
+                            heap_type,
+                        );
                         let size = context
                             .integer_type(compiler_const::bitlength::FIELD)
                             .const_zero();
-
-                        let call_site_value = context.builder.build_call(
-                            intrinsic,
-                            &[
-                                destination.as_basic_value_enum(),
-                                source.as_basic_value_enum(),
-                                size.as_basic_value_enum(),
-                                context
-                                    .integer_type(compiler_const::bitlength::BOOLEAN)
-                                    .const_zero()
-                                    .as_basic_value_enum(),
-                            ],
-                            "",
-                        );
-                        for index in 0..intrinsic.count_params() {
-                            call_site_value.set_alignment_attribute(
-                                inkwell::attributes::AttributeLoc::Param(index),
-                                compiler_const::size::FIELD as u32,
-                            );
-                        }
+                        context
+                            .builder
+                            .build_memcpy(
+                                return_pointer,
+                                (compiler_const::size::BYTE) as u32,
+                                source,
+                                (compiler_const::size::BYTE) as u32,
+                                size,
+                            )
+                            .expect("Return memory copy failed");
                     }
                 }
 
@@ -1786,22 +1719,8 @@ impl FunctionCall {
                 .const_int(compiler_const::size::FIELD as u64, false),
             "",
         );
-        let input_size = context.builder.build_int_unsigned_div(
-            input_size,
-            context
-                .integer_type(compiler_const::bitlength::FIELD)
-                .const_int(compiler_const::size::FIELD as u64, false),
-            "",
-        );
         let output_offset = context.builder.build_int_unsigned_div(
             output_offset,
-            context
-                .integer_type(compiler_const::bitlength::FIELD)
-                .const_int(compiler_const::size::FIELD as u64, false),
-            "",
-        );
-        let output_size = context.builder.build_int_unsigned_div(
-            output_size,
             context
                 .integer_type(compiler_const::bitlength::FIELD)
                 .const_int(compiler_const::size::FIELD as u64, false),

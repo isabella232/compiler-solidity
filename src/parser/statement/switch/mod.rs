@@ -86,37 +86,47 @@ impl Switch {
 }
 
 impl ILLVMWritable for Switch {
-    fn into_llvm<'ctx>(mut self, context: &mut LLVMContext<'ctx>) {
-        let default = context.append_basic_block("switch.default");
-        let join_block = context.append_basic_block("switch.join");
+    fn into_llvm(self, context: &mut LLVMContext) {
+        let join_block = context.append_basic_block("join");
 
-        let mut cases: Vec<(
-            inkwell::values::IntValue<'ctx>,
-            inkwell::basic_block::BasicBlock<'ctx>,
-        )> = Vec::with_capacity(self.cases.len());
-        for (index, case) in self.cases.iter().enumerate() {
-            let value = case.literal.to_owned().into_llvm(context).into_int_value();
-            let basic_block = context.append_basic_block(format!("switch.case.{}", index).as_str());
-            cases.push((value, basic_block));
-        }
+        let mut current_block = context.append_basic_block("left1");
+        context.build_unconditional_branch(current_block);
 
-        let switch_expression = self
-            .expression
-            .into_llvm(context)
-            .expect("Always exists")
-            .into_int_value();
-        context
-            .builder
-            .build_switch(switch_expression, default, &cases);
+        let branches_count = self.cases.len();
+        for (index, case) in self.cases.into_iter().enumerate() {
+            if self.default.is_none() && index == branches_count - 1 {
+                context.set_basic_block(current_block);
+                case.block.into_llvm_local(context);
+                context.build_unconditional_branch(join_block);
+                break;
+            }
 
-        for (_value, basic_block) in cases.into_iter() {
-            context.set_basic_block(basic_block);
-            self.cases.remove(0).block.into_llvm_local(context);
+            let expression_block =
+                context.append_basic_block(format!("right{}", index + 1).as_str());
+            context.set_basic_block(expression_block);
+            case.block.into_llvm_local(context);
             context.build_unconditional_branch(join_block);
+
+            context.set_basic_block(current_block);
+            let scrutinee = self
+                .expression
+                .clone()
+                .into_llvm(context)
+                .expect("Always exists");
+            let constant = case.literal.into_llvm(context);
+            let comparison = context.builder.build_int_compare(
+                inkwell::IntPredicate::EQ,
+                constant.into_int_value(),
+                scrutinee.into_int_value(),
+                "",
+            );
+            let next_block = context.append_basic_block(format!("left{}", index + 2).as_str());
+            context.build_conditional_branch(comparison, expression_block, next_block);
+            current_block = next_block;
         }
 
-        context.set_basic_block(default);
-        if let Some(block) = self.default.take() {
+        if let Some(block) = self.default {
+            context.set_basic_block(current_block);
             block.into_llvm_local(context);
         }
 
