@@ -108,11 +108,12 @@ impl Block {
 
         let name = context.object().to_owned();
 
-        let return_type = match context.target {
-            Target::LLVM => context.integer_type(compiler_const::bitlength::WORD),
-            Target::zkEVM => context.integer_type(compiler_const::bitlength::FIELD),
+        let function_type = match context.target {
+            Target::LLVM => context
+                .integer_type(compiler_const::bitlength::WORD)
+                .fn_type(&[], false),
+            Target::zkEVM => context.void_type().fn_type(&[], false),
         };
-        let function_type = return_type.fn_type(&[], false);
         context.add_function(
             name.as_str(),
             function_type,
@@ -133,28 +134,44 @@ impl Block {
         context.build_unconditional_branch(function.return_block);
 
         context.set_basic_block(function.revert_block);
-        let mut return_value = context.build_load(return_pointer, "");
-        if let Target::LLVM = context.target {
-            return_value = context
-                .builder
-                .build_int_truncate_or_bit_cast(return_value.into_int_value(), return_type, "")
-                .as_basic_value_enum();
+        match context.target {
+            Target::LLVM => {
+                let mut return_value = context.build_load(return_pointer, "");
+                return_value = context
+                    .builder
+                    .build_int_truncate_or_bit_cast(
+                        return_value.into_int_value(),
+                        context.integer_type(compiler_const::bitlength::WORD),
+                        "",
+                    )
+                    .as_basic_value_enum();
+                context.build_return(Some(&return_value));
+            }
+            Target::zkEVM => {
+                let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
+                context.builder.build_call(intrinsic, &[], "");
+                context.build_return(None);
+            }
         }
-        if let Target::zkEVM = context.target {
-            let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-            context.builder.build_call(intrinsic, &[], "");
-        }
-        context.build_return(Some(&return_value));
 
         context.set_basic_block(function.return_block);
-        let mut return_value = context.build_load(return_pointer, "");
-        if let Target::LLVM = context.target {
-            return_value = context
-                .builder
-                .build_int_truncate_or_bit_cast(return_value.into_int_value(), return_type, "")
-                .as_basic_value_enum();
+        match context.target {
+            Target::LLVM => {
+                let mut return_value = context.build_load(return_pointer, "");
+                return_value = context
+                    .builder
+                    .build_int_truncate_or_bit_cast(
+                        return_value.into_int_value(),
+                        context.integer_type(compiler_const::bitlength::WORD),
+                        "",
+                    )
+                    .as_basic_value_enum();
+                context.build_return(Some(&return_value));
+            }
+            Target::zkEVM => {
+                context.build_return(None);
+            }
         }
-        context.build_return(Some(&return_value));
 
         for function in functions.into_iter() {
             function.into_llvm(context);

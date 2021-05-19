@@ -172,12 +172,12 @@ pub enum Name {
     ///  is equivalent to `CodeCopy`
     DataCopy,
 
-    /// stop execution, identical to `return(0, 0)`
-    Stop,
     /// end execution, return data `mem[p…(p+s))`
     Return,
     /// end execution, revert state changes, return data `mem[p…(p+s))`
     Revert,
+    /// stop execution, identical to `return(0, 0)`
+    Stop,
     /// end execution, destroy current contract and send funds to `a`
     SelfDestruct,
     /// end execution with invalid instruction
@@ -275,9 +275,9 @@ impl From<&str> for Name {
             "dataoffset" => Self::DataOffset,
             "datacopy" => Self::DataCopy,
 
-            "stop" => Self::Stop,
             "return" => Self::Return,
             "revert" => Self::Revert,
+            "stop" => Self::Stop,
             "selfdestruct" => Self::SelfDestruct,
             "invalid" => Self::Invalid,
 

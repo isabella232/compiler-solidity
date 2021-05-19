@@ -23,8 +23,8 @@ pub enum Intrinsic {
 
     /// The contract context switch.
     SwitchContext,
-    /// The contract execution remaining cycles.
-    CyclesRemain,
+    /// The contract context getter.
+    GetFromContext,
     /// The another contract function call.
     FarCall,
     /// The error throwing.
@@ -51,6 +51,13 @@ pub enum Intrinsic {
     MemoryMove,
     /// The memory set.
     MemorySet,
+
+    /// The `eq` flag getter.
+    EqualsFlag,
+    /// The `gt` flag getter.
+    GreaterFlag,
+    /// The `lt`/overflow flag getter.
+    LesserFlag,
 }
 
 impl Intrinsic {
@@ -65,7 +72,7 @@ impl Intrinsic {
             Intrinsic::Event => "llvm.syncvm.event",
 
             Intrinsic::SwitchContext => "llvm.syncvm.switchcontext",
-            Intrinsic::CyclesRemain => "llvm.syncvm.cyclesremain",
+            Intrinsic::GetFromContext => "llvm.syncvm.getfromcontext",
             Intrinsic::FarCall => "llvm.syncvm.farcall",
             Intrinsic::Throw => "llvm.syncvm.throw",
 
@@ -80,6 +87,10 @@ impl Intrinsic {
             Intrinsic::MemoryCopyToChild => "llvm.memcpy",
             Intrinsic::MemoryMove => "llvm.memmov",
             Intrinsic::MemorySet => "llvm.memset",
+
+            Intrinsic::EqualsFlag => "llvm.syncvm.eqflag",
+            Intrinsic::LesserFlag => "llvm.syncvm.ltflag",
+            Intrinsic::GreaterFlag => "llvm.syncvm.gtflag",
         }
     }
 
@@ -97,7 +108,7 @@ impl Intrinsic {
             Self::Event => vec![],
 
             Self::SwitchContext => vec![],
-            Self::CyclesRemain => vec![],
+            Self::GetFromContext => vec![],
             Self::FarCall => vec![],
             Self::Throw => vec![],
 
@@ -192,6 +203,10 @@ impl Intrinsic {
                     .integer_type(compiler_const::bitlength::FIELD)
                     .as_basic_type_enum(),
             ],
+
+            Self::EqualsFlag => vec![],
+            Self::GreaterFlag => vec![],
+            Self::LesserFlag => vec![],
         }
     }
 }

@@ -64,7 +64,8 @@ pub fn compile(
             return Ok(llvm_code);
         }
         if dump_llvm {
-            println!("The LLVM IR code:\n{}", llvm_code);
+            eprintln!("The LLVM IR code:\n");
+            println!("{}", llvm_code);
         }
     }
 

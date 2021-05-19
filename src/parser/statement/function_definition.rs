@@ -216,10 +216,10 @@ impl ILLVMWritable for FunctionDefinition {
         match r#return {
             FunctionReturn::None => {
                 context.set_basic_block(function.revert_block);
-                if let Target::zkEVM = context.target {
-                    let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                    context.builder.build_call(intrinsic, &[], "");
-                }
+                // if let Target::zkEVM = context.target {
+                //     let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
+                //     context.builder.build_call(intrinsic, &[], "");
+                // }
                 context.build_return(None);
 
                 context.set_basic_block(function.return_block);
@@ -228,10 +228,10 @@ impl ILLVMWritable for FunctionDefinition {
             FunctionReturn::Primitive { pointer } => {
                 context.set_basic_block(function.revert_block);
                 let return_value = context.build_load(pointer, "");
-                if let Target::zkEVM = context.target {
-                    let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                    context.builder.build_call(intrinsic, &[], "");
-                }
+                // if let Target::zkEVM = context.target {
+                //     let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
+                //     context.builder.build_call(intrinsic, &[], "");
+                // }
                 context.build_return(Some(&return_value));
 
                 context.set_basic_block(function.return_block);
@@ -243,10 +243,10 @@ impl ILLVMWritable for FunctionDefinition {
                 ..
             } => {
                 context.set_basic_block(function.revert_block);
-                if let Target::zkEVM = context.target {
-                    let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                    context.builder.build_call(intrinsic, &[], "");
-                }
+                // if let Target::zkEVM = context.target {
+                //     let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
+                //     context.builder.build_call(intrinsic, &[], "");
+                // }
                 context.build_return(Some(&return_pointer));
 
                 context.set_basic_block(function.return_block);

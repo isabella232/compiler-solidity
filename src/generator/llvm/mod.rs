@@ -3,6 +3,7 @@
 //!
 
 pub mod address_space;
+pub mod context_value;
 pub mod function;
 pub mod intrinsic;
 pub mod r#loop;
@@ -214,6 +215,11 @@ impl<'ctx> Context<'ctx> {
         linkage: Option<inkwell::module::Linkage>,
     ) {
         let value = self.module().add_function(name, r#type, linkage);
+        if let Target::zkEVM = self.target {
+            for index in 0..r#type.count_param_types() {
+                value.set_param_alignment(index, compiler_const::size::FIELD as u32);
+            }
+        }
 
         let entry_block = self.llvm.append_basic_block(value, "entry");
         let revert_block = self.llvm.append_basic_block(value, "revert");
@@ -453,6 +459,13 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
+    /// Returns the void type.
+    ///
+    pub fn void_type(&self) -> inkwell::types::VoidType<'ctx> {
+        self.llvm.void_type()
+    }
+
+    ///
     /// Returns the integer type of the specified bitlength.
     ///
     pub fn integer_type(&self, bitlength: usize) -> inkwell::types::IntType<'ctx> {
@@ -542,14 +555,13 @@ impl<'ctx> Context<'ctx> {
                     .integer_type(compiler_const::bitlength::FIELD)
                     .ptr_type(AddressSpace::Stack.into())
                     .const_zero();
-                let pointer = unsafe { self.builder.build_gep(pointer, &[offset], "") };
-                let r#type =
-                    r#type.unwrap_or_else(|| self.integer_type(compiler_const::bitlength::FIELD));
-                let pointer = self.builder.build_pointer_cast(
-                    pointer,
-                    r#type.ptr_type(AddressSpace::Stack.into()),
+                let offset = self.builder.build_int_unsigned_div(
+                    offset,
+                    self.integer_type(compiler_const::bitlength::FIELD)
+                        .const_int(compiler_const::size::FIELD as u64, false),
                     "",
                 );
+                let pointer = unsafe { self.builder.build_gep(pointer, &[offset], "") };
                 pointer
             }
         }
@@ -595,7 +607,7 @@ impl<'ctx> Context<'ctx> {
             Target::zkEVM => {
                 let pointer = self
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Child.into())
+                    .ptr_type(AddressSpace::Parent.into())
                     .const_zero();
                 let pointer = unsafe { self.builder.build_gep(pointer, &[offset], "") };
                 pointer
