@@ -112,9 +112,7 @@ impl ILLVMWritable for VariableDeclaration {
                             context.builder.build_gep(
                                 pointer,
                                 &[
-                                    context
-                                        .integer_type(compiler_const::bitlength::FIELD)
-                                        .const_zero(),
+                                    context.field_const(0),
                                     context
                                         .integer_type(compiler_const::bitlength::BYTE * 4)
                                         .const_int(index as u64, false),

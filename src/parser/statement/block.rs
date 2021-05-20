@@ -149,7 +149,7 @@ impl Block {
             }
             Target::zkEVM => {
                 let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                context.builder.build_call(intrinsic, &[], "");
+                context.build_call(intrinsic, &[], "");
                 context.build_return(None);
             }
         }

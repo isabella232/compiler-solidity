@@ -130,9 +130,7 @@ impl ILLVMWritable for FunctionDefinition {
                         context.builder.build_gep(
                             pointer,
                             &[
-                                context
-                                    .integer_type(compiler_const::bitlength::FIELD)
-                                    .const_zero(),
+                                context.field_const(0),
                                 context
                                     .integer_type(compiler_const::bitlength::BYTE * 4)
                                     .const_int(index as u64, false),
@@ -218,7 +216,7 @@ impl ILLVMWritable for FunctionDefinition {
                 context.set_basic_block(function.revert_block);
                 // if let Target::zkEVM = context.target {
                 //     let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                //     context.builder.build_call(intrinsic, &[], "");
+                //     context.build_call(intrinsic, &[], "");
                 // }
                 context.build_return(None);
 
@@ -230,7 +228,7 @@ impl ILLVMWritable for FunctionDefinition {
                 let return_value = context.build_load(pointer, "");
                 // if let Target::zkEVM = context.target {
                 //     let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                //     context.builder.build_call(intrinsic, &[], "");
+                //     context.build_call(intrinsic, &[], "");
                 // }
                 context.build_return(Some(&return_value));
 
@@ -245,7 +243,7 @@ impl ILLVMWritable for FunctionDefinition {
                 context.set_basic_block(function.revert_block);
                 // if let Target::zkEVM = context.target {
                 //     let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                //     context.builder.build_call(intrinsic, &[], "");
+                //     context.build_call(intrinsic, &[], "");
                 // }
                 context.build_return(Some(&return_pointer));
 

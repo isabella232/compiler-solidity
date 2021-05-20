@@ -29,3 +29,20 @@ impl TryFrom<&str> for Target {
         })
     }
 }
+
+impl From<&Option<inkwell::targets::TargetMachine>> for Target {
+    fn from(machine: &Option<inkwell::targets::TargetMachine>) -> Self {
+        match machine {
+            Some(machine) => {
+                if machine.get_target().get_name().to_string_lossy().as_ref()
+                    == compiler_const::virtual_machine::TARGET_NAME
+                {
+                    Self::zkEVM
+                } else {
+                    Self::LLVM
+                }
+            }
+            None => Self::LLVM,
+        }
+    }
+}

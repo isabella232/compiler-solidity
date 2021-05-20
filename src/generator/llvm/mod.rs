@@ -36,7 +36,7 @@ pub struct Context<'ctx> {
     /// The inner LLVM context.
     llvm: &'ctx inkwell::context::Context,
     /// The current module.
-    module: Option<inkwell::module::Module<'ctx>>,
+    module: inkwell::module::Module<'ctx>,
     /// The current object name.
     object: Option<String>,
     /// The current function.
@@ -46,15 +46,10 @@ pub struct Context<'ctx> {
 
     /// The optimization level.
     optimization_level: inkwell::OptimizationLevel,
-    /// The optimization pass manager builder.
-    pass_manager_builder: inkwell::passes::PassManagerBuilder,
-    /// The link-time optimization pass manager.
-    pass_manager_link_time: Option<inkwell::passes::PassManager<inkwell::module::Module<'ctx>>>,
     /// The module optimization pass manager.
-    pass_manager_module: Option<inkwell::passes::PassManager<inkwell::module::Module<'ctx>>>,
+    pass_manager_module: inkwell::passes::PassManager<inkwell::module::Module<'ctx>>,
     /// The function optimization pass manager.
-    pass_manager_function:
-        Option<inkwell::passes::PassManager<inkwell::values::FunctionValue<'ctx>>>,
+    pass_manager_function: inkwell::passes::PassManager<inkwell::values::FunctionValue<'ctx>>,
 
     /// The test heap representation.
     pub heap: Option<inkwell::values::GlobalValue<'ctx>>,
@@ -75,8 +70,11 @@ impl<'ctx> Context<'ctx> {
     ///
     /// Initializes a new LLVM context.
     ///
-    pub fn new(llvm: &'ctx inkwell::context::Context, target: Target) -> Self {
-        Self::new_with_optimizer(llvm, target, inkwell::OptimizationLevel::None)
+    pub fn new(
+        llvm: &'ctx inkwell::context::Context,
+        machine: &Option<inkwell::targets::TargetMachine>,
+    ) -> Self {
+        Self::new_with_optimizer(llvm, machine, inkwell::OptimizationLevel::None)
     }
 
     ///
@@ -84,28 +82,39 @@ impl<'ctx> Context<'ctx> {
     ///
     pub fn new_with_optimizer(
         llvm: &'ctx inkwell::context::Context,
-        target: Target,
+        machine: &Option<inkwell::targets::TargetMachine>,
         optimization_level: inkwell::OptimizationLevel,
     ) -> Self {
+        let module = llvm.create_module(compiler_const::source::FUNCTION_MAIN_IDENTIFIER);
+        if let Some(machine) = machine {
+            module.set_triple(&machine.get_triple());
+            module.set_data_layout(&machine.get_target_data().get_data_layout());
+        }
+
         let pass_manager_builder = inkwell::passes::PassManagerBuilder::create();
         pass_manager_builder.set_optimization_level(optimization_level);
 
+        let pass_manager_module = inkwell::passes::PassManager::create(());
+        pass_manager_builder.populate_module_pass_manager(&pass_manager_module);
+        pass_manager_builder.populate_lto_pass_manager(&pass_manager_module, true, true);
+
+        let pass_manager_function = inkwell::passes::PassManager::create(&module);
+        pass_manager_builder.populate_function_pass_manager(&pass_manager_function);
+
         Self {
-            target,
+            target: machine.into(),
             builder: llvm.create_builder(),
             functions: HashMap::with_capacity(Self::FUNCTION_HASHMAP_INITIAL_CAPACITY),
 
             llvm,
-            module: None,
+            module,
             object: None,
             function: None,
             loop_stack: Vec::with_capacity(Self::LOOP_STACK_INITIAL_CAPACITY),
 
             optimization_level,
-            pass_manager_builder,
-            pass_manager_link_time: None,
-            pass_manager_module: None,
-            pass_manager_function: None,
+            pass_manager_module,
+            pass_manager_function,
 
             heap: None,
             storage: None,
@@ -127,25 +136,10 @@ impl<'ctx> Context<'ctx> {
     /// Should be only run when the entire module has been translated.
     ///
     pub fn optimize(&self) {
-        let pass_manager_function = self
-            .pass_manager_function
-            .as_ref()
-            .expect("Pass managers are created with the module");
         for (_, function) in self.functions.iter() {
-            function.optimize(&pass_manager_function);
+            function.optimize(&self.pass_manager_function);
         }
-
-        let pass_manager_module = self
-            .pass_manager_module
-            .as_ref()
-            .expect("Pass managers are created with the module");
-        pass_manager_module.run_on(self.module());
-
-        let pass_manager_link_time = self
-            .pass_manager_link_time
-            .as_ref()
-            .expect("Pass managers are created with the module");
-        pass_manager_link_time.run_on(self.module());
+        self.pass_manager_module.run_on(self.module());
     }
 
     ///
@@ -159,36 +153,10 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
-    /// Creates a new module in the context.
-    ///
-    pub fn create_module(&mut self, name: &str) {
-        let module = self.llvm.create_module(name);
-
-        let pass_manager_link_time = inkwell::passes::PassManager::create(());
-        self.pass_manager_builder
-            .populate_lto_pass_manager(&pass_manager_link_time, true, true);
-        self.pass_manager_link_time = Some(pass_manager_link_time);
-
-        let pass_manager_module = inkwell::passes::PassManager::create(());
-        self.pass_manager_builder
-            .populate_module_pass_manager(&pass_manager_module);
-        self.pass_manager_module = Some(pass_manager_module);
-
-        let pass_manager_function = inkwell::passes::PassManager::create(&module);
-        self.pass_manager_builder
-            .populate_function_pass_manager(&pass_manager_function);
-        self.pass_manager_function = Some(pass_manager_function);
-
-        self.module = Some(module);
-    }
-
-    ///
     /// Returns the current module reference.
     ///
     pub fn module(&self) -> &inkwell::module::Module<'ctx> {
-        self.module
-            .as_ref()
-            .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION)
+        &self.module
     }
 
     ///
@@ -446,6 +414,33 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
+    /// Builds a call.
+    ///
+    /// Checks if there are no other terminators in the block.
+    ///
+    pub fn build_call(
+        &self,
+        function: inkwell::values::FunctionValue<'ctx>,
+        args: &[inkwell::values::BasicValueEnum<'ctx>],
+        name: &str,
+    ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+        let call_site_value = self.builder.build_call(function, args, name);
+        if let Target::zkEVM = self.target {
+            for index in 0..function.count_params() {
+                call_site_value.set_alignment_attribute(
+                    inkwell::attributes::AttributeLoc::Param(index),
+                    compiler_const::size::FIELD as u32,
+                );
+            }
+            call_site_value.set_alignment_attribute(
+                inkwell::attributes::AttributeLoc::Return,
+                compiler_const::size::FIELD as u32,
+            );
+        }
+        call_site_value.try_as_basic_value().left()
+    }
+
+    ///
     /// Builds a return.
     ///
     /// Checks if there are no other terminators in the block.
@@ -456,6 +451,14 @@ impl<'ctx> Context<'ctx> {
         }
 
         self.builder.build_return(value);
+    }
+
+    ///
+    /// Returns a field type constants.
+    ///
+    pub fn field_const(&self, value: u64) -> inkwell::values::IntValue<'ctx> {
+        self.integer_type(compiler_const::bitlength::FIELD)
+            .const_int(value, false)
     }
 
     ///
@@ -520,6 +523,13 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
+    /// The inner context reference. Only for testing.
+    ///
+    pub fn inner(&self) -> &'ctx inkwell::context::Context {
+        &self.llvm
+    }
+
+    ///
     /// Returns the heap pointer with the `offset` bytes offset, optionally casted to `r#type`.
     ///
     /// Mostly for testing.
@@ -534,10 +544,7 @@ impl<'ctx> Context<'ctx> {
                 let pointer = self.heap.expect("Always exists").as_pointer_value();
                 let mut indexes = Vec::with_capacity(2);
                 if let Target::LLVM = self.target {
-                    indexes.push(
-                        self.integer_type(compiler_const::bitlength::BYTE * 4)
-                            .const_zero(),
-                    );
+                    indexes.push(self.field_const(0));
                 }
                 indexes.push(offset);
                 let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
@@ -557,8 +564,7 @@ impl<'ctx> Context<'ctx> {
                     .const_zero();
                 let offset = self.builder.build_int_unsigned_div(
                     offset,
-                    self.integer_type(compiler_const::bitlength::FIELD)
-                        .const_int(compiler_const::size::FIELD as u64, false),
+                    self.field_const(compiler_const::size::FIELD as u64),
                     "",
                 );
                 let pointer = unsafe { self.builder.build_gep(pointer, &[offset], "") };
@@ -577,11 +583,7 @@ impl<'ctx> Context<'ctx> {
         offset: inkwell::values::IntValue<'ctx>,
     ) -> inkwell::values::PointerValue<'ctx> {
         let pointer = self.storage.expect("Always exists").as_pointer_value();
-        let indexes = vec![
-            self.integer_type(compiler_const::bitlength::BYTE * 4)
-                .const_zero(),
-            offset,
-        ];
+        let indexes = vec![self.field_const(0), offset];
         let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
         pointer
     }
@@ -596,11 +598,7 @@ impl<'ctx> Context<'ctx> {
         match self.target {
             Target::LLVM => {
                 let pointer = self.calldata.expect("Always exists").as_pointer_value();
-                let indexes = vec![
-                    self.integer_type(compiler_const::bitlength::BYTE * 4)
-                        .const_zero(),
-                    offset,
-                ];
+                let indexes = vec![self.field_const(0), offset];
                 let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
                 pointer
             }

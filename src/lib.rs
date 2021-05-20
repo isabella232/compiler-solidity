@@ -50,9 +50,44 @@ pub fn compile(
         2 => inkwell::OptimizationLevel::Default,
         _ => inkwell::OptimizationLevel::Aggressive,
     };
+
     let llvm = inkwell::context::Context::create();
-    let mut context = LLVMContext::new_with_optimizer(&llvm, target, optimization_level);
-    context.create_module(object.identifier.as_str());
+    let target_machine = match target {
+        Target::LLVM => None,
+        Target::zkEVM => {
+            inkwell::targets::Target::initialize_syncvm(
+                &inkwell::targets::InitializationConfig::default(),
+            );
+            let target =
+                inkwell::targets::Target::from_name(compiler_const::virtual_machine::TARGET_NAME)
+                    .ok_or_else(|| {
+                    Error::LLVM(format!(
+                        "Target `{}` not found",
+                        compiler_const::virtual_machine::TARGET_NAME
+                    ))
+                })?;
+            let target_machine = target
+                .create_target_machine(
+                    &inkwell::targets::TargetTriple::create(
+                        compiler_const::virtual_machine::TARGET_NAME,
+                    ),
+                    "",
+                    "",
+                    optimization_level,
+                    inkwell::targets::RelocMode::Default,
+                    inkwell::targets::CodeModel::Default,
+                )
+                .ok_or_else(|| {
+                    Error::LLVM(format!(
+                        "Target machine `{}` creation error",
+                        compiler_const::virtual_machine::TARGET_NAME
+                    ))
+                })?;
+            Some(target_machine)
+        }
+    };
+    let mut context = LLVMContext::new_with_optimizer(&llvm, &target_machine, optimization_level);
+
     object.into_llvm(&mut context);
     context.optimize();
     context
@@ -69,31 +104,8 @@ pub fn compile(
         }
     }
 
-    inkwell::targets::Target::initialize_syncvm(&inkwell::targets::InitializationConfig::default());
-    let llvm_target =
-        inkwell::targets::Target::from_name(compiler_const::virtual_machine::TARGET_NAME)
-            .ok_or_else(|| {
-                Error::LLVM(format!(
-                    "Target `{}` not found",
-                    compiler_const::virtual_machine::TARGET_NAME
-                ))
-            })?;
-    let llvm_target_machine = llvm_target
-        .create_target_machine(
-            &inkwell::targets::TargetTriple::create(compiler_const::virtual_machine::TARGET_NAME),
-            "",
-            "",
-            optimization_level,
-            inkwell::targets::RelocMode::Default,
-            inkwell::targets::CodeModel::Default,
-        )
-        .ok_or_else(|| {
-            Error::LLVM(format!(
-                "Target machine `{}` creation error",
-                compiler_const::virtual_machine::TARGET_NAME
-            ))
-        })?;
-    let buffer = llvm_target_machine
+    let buffer = target_machine
+        .expect("Always exists")
         .write_to_memory_buffer(context.module(), inkwell::targets::FileType::Assembly)
         .map_err(|error| Error::LLVM(format!("Code compiling error: {}", error)))?;
     let assembly = String::from_utf8_lossy(buffer.as_slice()).to_string();
