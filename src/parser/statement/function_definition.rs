@@ -7,7 +7,7 @@ use inkwell::types::BasicType;
 use crate::error::Error;
 use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
-use crate::generator::llvm::intrinsic::Intrinsic;
+// use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
@@ -16,7 +16,7 @@ use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
 use crate::parser::identifier::Identifier;
 use crate::parser::statement::block::Block;
-use crate::target::Target;
+// use crate::target::Target;
 
 ///
 /// The function definition statement.

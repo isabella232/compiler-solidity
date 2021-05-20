@@ -242,7 +242,10 @@ impl FunctionCall {
             }
             Name::Not => {
                 let arguments = self.pop_arguments::<1>(context);
-                let result = context.builder.build_not(arguments[0].into_int_value(), "");
+                let result = match context.target {
+                    Target::LLVM => context.builder.build_not(arguments[0].into_int_value(), ""),
+                    Target::zkEVM => arguments[0].into_int_value(),
+                };
                 Some(result.as_basic_value_enum())
             }
             Name::Lt => {
@@ -313,7 +316,41 @@ impl FunctionCall {
                         arguments[1].into_int_value(),
                         "",
                     ),
-                    Target::zkEVM => context.field_const(0),
+                    Target::zkEVM => {
+                        let mut operand_1 = arguments[0].into_int_value();
+                        let mut operand_2 = arguments[1].into_int_value();
+                        let mut result = context.field_const(0);
+                        for _ in 0..compiler_const::bitlength::FIELD {
+                            let bit_1 = context.builder.build_int_unsigned_rem(
+                                operand_1,
+                                context.field_const(2),
+                                "",
+                            );
+                            let bit_2 = context.builder.build_int_unsigned_rem(
+                                operand_2,
+                                context.field_const(2),
+                                "",
+                            );
+                            operand_1 = context.builder.build_int_unsigned_div(
+                                operand_1,
+                                context.field_const(2),
+                                "",
+                            );
+                            operand_2 = context.builder.build_int_unsigned_div(
+                                operand_2,
+                                context.field_const(2),
+                                "",
+                            );
+                            let bit_result = context.builder.build_int_mul(bit_1, bit_2, "");
+
+                            result =
+                                context
+                                    .builder
+                                    .build_int_mul(result, context.field_const(2), "");
+                            result = context.builder.build_int_add(result, bit_result, "");
+                        }
+                        result
+                    }
                 };
                 Some(result.as_basic_value_enum())
             }
@@ -325,7 +362,52 @@ impl FunctionCall {
                         arguments[1].into_int_value(),
                         "",
                     ),
-                    Target::zkEVM => context.field_const(0),
+                    Target::zkEVM => {
+                        let mut operand_1 = arguments[0].into_int_value();
+                        let mut operand_2 = arguments[1].into_int_value();
+                        let mut result = context.field_const(0);
+                        for _ in 0..compiler_const::bitlength::FIELD {
+                            let bit_1 = context.builder.build_int_unsigned_rem(
+                                operand_1,
+                                context.field_const(2),
+                                "",
+                            );
+                            let bit_2 = context.builder.build_int_unsigned_rem(
+                                operand_2,
+                                context.field_const(2),
+                                "",
+                            );
+                            operand_1 = context.builder.build_int_unsigned_div(
+                                operand_1,
+                                context.field_const(2),
+                                "",
+                            );
+                            operand_2 = context.builder.build_int_unsigned_div(
+                                operand_2,
+                                context.field_const(2),
+                                "",
+                            );
+                            let bit_result = context.builder.build_int_add(bit_1, bit_2, "");
+                            let bit_result = context.builder.build_int_compare(
+                                inkwell::IntPredicate::UGT,
+                                bit_result,
+                                context.field_const(0),
+                                "",
+                            );
+                            let bit_result = context.builder.build_int_z_extend_or_bit_cast(
+                                bit_result,
+                                context.integer_type(compiler_const::bitlength::FIELD),
+                                "",
+                            );
+
+                            result =
+                                context
+                                    .builder
+                                    .build_int_mul(result, context.field_const(2), "");
+                            result = context.builder.build_int_add(result, bit_result, "");
+                        }
+                        result
+                    }
                 };
                 Some(result.as_basic_value_enum())
             }
@@ -337,7 +419,51 @@ impl FunctionCall {
                         arguments[1].into_int_value(),
                         "",
                     ),
-                    Target::zkEVM => context.field_const(0),
+                    Target::zkEVM => {
+                        let mut operand_1 = arguments[0].into_int_value();
+                        let mut operand_2 = arguments[1].into_int_value();
+                        let mut result = context.field_const(0);
+                        for _ in 0..compiler_const::bitlength::FIELD {
+                            let bit_1 = context.builder.build_int_unsigned_rem(
+                                operand_1,
+                                context.field_const(2),
+                                "",
+                            );
+                            let bit_2 = context.builder.build_int_unsigned_rem(
+                                operand_2,
+                                context.field_const(2),
+                                "",
+                            );
+                            operand_1 = context.builder.build_int_unsigned_div(
+                                operand_1,
+                                context.field_const(2),
+                                "",
+                            );
+                            operand_2 = context.builder.build_int_unsigned_div(
+                                operand_2,
+                                context.field_const(2),
+                                "",
+                            );
+                            let bit_result = context.builder.build_int_compare(
+                                inkwell::IntPredicate::NE,
+                                bit_1,
+                                bit_2,
+                                "",
+                            );
+                            let bit_result = context.builder.build_int_z_extend_or_bit_cast(
+                                bit_result,
+                                context.integer_type(compiler_const::bitlength::FIELD),
+                                "",
+                            );
+
+                            result =
+                                context
+                                    .builder
+                                    .build_int_mul(result, context.field_const(2), "");
+                            result = context.builder.build_int_add(result, bit_result, "");
+                        }
+                        result
+                    }
                 };
                 Some(result.as_basic_value_enum())
             }
@@ -1286,8 +1412,8 @@ impl FunctionCall {
                         }
                     }
                     Target::zkEVM => {
-                        let intrinsic =
-                            context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
+                        // let intrinsic =
+                        //     context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
 
                         let source_offset = context.builder.build_int_unsigned_div(
                             arguments[0].into_int_value(),
@@ -1303,35 +1429,42 @@ impl FunctionCall {
                         let source =
                             unsafe { context.builder.build_gep(source, &[source_offset], "") };
 
-                        let destination = context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .ptr_type(AddressSpace::Parent.into())
-                            .const_zero();
-                        let destination = unsafe {
-                            context.builder.build_gep(
-                                destination,
-                                &[context
-                                    .integer_type(compiler_const::bitlength::FIELD)
-                                    .const_int(8, false)],
-                                "",
-                            )
-                        };
+                        // let destination = context
+                        //     .integer_type(compiler_const::bitlength::FIELD)
+                        //     .ptr_type(AddressSpace::Parent.into())
+                        //     .const_zero();
+                        // let destination = unsafe {
+                        //     context.builder.build_gep(
+                        //         destination,
+                        //         &[context
+                        //             .integer_type(compiler_const::bitlength::FIELD)
+                        //             .const_int(8, false)],
+                        //         "",
+                        //     )
+                        // };
+                        //
+                        // let size = arguments[1].into_int_value();
+                        //
+                        // context.build_call(
+                        //     intrinsic,
+                        //     &[
+                        //         destination.as_basic_value_enum(),
+                        //         source.as_basic_value_enum(),
+                        //         size.as_basic_value_enum(),
+                        //         context
+                        //             .integer_type(compiler_const::bitlength::BOOLEAN)
+                        //             .const_zero()
+                        //             .as_basic_value_enum(),
+                        //     ],
+                        //     "",
+                        // );
 
-                        let size = arguments[1].into_int_value();
-
-                        context.build_call(
-                            intrinsic,
-                            &[
-                                destination.as_basic_value_enum(),
-                                source.as_basic_value_enum(),
-                                size.as_basic_value_enum(),
-                                context
-                                    .integer_type(compiler_const::bitlength::BOOLEAN)
-                                    .const_zero()
-                                    .as_basic_value_enum(),
-                            ],
-                            "",
-                        );
+                        if context.test_entry_hash.is_some() {
+                            if let Some(return_pointer) = function.return_pointer() {
+                                let result = context.build_load(source, "");
+                                context.build_store(return_pointer, result);
+                            }
+                        }
                     }
                 }
 
@@ -1368,9 +1501,6 @@ impl FunctionCall {
                         }
                     }
                     Target::zkEVM => {
-                        let intrinsic =
-                            context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
-
                         let source_offset = context.builder.build_int_unsigned_div(
                             arguments[0].into_int_value(),
                             context
@@ -1385,35 +1515,12 @@ impl FunctionCall {
                         let source =
                             unsafe { context.builder.build_gep(source, &[source_offset], "") };
 
-                        let destination = context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .ptr_type(AddressSpace::Parent.into())
-                            .const_zero();
-                        let destination = unsafe {
-                            context.builder.build_gep(
-                                destination,
-                                &[context
-                                    .integer_type(compiler_const::bitlength::FIELD)
-                                    .const_int(8, false)],
-                                "",
-                            )
-                        };
-
-                        let size = arguments[1].into_int_value();
-
-                        context.build_call(
-                            intrinsic,
-                            &[
-                                destination.as_basic_value_enum(),
-                                source.as_basic_value_enum(),
-                                size.as_basic_value_enum(),
-                                context
-                                    .integer_type(compiler_const::bitlength::BOOLEAN)
-                                    .const_zero()
-                                    .as_basic_value_enum(),
-                            ],
-                            "",
-                        );
+                        if context.test_entry_hash.is_some() {
+                            if let Some(return_pointer) = function.return_pointer() {
+                                let result = context.build_load(source, "");
+                                context.build_store(return_pointer, result);
+                            }
+                        }
                     }
                 }
 
