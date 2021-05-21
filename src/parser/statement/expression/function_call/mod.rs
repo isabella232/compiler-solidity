@@ -244,7 +244,53 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<1>(context);
                 let result = match context.target {
                     Target::LLVM => context.builder.build_not(arguments[0].into_int_value(), ""),
-                    Target::zkEVM => arguments[0].into_int_value(),
+                    Target::zkEVM => {
+                        let mut operand_1 = arguments[0].into_int_value();
+                        let mut operand_2 = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_all_ones();
+                        let mut result = context.field_const(0);
+                        for _ in 0..compiler_const::bitlength::FIELD {
+                            let bit_1 = context.builder.build_int_unsigned_rem(
+                                operand_1,
+                                context.field_const(2),
+                                "",
+                            );
+                            let bit_2 = context.builder.build_int_unsigned_rem(
+                                operand_2,
+                                context.field_const(2),
+                                "",
+                            );
+                            operand_1 = context.builder.build_int_unsigned_div(
+                                operand_1,
+                                context.field_const(2),
+                                "",
+                            );
+                            operand_2 = context.builder.build_int_unsigned_div(
+                                operand_2,
+                                context.field_const(2),
+                                "",
+                            );
+                            let bit_result = context.builder.build_int_compare(
+                                inkwell::IntPredicate::NE,
+                                bit_1,
+                                bit_2,
+                                "",
+                            );
+                            let bit_result = context.builder.build_int_z_extend_or_bit_cast(
+                                bit_result,
+                                context.integer_type(compiler_const::bitlength::FIELD),
+                                "",
+                            );
+
+                            result =
+                                context
+                                    .builder
+                                    .build_int_mul(result, context.field_const(2), "");
+                            result = context.builder.build_int_add(result, bit_result, "");
+                        }
+                        result
+                    }
                 };
                 Some(result.as_basic_value_enum())
             }
