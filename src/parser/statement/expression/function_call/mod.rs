@@ -1412,8 +1412,8 @@ impl FunctionCall {
                         }
                     }
                     Target::zkEVM => {
-                        // let intrinsic =
-                        //     context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
+                        let intrinsic =
+                            context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
 
                         let source_offset = context.builder.build_int_unsigned_div(
                             arguments[0].into_int_value(),
@@ -1429,35 +1429,35 @@ impl FunctionCall {
                         let source =
                             unsafe { context.builder.build_gep(source, &[source_offset], "") };
 
-                        // let destination = context
-                        //     .integer_type(compiler_const::bitlength::FIELD)
-                        //     .ptr_type(AddressSpace::Parent.into())
-                        //     .const_zero();
-                        // let destination = unsafe {
-                        //     context.builder.build_gep(
-                        //         destination,
-                        //         &[context
-                        //             .integer_type(compiler_const::bitlength::FIELD)
-                        //             .const_int(8, false)],
-                        //         "",
-                        //     )
-                        // };
-                        //
-                        // let size = arguments[1].into_int_value();
-                        //
-                        // context.build_call(
-                        //     intrinsic,
-                        //     &[
-                        //         destination.as_basic_value_enum(),
-                        //         source.as_basic_value_enum(),
-                        //         size.as_basic_value_enum(),
-                        //         context
-                        //             .integer_type(compiler_const::bitlength::BOOLEAN)
-                        //             .const_zero()
-                        //             .as_basic_value_enum(),
-                        //     ],
-                        //     "",
-                        // );
+                        let destination = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .ptr_type(AddressSpace::Parent.into())
+                            .const_zero();
+                        let destination = unsafe {
+                            context.builder.build_gep(
+                                destination,
+                                &[context
+                                    .integer_type(compiler_const::bitlength::FIELD)
+                                    .const_int(8, false)],
+                                "",
+                            )
+                        };
+
+                        let size = arguments[1].into_int_value();
+
+                        context.build_call(
+                            intrinsic,
+                            &[
+                                destination.as_basic_value_enum(),
+                                source.as_basic_value_enum(),
+                                size.as_basic_value_enum(),
+                                context
+                                    .integer_type(compiler_const::bitlength::BOOLEAN)
+                                    .const_zero()
+                                    .as_basic_value_enum(),
+                            ],
+                            "",
+                        );
 
                         if context.test_entry_hash.is_some() {
                             if let Some(return_pointer) = function.return_pointer() {
@@ -1605,25 +1605,25 @@ impl FunctionCall {
 
                 let return_value = context.build_call(function.value, arguments.as_slice(), "");
 
-                // if let Target::zkEVM = context.target {
-                //     let join_block = context.append_basic_block("join");
-                //     let intrinsic = context.get_intrinsic_function(Intrinsic::LesserFlag);
-                //     let overflow_flag = context
-                //         .build_call(intrinsic, &[], "")
-                //         .expect("Intrinsic always returns a flag")
-                //         .into_int_value();
-                //     let overflow_flag = context.builder.build_int_truncate_or_bit_cast(
-                //         overflow_flag,
-                //         context.integer_type(compiler_const::bitlength::BOOLEAN),
-                //         "",
-                //     );
-                //     context.build_conditional_branch(
-                //         overflow_flag,
-                //         context.function().revert_block,
-                //         join_block,
-                //     );
-                //     context.set_basic_block(join_block);
-                // }
+                if let Target::zkEVM = context.target {
+                    let join_block = context.append_basic_block("join");
+                    let intrinsic = context.get_intrinsic_function(Intrinsic::LesserFlag);
+                    let overflow_flag = context
+                        .build_call(intrinsic, &[], "")
+                        .expect("Intrinsic always returns a flag")
+                        .into_int_value();
+                    let overflow_flag = context.builder.build_int_truncate_or_bit_cast(
+                        overflow_flag,
+                        context.integer_type(compiler_const::bitlength::BOOLEAN),
+                        "",
+                    );
+                    context.build_conditional_branch(
+                        overflow_flag,
+                        context.function().revert_block,
+                        join_block,
+                    );
+                    context.set_basic_block(join_block);
+                }
 
                 if let Some(FunctionReturn::Compound { .. }) = function.r#return {
                     let return_pointer = return_value.expect("Always exists").into_pointer_value();

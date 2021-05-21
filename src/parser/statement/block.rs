@@ -6,7 +6,7 @@ use inkwell::values::BasicValue;
 
 use crate::error::Error;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
-// use crate::generator::llvm::intrinsic::Intrinsic;
+use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
@@ -152,13 +152,13 @@ impl Block {
             }
             Target::zkEVM if context.test_entry_hash.is_some() => {
                 let return_value = context.build_load(return_pointer, "");
-                // let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                // context.build_call(intrinsic, &[], "");
+                let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
+                context.build_call(intrinsic, &[], "");
                 context.build_return(Some(&return_value));
             }
             Target::zkEVM => {
-                // let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                // context.build_call(intrinsic, &[], "");
+                let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
+                context.build_call(intrinsic, &[], "");
                 context.build_return(None);
             }
         }
