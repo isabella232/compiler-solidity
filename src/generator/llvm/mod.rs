@@ -184,8 +184,14 @@ impl<'ctx> Context<'ctx> {
     ) {
         let value = self.module().add_function(name, r#type, linkage);
         if let Target::zkEVM = self.target {
-            for index in 0..r#type.count_param_types() {
-                value.set_param_alignment(index, compiler_const::size::FIELD as u32);
+            for index in 0..value.count_params() {
+                if value
+                    .get_nth_param(index)
+                    .map(|argument| argument.get_type().is_pointer_type())
+                    .unwrap_or_default()
+                {
+                    value.set_param_alignment(index, compiler_const::size::FIELD as u32);
+                }
             }
         }
 
@@ -427,15 +433,28 @@ impl<'ctx> Context<'ctx> {
         let call_site_value = self.builder.build_call(function, args, name);
         if let Target::zkEVM = self.target {
             for index in 0..function.count_params() {
+                if function
+                    .get_nth_param(index)
+                    .map(|argument| argument.get_type().is_pointer_type())
+                    .unwrap_or_default()
+                {
+                    call_site_value.set_alignment_attribute(
+                        inkwell::attributes::AttributeLoc::Param(index),
+                        compiler_const::size::FIELD as u32,
+                    );
+                }
+            }
+
+            if call_site_value
+                .try_as_basic_value()
+                .map_left(|value| value.is_pointer_value())
+                .left_or_default()
+            {
                 call_site_value.set_alignment_attribute(
-                    inkwell::attributes::AttributeLoc::Param(index),
+                    inkwell::attributes::AttributeLoc::Return,
                     compiler_const::size::FIELD as u32,
                 );
             }
-            call_site_value.set_alignment_attribute(
-                inkwell::attributes::AttributeLoc::Return,
-                compiler_const::size::FIELD as u32,
-            );
         }
         call_site_value.try_as_basic_value().left()
     }
