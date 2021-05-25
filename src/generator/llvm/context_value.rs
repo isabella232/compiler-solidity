@@ -19,6 +19,8 @@ pub enum ContextValue {
     MessageSignature,
     /// The remaining execution cycles value.
     RemainingCycles,
+    /// The current contract address.
+    Address,
 }
 
 impl From<ContextValue> for u64 {
@@ -30,6 +32,7 @@ impl From<ContextValue> for u64 {
             ContextValue::GasLeft => 3,
             ContextValue::MessageSignature => 4,
             ContextValue::RemainingCycles => 5,
+            ContextValue::Address => 6,
         }
     }
 }

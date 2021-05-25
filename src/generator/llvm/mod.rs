@@ -85,7 +85,7 @@ impl<'ctx> Context<'ctx> {
         machine: &Option<inkwell::targets::TargetMachine>,
         optimization_level: inkwell::OptimizationLevel,
     ) -> Self {
-        let module = llvm.create_module(compiler_const::source::FUNCTION_MAIN_IDENTIFIER);
+        let module = llvm.create_module(compiler_const::identifier::FUNCTION_MAIN);
         if let Some(machine) = machine {
             module.set_triple(&machine.get_triple());
             module.set_data_layout(&machine.get_target_data().get_data_layout());

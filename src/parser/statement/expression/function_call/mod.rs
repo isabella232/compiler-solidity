@@ -1175,11 +1175,14 @@ impl FunctionCall {
                     );
                 }
 
+                let offset_shift = compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
+                    * compiler_const::size::FIELD
+                    - 4;
                 let offset = match context.target {
                     Target::LLVM => arguments[0].into_int_value(),
                     Target::zkEVM => context.builder.build_int_add(
                         arguments[0].into_int_value(),
-                        context.field_const(8),
+                        context.field_const(offset_shift as u64),
                         "",
                     ),
                 };
@@ -1220,9 +1223,12 @@ impl FunctionCall {
                             .build_gep(destination, &[destination_offset], "")
                     };
 
+                    let source_offset_shift = compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
+                        * compiler_const::size::FIELD
+                        - 4;
                     let source_offset = context.builder.build_int_add(
                         arguments[1].into_int_value(),
-                        context.field_const(8),
+                        context.field_const(source_offset_shift as u64),
                         "",
                     );
                     let source = context
@@ -1266,7 +1272,20 @@ impl FunctionCall {
                     .expect("Context always returns a value");
                 Some(value)
             }
-            Name::Address => Some(context.field_const(0).as_basic_value_enum()),
+            Name::Address => {
+                let intrinsic = context.get_intrinsic_function(Intrinsic::GetFromContext);
+                let value = context
+                    .build_call(
+                        intrinsic,
+                        &[context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int(ContextValue::BlockNumber.into(), false)
+                            .as_basic_value_enum()],
+                        "",
+                    )
+                    .expect("Context always returns a value");
+                Some(value)
+            }
             Name::Balance => Some(context.field_const(0).as_basic_value_enum()),
             Name::SelfBalance => Some(
                 context
@@ -1522,7 +1541,10 @@ impl FunctionCall {
                         .const_zero();
                     let offset = context
                         .integer_type(compiler_const::bitlength::FIELD)
-                        .const_int(2, false);
+                        .const_int(
+                            compiler_const::contract::ABI_OFFSET_RETURN_DATA_SIZE as u64,
+                            false,
+                        );
                     let pointer = unsafe { context.builder.build_gep(pointer, &[offset], "") };
                     let value = context.build_load(pointer, "");
                     Some(value)
@@ -1549,11 +1571,12 @@ impl FunctionCall {
                             .build_gep(destination, &[destination_offset], "")
                     };
 
+                    let source_offset_shift = compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
+                        * compiler_const::size::FIELD
+                        - 4;
                     let source_offset = context.builder.build_int_add(
                         arguments[1].into_int_value(),
-                        context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .const_int(8, false),
+                        context.field_const(source_offset_shift as u64),
                         "",
                     );
                     let source = context
@@ -1671,7 +1694,11 @@ impl FunctionCall {
                                 destination,
                                 &[context
                                     .integer_type(compiler_const::bitlength::FIELD)
-                                    .const_int(8, false)],
+                                    .const_int(
+                                        compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
+                                            as u64,
+                                        false,
+                                    )],
                                 "",
                             )
                         };
@@ -1912,7 +1939,10 @@ impl FunctionCall {
                 child_pointer,
                 &[context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .const_int(1, false)],
+                    .const_int(
+                        compiler_const::contract::ABI_OFFSET_CALLDATA_SIZE as u64,
+                        false,
+                    )],
                 "",
             )
         };
@@ -1922,7 +1952,10 @@ impl FunctionCall {
                 child_pointer,
                 &[context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .const_int(2, false)],
+                    .const_int(
+                        compiler_const::contract::ABI_OFFSET_RETURN_DATA_SIZE as u64,
+                        false,
+                    )],
                 "",
             )
         };
@@ -1933,7 +1966,10 @@ impl FunctionCall {
                 child_pointer,
                 &[context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .const_int(8, false)],
+                    .const_int(
+                        compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA as u64,
+                        false,
+                    )],
                 "",
             )
         };
@@ -1966,7 +2002,10 @@ impl FunctionCall {
                 child_pointer,
                 &[context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .const_int(8, false)],
+                    .const_int(
+                        compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA as u64,
+                        false,
+                    )],
                 "",
             )
         };

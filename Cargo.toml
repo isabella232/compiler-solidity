@@ -20,8 +20,6 @@ colored = "2.0"
 rand = "0.8"
 regex = "1.5"
 
-rayon = "1.5"
-
 compiler-const = { git = "ssh://git@github.com/matter-labs/compiler-const", branch = "main" }
 
 [dependencies.inkwell]
