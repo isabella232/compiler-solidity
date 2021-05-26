@@ -27,3 +27,7 @@ git = "ssh://git@github.com/matter-labs-forks/inkwell"
 branch = "master"
 default-features = false
 features = ["llvm11-0", "target-syncvm"]
+
+[dependencies.zkevm-assembly]
+git = "ssh://git@github.com/matter-labs/zkEVM-assembly"
+branch = "main"

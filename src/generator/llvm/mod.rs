@@ -72,7 +72,7 @@ impl<'ctx> Context<'ctx> {
     ///
     pub fn new(
         llvm: &'ctx inkwell::context::Context,
-        machine: &Option<inkwell::targets::TargetMachine>,
+        machine: Option<&inkwell::targets::TargetMachine>,
     ) -> Self {
         Self::new_with_optimizer(llvm, machine, inkwell::OptimizationLevel::None)
     }
@@ -82,7 +82,7 @@ impl<'ctx> Context<'ctx> {
     ///
     pub fn new_with_optimizer(
         llvm: &'ctx inkwell::context::Context,
-        machine: &Option<inkwell::targets::TargetMachine>,
+        machine: Option<&inkwell::targets::TargetMachine>,
         optimization_level: inkwell::OptimizationLevel,
     ) -> Self {
         let module = llvm.create_module(compiler_const::identifier::FUNCTION_MAIN);

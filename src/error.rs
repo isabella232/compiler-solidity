@@ -21,6 +21,8 @@ pub enum Error {
     /// The LLVM error.
     #[allow(clippy::upper_case_acronyms)]
     LLVM(String),
+    /// The assembly error.
+    Assembly(zkevm_assembly::AssemblyParseError),
 }
 
 impl PartialEq<Self> for Error {
@@ -48,5 +50,11 @@ impl From<LexerError> for Error {
 impl From<ParserError> for Error {
     fn from(error: ParserError) -> Self {
         Self::Parser(error)
+    }
+}
+
+impl From<zkevm_assembly::AssemblyParseError> for Error {
+    fn from(error: zkevm_assembly::AssemblyParseError) -> Self {
+        Self::Assembly(error)
     }
 }

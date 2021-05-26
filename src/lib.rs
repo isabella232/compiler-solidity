@@ -86,7 +86,8 @@ pub fn compile(
             Some(target_machine)
         }
     };
-    let mut context = LLVMContext::new_with_optimizer(&llvm, &target_machine, optimization_level);
+    let mut context =
+        LLVMContext::new_with_optimizer(&llvm, target_machine.as_ref(), optimization_level);
 
     object.into_llvm(&mut context);
     context.optimize();

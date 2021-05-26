@@ -23,6 +23,10 @@ pub struct Arguments {
     #[structopt(short = "t", long = "target", default_value = "zkevm")]
     pub target: String,
 
+    /// Whether to write the assembly in the binary format.
+    #[structopt(long = "binary")]
+    pub binary: bool,
+
     /// Whether to dump the LLVM code to the terminal.
     #[structopt(long = "dump-llvm")]
     pub dump_llvm: bool,
