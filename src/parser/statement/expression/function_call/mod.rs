@@ -372,7 +372,6 @@ impl FunctionCall {
             }
             Name::Eq => {
                 let arguments = self.pop_arguments::<2>(context);
-                return Some(context.field_const(1).as_basic_value_enum());
                 let mut result = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
                     arguments[0].into_int_value(),
@@ -908,6 +907,19 @@ impl FunctionCall {
             Name::Shl => {
                 let arguments = self.pop_arguments::<2>(context);
 
+                if arguments[0].into_int_value().is_const() {
+                    return Some(
+                        context
+                            .builder
+                            .build_left_shift(
+                                arguments[1].into_int_value(),
+                                arguments[0].into_int_value(),
+                                "",
+                            )
+                            .as_basic_value_enum(),
+                    );
+                }
+
                 let result_pointer = context.build_alloca(arguments[1].get_type(), "");
                 context.build_store(result_pointer, arguments[1]);
 
@@ -959,32 +971,23 @@ impl FunctionCall {
             }
             Name::Shr => {
                 let arguments = self.pop_arguments::<2>(context);
-                return Some(context.field_const(0).as_basic_value_enum());
 
-                let result_pointer = context.build_alloca(arguments[1].get_type(), "");
+                if arguments[0].into_int_value().is_const() {
+                    return Some(
+                        context
+                            .builder
+                            .build_right_shift(
+                                arguments[1].into_int_value(),
+                                arguments[0].into_int_value(),
+                                false,
+                                "",
+                            )
+                            .as_basic_value_enum(),
+                    );
+                }
 
-                let if_224_block = context.append_basic_block("if.224");
-                let if_not_224_block = context.append_basic_block("if.not_224");
-                let if_join_block = context.append_basic_block("if.join");
-                let loop_condition_block = context.append_basic_block("loop.condition");
-                let loop_body_block = context.append_basic_block("loop.body");
-                let loop_increment_block = context.append_basic_block("loop.increment");
-                let loop_join_block = context.append_basic_block("loop.join");
-
-                let condition = context.builder.build_int_compare(
-                    inkwell::IntPredicate::EQ,
-                    arguments[0].into_int_value(),
-                    arguments[0]
-                        .get_type()
-                        .into_int_type()
-                        .const_int(224, false),
-                    "",
-                );
-                context.build_conditional_branch(condition, if_224_block, if_not_224_block);
-
-                context.set_basic_block(if_not_224_block);
                 let initial_type = arguments[1].get_type().into_int_type();
-                let intermediate_initial_value = match context.target {
+                let initial_value = match context.target {
                     Target::LLVM => context
                         .builder
                         .build_int_truncate_or_bit_cast(
@@ -995,9 +998,16 @@ impl FunctionCall {
                         .as_basic_value_enum(),
                     Target::zkEVM => arguments[1],
                 };
-                let intermediate_pointer =
-                    context.build_alloca(intermediate_initial_value.get_type(), "");
-                context.build_store(intermediate_pointer, intermediate_initial_value);
+                let result_pointer = context.build_alloca(arguments[1].get_type(), "");
+                context.build_store(result_pointer, initial_value);
+
+                let condition_block = context.append_basic_block("condition");
+                let body_block = context.append_basic_block("body");
+                let increment_block = context.append_basic_block("increment");
+                let join_block = context.append_basic_block("join");
+
+                let intermediate_pointer = context.build_alloca(initial_value.get_type(), "");
+                context.build_store(intermediate_pointer, initial_value);
                 let index_pointer = context.build_alloca(arguments[0].get_type(), "");
                 let index_value = arguments[0]
                     .get_type()
@@ -1005,9 +1015,9 @@ impl FunctionCall {
                     .const_zero()
                     .as_basic_value_enum();
                 context.build_store(index_pointer, index_value);
-                context.build_unconditional_branch(loop_condition_block);
+                context.build_unconditional_branch(condition_block);
 
-                context.set_basic_block(loop_condition_block);
+                context.set_basic_block(condition_block);
                 let index_value = context.build_load(index_pointer, "").into_int_value();
                 let condition = context.builder.build_int_compare(
                     inkwell::IntPredicate::ULT,
@@ -1015,9 +1025,9 @@ impl FunctionCall {
                     arguments[0].into_int_value(),
                     "",
                 );
-                context.build_conditional_branch(condition, loop_body_block, loop_join_block);
+                context.build_conditional_branch(condition, body_block, join_block);
 
-                context.set_basic_block(loop_increment_block);
+                context.set_basic_block(increment_block);
                 let index_value = context.build_load(index_pointer, "").into_int_value();
                 let incremented = context.builder.build_int_add(
                     index_value,
@@ -1025,36 +1035,25 @@ impl FunctionCall {
                     "",
                 );
                 context.build_store(index_pointer, incremented);
-                context.build_unconditional_branch(loop_condition_block);
+                context.build_unconditional_branch(condition_block);
 
-                context.set_basic_block(loop_body_block);
-                let intermediate = context
-                    .build_load(intermediate_pointer, "")
-                    .into_int_value();
+                context.set_basic_block(body_block);
+                let intermediate = context.build_load(result_pointer, "").into_int_value();
                 let divider = intermediate.get_type().const_int(2, false);
                 let result = context
                     .builder
                     .build_int_unsigned_div(intermediate, divider, "");
-                context.build_store(intermediate_pointer, result);
-                context.build_unconditional_branch(loop_increment_block);
+                context.build_store(result_pointer, result);
+                context.build_unconditional_branch(increment_block);
 
-                context.set_basic_block(loop_join_block);
-                let mut result = context.build_load(intermediate_pointer, "");
+                context.set_basic_block(join_block);
+                let mut result = context.build_load(result_pointer, "");
                 if let Target::LLVM = context.target {
                     result = context
                         .builder
                         .build_int_z_extend_or_bit_cast(result.into_int_value(), initial_type, "")
                         .as_basic_value_enum();
                 }
-                context.build_store(result_pointer, result);
-                context.build_unconditional_branch(if_join_block);
-
-                context.set_basic_block(if_224_block);
-                context.build_store(result_pointer, arguments[1]);
-                context.build_unconditional_branch(if_join_block);
-
-                context.set_basic_block(if_join_block);
-                let result = context.build_load(result_pointer, "");
 
                 Some(result)
             }
@@ -1169,76 +1168,76 @@ impl FunctionCall {
             Name::CallDataLoad => {
                 let arguments = self.pop_arguments::<1>(context);
 
-                // if let Some(ref test_entry_hash) = context.test_entry_hash {
-                //     return Some(
-                //         context
-                //             .integer_type(compiler_const::bitlength::FIELD)
-                //             .const_int_from_string(
-                //                 test_entry_hash,
-                //                 inkwell::types::StringRadix::Hexadecimal,
-                //             )
-                //             .expect(compiler_const::panic::TEST_DATA_VALID)
-                //             .as_basic_value_enum(),
-                //     );
-                // }
-                //
-                // let if_zero_block = context.append_basic_block("if_zero");
-                // let if_non_zero_block = context.append_basic_block("if_not_zero");
-                // let join_block = context.append_basic_block("join");
+                if let Some(ref test_entry_hash) = context.test_entry_hash {
+                    return Some(
+                        context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .const_int_from_string(
+                                test_entry_hash,
+                                inkwell::types::StringRadix::Hexadecimal,
+                            )
+                            .expect(compiler_const::panic::TEST_DATA_VALID)
+                            .as_basic_value_enum(),
+                    );
+                }
 
-                // let value_pointer = context
-                //     .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
-                // context.build_store(value_pointer, context.field_const(0));
-                // let is_zero = context.builder.build_int_compare(
-                //     inkwell::IntPredicate::EQ,
-                //     arguments[0].into_int_value(),
-                //     context.field_const(0),
-                //     "",
-                // );
-                // context.build_conditional_branch(is_zero, if_zero_block, if_non_zero_block);
-                //
-                // context.set_basic_block(if_zero_block);
-                // let offset =
-                //     context.field_const(compiler_const::contract::ABI_OFFSET_ENTRY_HASH as u64);
-                // let pointer = context.access_calldata(offset);
-                // let value = context.build_load(pointer, "");
-                // context.build_store(value_pointer, context.field_const(0xab3ae255));
-                // context.build_unconditional_branch(join_block);
+                let if_zero_block = context.append_basic_block("if_zero");
+                let if_non_zero_block = context.append_basic_block("if_not_zero");
+                let join_block = context.append_basic_block("join");
 
-                // context.set_basic_block(if_non_zero_block);
-                // let offset = match context.target {
-                //     Target::LLVM => arguments[0].into_int_value(),
-                //     Target::zkEVM => {
-                //         let offset = context.builder.build_int_sub(
-                //             arguments[0].into_int_value(),
-                //             context.field_const(4),
-                //             "",
-                //         );
-                //         let offset = context.builder.build_int_unsigned_div(
-                //             offset,
-                //             context.field_const(compiler_const::size::FIELD as u64),
-                //             "",
-                //         );
-                //         let offset = context.builder.build_int_add(
-                //             offset,
-                //             context.field_const(
-                //                 compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA as u64,
-                //             ),
-                //             "",
-                //         );
-                //         offset
-                //     }
-                // };
+                let value_pointer = context
+                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                context.build_store(value_pointer, context.field_const(0));
+                let is_zero = context.builder.build_int_compare(
+                    inkwell::IntPredicate::EQ,
+                    arguments[0].into_int_value(),
+                    context.field_const(0),
+                    "",
+                );
+                context.build_conditional_branch(is_zero, if_zero_block, if_non_zero_block);
+
+                context.set_basic_block(if_zero_block);
+                let offset =
+                    context.field_const(compiler_const::contract::ABI_OFFSET_ENTRY_HASH as u64);
+                let pointer = context.access_calldata(offset);
+                let value = context.build_load(pointer, "");
+                context.build_store(value_pointer, value);
+                context.build_unconditional_branch(join_block);
+
+                context.set_basic_block(if_non_zero_block);
+                let offset = match context.target {
+                    Target::LLVM => arguments[0].into_int_value(),
+                    Target::zkEVM => {
+                        let offset = context.builder.build_int_sub(
+                            arguments[0].into_int_value(),
+                            context.field_const(4),
+                            "",
+                        );
+                        let offset = context.builder.build_int_unsigned_div(
+                            offset,
+                            context.field_const(compiler_const::size::FIELD as u64),
+                            "",
+                        );
+                        let offset = context.builder.build_int_add(
+                            offset,
+                            context.field_const(
+                                compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA as u64,
+                            ),
+                            "",
+                        );
+                        offset
+                    }
+                };
                 let pointer = context.access_calldata(
                     context
                         .field_const(compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA as u64),
                 );
                 let value = context.build_load(pointer, "");
-                // context.build_store(value_pointer, value);
-                // context.build_unconditional_branch(join_block);
+                context.build_store(value_pointer, value);
+                context.build_unconditional_branch(join_block);
 
-                // context.set_basic_block(join_block);
-                // let value = context.build_load(value_pointer, "");
+                context.set_basic_block(join_block);
+                let value = context.build_load(value_pointer, "");
                 Some(value)
             }
             Name::CallDataSize => match context.target {
@@ -1612,7 +1611,12 @@ impl FunctionCall {
                         );
                     let pointer = unsafe { context.builder.build_gep(pointer, &[offset], "") };
                     let value = context.build_load(pointer, "");
-                    Some(value)
+                    let value = context.builder.build_int_mul(
+                        value.into_int_value(),
+                        context.field_const(compiler_const::size::FIELD as u64),
+                        "",
+                    );
+                    Some(value.as_basic_value_enum())
                 }
             },
             Name::ReturnDataCopy => {
@@ -1733,6 +1737,23 @@ impl FunctionCall {
                         }
                     }
                     Target::zkEVM => {
+                        let intrinsic =
+                            context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
+
+                        let source_offset = context.builder.build_int_unsigned_div(
+                            arguments[0].into_int_value(),
+                            context
+                                .integer_type(compiler_const::bitlength::FIELD)
+                                .const_int(compiler_const::size::FIELD as u64, false),
+                            "",
+                        );
+                        let source = context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .ptr_type(AddressSpace::Stack.into())
+                            .const_zero();
+                        let source =
+                            unsafe { context.builder.build_gep(source, &[source_offset], "") };
+
                         let destination = context
                             .integer_type(compiler_const::bitlength::FIELD)
                             .ptr_type(AddressSpace::Parent.into())
@@ -1751,14 +1772,28 @@ impl FunctionCall {
                             )
                         };
 
-                        let intrinsic = context.get_intrinsic_function(Intrinsic::StorageLoad);
-                        let position = context.field_const(0).as_basic_value_enum();
-                        let is_external_storage = context.field_const(0).as_basic_value_enum();
-                        let value = context
-                            .build_call(intrinsic, &[position, is_external_storage], "")
-                            .expect("Contract storage always returns a value");
+                        let size = arguments[1].into_int_value();
 
-                        context.build_store(destination, value);
+                        context.build_call(
+                            intrinsic,
+                            &[
+                                destination.as_basic_value_enum(),
+                                source.as_basic_value_enum(),
+                                size.as_basic_value_enum(),
+                                context
+                                    .integer_type(compiler_const::bitlength::BOOLEAN)
+                                    .const_zero()
+                                    .as_basic_value_enum(),
+                            ],
+                            "",
+                        );
+
+                        if context.test_entry_hash.is_some() {
+                            if let Some(return_pointer) = function.return_pointer() {
+                                let result = context.build_load(source, "");
+                                context.build_store(return_pointer, result);
+                            }
+                        }
                     }
                 }
 
@@ -1809,11 +1844,9 @@ impl FunctionCall {
                         let source =
                             unsafe { context.builder.build_gep(source, &[source_offset], "") };
 
-                        if context.test_entry_hash.is_some() {
-                            if let Some(return_pointer) = function.return_pointer() {
-                                let result = context.build_load(source, "");
-                                context.build_store(return_pointer, result);
-                            }
+                        if let Some(return_pointer) = function.return_pointer() {
+                            let value = context.build_load(source, "");
+                            context.build_store(return_pointer, value);
                         }
                     }
                 }
@@ -1899,25 +1932,25 @@ impl FunctionCall {
 
                 let return_value = context.build_call(function.value, arguments.as_slice(), "");
 
-                // if let Target::zkEVM = context.target {
-                //     let join_block = context.append_basic_block("join");
-                //     let intrinsic = context.get_intrinsic_function(Intrinsic::LesserFlag);
-                //     let overflow_flag = context
-                //         .build_call(intrinsic, &[], "")
-                //         .expect("Intrinsic always returns a flag")
-                //         .into_int_value();
-                //     let overflow_flag = context.builder.build_int_truncate_or_bit_cast(
-                //         overflow_flag,
-                //         context.integer_type(compiler_const::bitlength::BOOLEAN),
-                //         "",
-                //     );
-                //     context.build_conditional_branch(
-                //         overflow_flag,
-                //         context.function().revert_block,
-                //         join_block,
-                //     );
-                //     context.set_basic_block(join_block);
-                // }
+                if let Target::zkEVM = context.target {
+                    let join_block = context.append_basic_block("join");
+                    let intrinsic = context.get_intrinsic_function(Intrinsic::LesserFlag);
+                    let overflow_flag = context
+                        .build_call(intrinsic, &[], "")
+                        .expect("Intrinsic always returns a flag")
+                        .into_int_value();
+                    let overflow_flag = context.builder.build_int_truncate_or_bit_cast(
+                        overflow_flag,
+                        context.integer_type(compiler_const::bitlength::BOOLEAN),
+                        "",
+                    );
+                    context.build_conditional_branch(
+                        overflow_flag,
+                        context.function().revert_block,
+                        join_block,
+                    );
+                    context.set_basic_block(join_block);
+                }
 
                 if let Some(FunctionReturn::Compound { .. }) = function.r#return {
                     let return_pointer = return_value.expect("Always exists").into_pointer_value();

@@ -152,13 +152,13 @@ impl Block {
             }
             Target::zkEVM if context.test_entry_hash.is_some() => {
                 let return_value = context.build_load(return_pointer, "");
-                // let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                // context.build_call(intrinsic, &[], "");
+                let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
+                context.build_call(intrinsic, &[], "");
                 context.build_return(Some(&return_value));
             }
             Target::zkEVM => {
-                // let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                // context.build_call(intrinsic, &[], "");
+                let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
+                context.build_call(intrinsic, &[], "");
                 context.build_return(None);
             }
         }
