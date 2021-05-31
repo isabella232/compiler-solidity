@@ -540,7 +540,7 @@ dependencies = [
 [[package]]
 name = "zkevm-assembly"
 version = "0.1.0"
-source = "git+ssh://git@github.com/matter-labs/zkEVM-assembly?branch=main#3493df6d1e3635f2c3e3b44d8289fe8ba73222a3"
+source = "git+ssh://git@github.com/matter-labs/zkEVM-assembly?branch=main#77d307675506757beba84cd99cfaa61d50dd8018"
 dependencies = [
  "env_logger",
  "log",
