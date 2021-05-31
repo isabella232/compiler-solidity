@@ -581,11 +581,14 @@ impl<'ctx> Context<'ctx> {
                     .integer_type(compiler_const::bitlength::FIELD)
                     .ptr_type(AddressSpace::Stack.into())
                     .const_zero();
+                let pointer =
+                    unsafe { self.builder.build_gep(pointer, &[self.field_const(1)], "") };
                 let offset = self.builder.build_int_unsigned_div(
                     offset,
                     self.field_const(compiler_const::size::FIELD as u64),
                     "",
                 );
+                let offset = self.builder.build_int_sub(offset, self.field_const(1), "");
                 let pointer = unsafe { self.builder.build_gep(pointer, &[offset], "") };
                 pointer
             }

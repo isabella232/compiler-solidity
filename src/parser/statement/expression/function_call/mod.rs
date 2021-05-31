@@ -1935,25 +1935,25 @@ impl FunctionCall {
 
                 let return_value = context.build_call(function.value, arguments.as_slice(), "");
 
-                if let Target::zkEVM = context.target {
-                    let join_block = context.append_basic_block("join");
-                    let intrinsic = context.get_intrinsic_function(Intrinsic::LesserFlag);
-                    let overflow_flag = context
-                        .build_call(intrinsic, &[], "")
-                        .expect("Intrinsic always returns a flag")
-                        .into_int_value();
-                    let overflow_flag = context.builder.build_int_truncate_or_bit_cast(
-                        overflow_flag,
-                        context.integer_type(compiler_const::bitlength::BOOLEAN),
-                        "",
-                    );
-                    context.build_conditional_branch(
-                        overflow_flag,
-                        context.function().revert_block,
-                        join_block,
-                    );
-                    context.set_basic_block(join_block);
-                }
+                // if let Target::zkEVM = context.target {
+                //     let join_block = context.append_basic_block("join");
+                //     let intrinsic = context.get_intrinsic_function(Intrinsic::LesserFlag);
+                //     let overflow_flag = context
+                //         .build_call(intrinsic, &[], "")
+                //         .expect("Intrinsic always returns a flag")
+                //         .into_int_value();
+                //     let overflow_flag = context.builder.build_int_truncate_or_bit_cast(
+                //         overflow_flag,
+                //         context.integer_type(compiler_const::bitlength::BOOLEAN),
+                //         "",
+                //     );
+                //     context.build_conditional_branch(
+                //         overflow_flag,
+                //         context.function().revert_block,
+                //         join_block,
+                //     );
+                //     context.set_basic_block(join_block);
+                // }
 
                 if let Some(FunctionReturn::Compound { .. }) = function.r#return {
                     let return_pointer = return_value.expect("Always exists").into_pointer_value();
