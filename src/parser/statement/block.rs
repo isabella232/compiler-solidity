@@ -163,28 +163,28 @@ impl Block {
             }
         }
 
-        // context.set_basic_block(function.return_block);
-        // match context.target {
-        //     Target::LLVM => {
-        //         let mut return_value = context.build_load(return_pointer, "");
-        //         return_value = context
-        //             .builder
-        //             .build_int_truncate_or_bit_cast(
-        //                 return_value.into_int_value(),
-        //                 context.integer_type(compiler_const::bitlength::WORD),
-        //                 "",
-        //             )
-        //             .as_basic_value_enum();
-        //         context.build_return(Some(&return_value));
-        //     }
-        //     Target::zkEVM if context.test_entry_hash.is_some() => {
-        //         let return_value = context.build_load(return_pointer, "");
-        //         context.build_return(Some(&return_value));
-        //     }
-        //     Target::zkEVM => {
-        //         context.build_return(None);
-        //     }
-        // }
+        context.set_basic_block(function.return_block);
+        match context.target {
+            Target::LLVM => {
+                let mut return_value = context.build_load(return_pointer, "");
+                return_value = context
+                    .builder
+                    .build_int_truncate_or_bit_cast(
+                        return_value.into_int_value(),
+                        context.integer_type(compiler_const::bitlength::WORD),
+                        "",
+                    )
+                    .as_basic_value_enum();
+                context.build_return(Some(&return_value));
+            }
+            Target::zkEVM if context.test_entry_hash.is_some() => {
+                let return_value = context.build_load(return_pointer, "");
+                context.build_return(Some(&return_value));
+            }
+            Target::zkEVM => {
+                context.build_return(None);
+            }
+        }
 
         for function in functions.into_iter() {
             function.into_llvm(context);
