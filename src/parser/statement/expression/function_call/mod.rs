@@ -1067,7 +1067,10 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<2>(context);
                 Some(arguments[1])
             }
-            Name::Keccak256 => Some(context.field_const(0).as_basic_value_enum()),
+            Name::Keccak256 => {
+                let _arguments = self.pop_arguments::<2>(context);
+                Some(context.field_const(0).as_basic_value_enum())
+            }
             Name::Pc => Some(context.field_const(0).as_basic_value_enum()),
 
             Name::Pop => {
@@ -1513,7 +1516,7 @@ impl FunctionCall {
                 ))
             }
             Name::DelegateCall => {
-                let arguments = self.pop_arguments::<7>(context);
+                let arguments = self.pop_arguments::<6>(context);
 
                 if let Target::LLVM = context.target {
                     return Some(
@@ -1525,10 +1528,10 @@ impl FunctionCall {
                 }
 
                 let address = arguments[1].into_int_value();
-                let input_offset = arguments[3].into_int_value();
-                let input_size = arguments[4].into_int_value();
-                let output_offset = arguments[5].into_int_value();
-                let output_size = arguments[6].into_int_value();
+                let input_offset = arguments[2].into_int_value();
+                let input_size = arguments[3].into_int_value();
+                let output_offset = arguments[4].into_int_value();
+                let output_size = arguments[5].into_int_value();
 
                 Some(Self::contract_call(
                     context,
@@ -1540,7 +1543,7 @@ impl FunctionCall {
                 ))
             }
             Name::StaticCall => {
-                let arguments = self.pop_arguments::<7>(context);
+                let arguments = self.pop_arguments::<6>(context);
 
                 if let Target::LLVM = context.target {
                     return Some(
@@ -1552,10 +1555,10 @@ impl FunctionCall {
                 }
 
                 let address = arguments[1].into_int_value();
-                let input_offset = arguments[3].into_int_value();
-                let input_size = arguments[4].into_int_value();
-                let output_offset = arguments[5].into_int_value();
-                let output_size = arguments[6].into_int_value();
+                let input_offset = arguments[2].into_int_value();
+                let input_size = arguments[3].into_int_value();
+                let output_offset = arguments[4].into_int_value();
+                let output_size = arguments[5].into_int_value();
 
                 Some(Self::contract_call(
                     context,
