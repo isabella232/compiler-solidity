@@ -1174,16 +1174,22 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<1>(context);
 
                 if let Some(ref test_entry_hash) = context.test_entry_hash {
-                    return Some(
-                        context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .const_int_from_string(
-                                test_entry_hash,
-                                inkwell::types::StringRadix::Hexadecimal,
-                            )
-                            .expect("Always valid")
-                            .as_basic_value_enum(),
+                    let hash = context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .const_int_from_string(
+                            test_entry_hash,
+                            inkwell::types::StringRadix::Hexadecimal,
+                        )
+                        .expect("Always valid");
+                    let hash = context.builder.build_left_shift(
+                        hash,
+                        context.field_const(
+                            ((compiler_const::size::FIELD - 4) * compiler_const::bitlength::BYTE)
+                                as u64,
+                        ),
+                        "",
                     );
+                    return Some(hash.as_basic_value_enum());
                 }
 
                 let if_zero_block = context.append_basic_block("if_zero");
