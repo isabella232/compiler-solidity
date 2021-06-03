@@ -62,12 +62,7 @@ impl Lexer {
                 self.index += 1;
                 let mut string = String::new();
                 while !self.input[self.index..].starts_with('"') {
-                    string.push(
-                        self.input
-                            .chars()
-                            .nth(self.index)
-                            .expect(compiler_const::panic::VALUE_ALWAYS_EXISTS),
-                    );
+                    string.push(self.input.chars().nth(self.index).expect("Always exists"));
                     self.index += 1;
                 }
                 self.index += 1;

@@ -54,16 +54,21 @@ fn main_inner() -> Result<(), yul_compiler::Error> {
     } else {
         representation.into_bytes()
     };
+    let file_name = match target {
+        yul_compiler::Target::LLVM => compiler_const::file_name::LLVM_IR,
+        yul_compiler::Target::zkEVM if arguments.binary => compiler_const::file_name::ZKEVM_BINARY,
+        yul_compiler::Target::zkEVM => compiler_const::file_name::ZKEVM_ASSEMBLY,
+    };
     let target_extension = match target {
-        yul_compiler::Target::LLVM => compiler_const::extension::LLVM,
-        yul_compiler::Target::zkEVM if arguments.binary => "",
-        yul_compiler::Target::zkEVM => compiler_const::extension::ASSEMBLY,
+        yul_compiler::Target::LLVM => Some(compiler_const::extension::LLVM_SOURCE),
+        yul_compiler::Target::zkEVM if arguments.binary => compiler_const::extension::ZKEVM_BINARY,
+        yul_compiler::Target::zkEVM => Some(compiler_const::extension::ZKEVM_ASSEMBLY),
     };
     let target_build_path = PathBuf::from(format!(
         "{}{}{}",
-        compiler_const::file_name::ASSEMBLY,
-        if target_extension.is_empty() { "" } else { "." },
-        target_extension,
+        file_name,
+        if target_extension.is_some() { "" } else { "." },
+        target_extension.unwrap_or_default(),
     ));
     File::create(&target_build_path)
         .expect("File creating error")
