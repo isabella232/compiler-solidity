@@ -1247,6 +1247,9 @@ impl FunctionCall {
             }
             Name::CallDataSize => match context.target {
                 Target::LLVM => Some(context.field_const(4).as_basic_value_enum()),
+                Target::zkEVM if context.test_entry_hash.is_some() => {
+                    Some(context.field_const(4).as_basic_value_enum())
+                }
                 Target::zkEVM => {
                     let pointer = context
                         .integer_type(compiler_const::bitlength::FIELD)
@@ -1287,7 +1290,7 @@ impl FunctionCall {
                 );
                 let destination = context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Stack.into())
+                    .ptr_type(AddressSpace::Heap.into())
                     .const_zero();
                 let destination = unsafe {
                     context
@@ -1642,7 +1645,7 @@ impl FunctionCall {
                 );
                 let destination = context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Stack.into())
+                    .ptr_type(AddressSpace::Heap.into())
                     .const_zero();
                 let destination = unsafe {
                     context
@@ -1758,50 +1761,50 @@ impl FunctionCall {
                         );
                         let source = context
                             .integer_type(compiler_const::bitlength::FIELD)
-                            .ptr_type(AddressSpace::Stack.into())
+                            .ptr_type(AddressSpace::Heap.into())
                             .const_zero();
                         let source =
                             unsafe { context.builder.build_gep(source, &[source_offset], "") };
-
-                        let destination = context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .ptr_type(AddressSpace::Parent.into())
-                            .const_zero();
-                        let destination = unsafe {
-                            context.builder.build_gep(
-                                destination,
-                                &[context
-                                    .integer_type(compiler_const::bitlength::FIELD)
-                                    .const_int(
-                                        compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
-                                            as u64,
-                                        false,
-                                    )],
-                                "",
-                            )
-                        };
-
-                        let size = arguments[1].into_int_value();
-
-                        context.build_call(
-                            intrinsic,
-                            &[
-                                destination.as_basic_value_enum(),
-                                source.as_basic_value_enum(),
-                                size.as_basic_value_enum(),
-                                context
-                                    .integer_type(compiler_const::bitlength::BOOLEAN)
-                                    .const_zero()
-                                    .as_basic_value_enum(),
-                            ],
-                            "",
-                        );
 
                         if context.test_entry_hash.is_some() {
                             if let Some(return_pointer) = function.return_pointer() {
                                 let result = context.build_load(source, "");
                                 context.build_store(return_pointer, result);
                             }
+                        } else {
+                            let destination = context
+                                .integer_type(compiler_const::bitlength::FIELD)
+                                .ptr_type(AddressSpace::Parent.into())
+                                .const_zero();
+                            let destination = unsafe {
+                                context.builder.build_gep(
+                                    destination,
+                                    &[context
+                                        .integer_type(compiler_const::bitlength::FIELD)
+                                        .const_int(
+                                            compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
+                                                as u64,
+                                            false,
+                                        )],
+                                    "",
+                                )
+                            };
+
+                            let size = arguments[1].into_int_value();
+
+                            context.build_call(
+                                intrinsic,
+                                &[
+                                    destination.as_basic_value_enum(),
+                                    source.as_basic_value_enum(),
+                                    size.as_basic_value_enum(),
+                                    context
+                                        .integer_type(compiler_const::bitlength::BOOLEAN)
+                                        .const_zero()
+                                        .as_basic_value_enum(),
+                                ],
+                                "",
+                            );
                         }
                     }
                 }
@@ -1848,7 +1851,7 @@ impl FunctionCall {
                         );
                         let source = context
                             .integer_type(compiler_const::bitlength::FIELD)
-                            .ptr_type(AddressSpace::Stack.into())
+                            .ptr_type(AddressSpace::Heap.into())
                             .const_zero();
                         let source =
                             unsafe { context.builder.build_gep(source, &[source_offset], "") };
@@ -2005,7 +2008,7 @@ impl FunctionCall {
 
         let stack_pointer = context
             .integer_type(compiler_const::bitlength::FIELD)
-            .ptr_type(AddressSpace::Stack.into())
+            .ptr_type(AddressSpace::Heap.into())
             .const_zero();
         let child_pointer = context
             .integer_type(compiler_const::bitlength::FIELD)

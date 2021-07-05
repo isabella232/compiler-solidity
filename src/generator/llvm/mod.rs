@@ -579,7 +579,7 @@ impl<'ctx> Context<'ctx> {
             Target::zkEVM => {
                 let pointer = self
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Stack.into())
+                    .ptr_type(AddressSpace::Heap.into())
                     .const_zero();
                 let pointer =
                     unsafe { self.builder.build_gep(pointer, &[self.field_const(1)], "") };
@@ -639,26 +639,19 @@ impl<'ctx> Context<'ctx> {
     /// Allocates the heap, if it has not been allocated yet.
     ///
     pub fn allocate_heap(&mut self, size: usize) {
+        if !matches!(self.target, Target::LLVM) {
+            return;
+        }
+
         if self.heap.is_some() {
             return;
         }
 
-        let global = match self.target {
-            Target::LLVM => {
-                let r#type = self
-                    .integer_type(compiler_const::bitlength::BYTE)
-                    .array_type(size as u32);
-                let global = self.module().add_global(r#type, None, "heap");
-                global.set_initializer(&r#type.const_zero());
-                global
-            }
-            Target::zkEVM => {
-                let r#type = self
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Stack.into());
-                self.module().add_global(r#type, None, "heap")
-            }
-        };
+        let r#type = self
+            .integer_type(compiler_const::bitlength::BYTE)
+            .array_type(size as u32);
+        let global = self.module().add_global(r#type, None, "heap");
+        global.set_initializer(&r#type.const_zero());
         self.heap = Some(global);
     }
 

@@ -132,7 +132,7 @@ impl Intrinsic {
             Self::MemoryCopyFromParent => vec![
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Stack.into())
+                    .ptr_type(AddressSpace::Heap.into())
                     .as_basic_type_enum(),
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
@@ -149,7 +149,7 @@ impl Intrinsic {
                     .as_basic_type_enum(),
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Stack.into())
+                    .ptr_type(AddressSpace::Heap.into())
                     .as_basic_type_enum(),
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
@@ -158,7 +158,7 @@ impl Intrinsic {
             Self::MemoryCopyFromChild => vec![
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Stack.into())
+                    .ptr_type(AddressSpace::Heap.into())
                     .as_basic_type_enum(),
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
@@ -175,7 +175,7 @@ impl Intrinsic {
                     .as_basic_type_enum(),
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Stack.into())
+                    .ptr_type(AddressSpace::Heap.into())
                     .as_basic_type_enum(),
                 context
                     .integer_type(compiler_const::bitlength::FIELD)
