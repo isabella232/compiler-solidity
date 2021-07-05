@@ -1251,19 +1251,16 @@ impl FunctionCall {
                     Some(context.field_const(4).as_basic_value_enum())
                 }
                 Target::zkEVM => {
-                    let pointer = context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .ptr_type(AddressSpace::Parent.into())
-                        .const_zero();
-                    let pointer = unsafe {
-                        context.builder.build_gep(
-                            pointer,
-                            &[context.field_const(
-                                compiler_const::contract::ABI_OFFSET_CALLDATA_SIZE as u64,
-                            )],
-                            "",
-                        )
-                    };
+                    let pointer = context.builder.build_int_to_ptr(
+                        context.field_const(
+                            (compiler_const::contract::ABI_OFFSET_CALLDATA_SIZE
+                                * compiler_const::size::FIELD) as u64,
+                        ),
+                        context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .ptr_type(AddressSpace::Parent.into()),
+                        "",
+                    );
                     let value = context.build_load(pointer, "");
                     let value = context.builder.build_int_mul(
                         value.into_int_value(),
@@ -1283,20 +1280,13 @@ impl FunctionCall {
                     return None;
                 }
 
-                let destination_offset = context.builder.build_int_unsigned_div(
+                let destination = context.builder.build_int_to_ptr(
                     arguments[0].into_int_value(),
-                    context.field_const(compiler_const::size::FIELD as u64),
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .ptr_type(AddressSpace::Heap.into()),
                     "",
                 );
-                let destination = context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Heap.into())
-                    .const_zero();
-                let destination = unsafe {
-                    context
-                        .builder
-                        .build_gep(destination, &[destination_offset], "")
-                };
 
                 let source_offset_shift = compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
                     * compiler_const::size::FIELD
@@ -1306,11 +1296,13 @@ impl FunctionCall {
                     context.field_const(source_offset_shift as u64),
                     "",
                 );
-                let source = context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Parent.into())
-                    .const_zero();
-                let source = unsafe { context.builder.build_gep(source, &[source_offset], "") };
+                let source = context.builder.build_int_to_ptr(
+                    source_offset,
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .ptr_type(AddressSpace::Parent.into()),
+                    "",
+                );
 
                 let size = arguments[2].into_int_value();
 
@@ -1609,17 +1601,16 @@ impl FunctionCall {
                         .as_basic_value_enum(),
                 ),
                 Target::zkEVM => {
-                    let pointer = context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .ptr_type(AddressSpace::Child.into())
-                        .const_zero();
-                    let offset = context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .const_int(
-                            compiler_const::contract::ABI_OFFSET_RETURN_DATA_SIZE as u64,
-                            false,
-                        );
-                    let pointer = unsafe { context.builder.build_gep(pointer, &[offset], "") };
+                    let pointer = context.builder.build_int_to_ptr(
+                        context.field_const(
+                            (compiler_const::contract::ABI_OFFSET_RETURN_DATA_SIZE
+                                * compiler_const::size::FIELD) as u64,
+                        ),
+                        context
+                            .integer_type(compiler_const::bitlength::FIELD)
+                            .ptr_type(AddressSpace::Child.into()),
+                        "",
+                    );
                     let value = context.build_load(pointer, "");
                     let value = context.builder.build_int_mul(
                         value.into_int_value(),
@@ -1636,22 +1627,13 @@ impl FunctionCall {
                     return None;
                 }
 
-                let destination_offset = context.builder.build_int_unsigned_div(
+                let destination = context.builder.build_int_to_ptr(
                     arguments[0].into_int_value(),
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
-                        .const_int(compiler_const::size::FIELD as u64, false),
+                        .ptr_type(AddressSpace::Heap.into()),
                     "",
                 );
-                let destination = context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Heap.into())
-                    .const_zero();
-                let destination = unsafe {
-                    context
-                        .builder
-                        .build_gep(destination, &[destination_offset], "")
-                };
 
                 let source_offset_shift = compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
                     * compiler_const::size::FIELD
@@ -1661,11 +1643,13 @@ impl FunctionCall {
                     context.field_const(source_offset_shift as u64),
                     "",
                 );
-                let source = context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Child.into())
-                    .const_zero();
-                let source = unsafe { context.builder.build_gep(source, &[source_offset], "") };
+                let source = context.builder.build_int_to_ptr(
+                    source_offset,
+                    context
+                        .integer_type(compiler_const::bitlength::FIELD)
+                        .ptr_type(AddressSpace::Child.into()),
+                    "",
+                );
 
                 let size = arguments[2].into_int_value();
 
@@ -1752,19 +1736,13 @@ impl FunctionCall {
                         let intrinsic =
                             context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
 
-                        let source_offset = context.builder.build_int_unsigned_div(
+                        let source = context.builder.build_int_to_ptr(
                             arguments[0].into_int_value(),
                             context
                                 .integer_type(compiler_const::bitlength::FIELD)
-                                .const_int(compiler_const::size::FIELD as u64, false),
+                                .ptr_type(AddressSpace::Heap.into()),
                             "",
                         );
-                        let source = context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .ptr_type(AddressSpace::Heap.into())
-                            .const_zero();
-                        let source =
-                            unsafe { context.builder.build_gep(source, &[source_offset], "") };
 
                         if context.test_entry_hash.is_some() {
                             if let Some(return_pointer) = function.return_pointer() {
@@ -1772,23 +1750,20 @@ impl FunctionCall {
                                 context.build_store(return_pointer, result);
                             }
                         } else {
-                            let destination = context
-                                .integer_type(compiler_const::bitlength::FIELD)
-                                .ptr_type(AddressSpace::Parent.into())
-                                .const_zero();
-                            let destination = unsafe {
-                                context.builder.build_gep(
-                                    destination,
-                                    &[context
-                                        .integer_type(compiler_const::bitlength::FIELD)
-                                        .const_int(
-                                            compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
-                                                as u64,
-                                            false,
-                                        )],
-                                    "",
-                                )
-                            };
+                            let destination = context.builder.build_int_to_ptr(
+                                context
+                                    .integer_type(compiler_const::bitlength::FIELD)
+                                    .const_int(
+                                        (compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
+                                            * compiler_const::size::FIELD)
+                                            as u64,
+                                        false,
+                                    ),
+                                context
+                                    .integer_type(compiler_const::bitlength::FIELD)
+                                    .ptr_type(AddressSpace::Parent.into()),
+                                "",
+                            );
 
                             let size = arguments[1].into_int_value();
 
@@ -1842,19 +1817,13 @@ impl FunctionCall {
                         }
                     }
                     Target::zkEVM => {
-                        let source_offset = context.builder.build_int_unsigned_div(
+                        let source = context.builder.build_int_to_ptr(
                             arguments[0].into_int_value(),
                             context
                                 .integer_type(compiler_const::bitlength::FIELD)
-                                .const_int(compiler_const::size::FIELD as u64, false),
+                                .ptr_type(AddressSpace::Heap.into()),
                             "",
                         );
-                        let source = context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .ptr_type(AddressSpace::Heap.into())
-                            .const_zero();
-                        let source =
-                            unsafe { context.builder.build_gep(source, &[source_offset], "") };
 
                         if context.test_entry_hash.is_some() {
                             if let Some(return_pointer) = function.return_pointer() {
@@ -2006,59 +1975,48 @@ impl FunctionCall {
             "",
         );
 
-        let stack_pointer = context
-            .integer_type(compiler_const::bitlength::FIELD)
-            .ptr_type(AddressSpace::Heap.into())
-            .const_zero();
-        let child_pointer = context
-            .integer_type(compiler_const::bitlength::FIELD)
-            .ptr_type(AddressSpace::Child.into())
-            .const_zero();
-
-        let pointer = unsafe {
-            context.builder.build_gep(
-                child_pointer,
-                &[context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .const_int(
-                        compiler_const::contract::ABI_OFFSET_CALLDATA_SIZE as u64,
-                        false,
-                    )],
-                "",
-            )
-        };
-        context.build_store(pointer, input_size);
-        let pointer = unsafe {
-            context.builder.build_gep(
-                child_pointer,
-                &[context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .const_int(
-                        compiler_const::contract::ABI_OFFSET_RETURN_DATA_SIZE as u64,
-                        false,
-                    )],
-                "",
-            )
-        };
-        context.build_store(pointer, output_size);
-
-        let destination = unsafe {
-            context.builder.build_gep(
-                child_pointer,
-                &[context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .const_int(
-                        compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA as u64,
-                        false,
-                    )],
-                "",
-            )
-        };
-        let source = unsafe {
+        let stack_pointer = context.builder.build_int_to_ptr(
+            input_offset,
             context
-                .builder
-                .build_gep(stack_pointer, &[input_offset], "")
-        };
+                .integer_type(compiler_const::bitlength::FIELD)
+                .ptr_type(AddressSpace::Heap.into()),
+            "",
+        );
+
+        let child_pointer_input = context.builder.build_int_to_ptr(
+            context.field_const(
+                (compiler_const::contract::ABI_OFFSET_CALLDATA_SIZE * compiler_const::size::FIELD)
+                    as u64,
+            ),
+            context
+                .integer_type(compiler_const::bitlength::FIELD)
+                .ptr_type(AddressSpace::Child.into()),
+            "",
+        );
+        context.build_store(child_pointer_input, input_size);
+        let child_pointer_output = context.builder.build_int_to_ptr(
+            context.field_const(
+                (compiler_const::contract::ABI_OFFSET_RETURN_DATA_SIZE
+                    * compiler_const::size::FIELD) as u64,
+            ),
+            context
+                .integer_type(compiler_const::bitlength::FIELD)
+                .ptr_type(AddressSpace::Child.into()),
+            "",
+        );
+        context.build_store(child_pointer_output, output_size);
+
+        let destination = context.builder.build_int_to_ptr(
+            context.field_const(
+                (compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
+                    * compiler_const::size::FIELD) as u64,
+            ),
+            context
+                .integer_type(compiler_const::bitlength::FIELD)
+                .ptr_type(AddressSpace::Child.into()),
+            "",
+        );
+        let source = stack_pointer;
 
         let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToChild);
         context.build_call(
@@ -2078,18 +2036,7 @@ impl FunctionCall {
         let intrinsic = context.get_intrinsic_function(Intrinsic::FarCall);
         context.build_call(intrinsic, &[address.as_basic_value_enum()], "");
 
-        let source = unsafe {
-            context.builder.build_gep(
-                child_pointer,
-                &[context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .const_int(
-                        compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA as u64,
-                        false,
-                    )],
-                "",
-            )
-        };
+        let source = destination;
         let destination = unsafe {
             context
                 .builder

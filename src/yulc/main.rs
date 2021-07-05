@@ -55,7 +55,7 @@ fn main_inner() -> Result<(), yul_compiler::Error> {
         representation.into_bytes()
     };
     let file_name = match target {
-        yul_compiler::Target::LLVM => compiler_const::file_name::LLVM_IR,
+        yul_compiler::Target::LLVM => compiler_const::file_name::LLVM_SOURCE,
         yul_compiler::Target::zkEVM if arguments.binary => compiler_const::file_name::ZKEVM_BINARY,
         yul_compiler::Target::zkEVM => compiler_const::file_name::ZKEVM_ASSEMBLY,
     };
