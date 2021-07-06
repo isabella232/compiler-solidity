@@ -1081,6 +1081,12 @@ impl FunctionCall {
             Name::MLoad => {
                 let arguments = self.pop_arguments::<1>(context);
 
+                if let Some(value) = arguments[0].into_int_value().get_zero_extended_constant() {
+                    if value % (compiler_const::size::FIELD as u64) != 0 {
+                        return None;
+                    }
+                }
+
                 let pointer = context.access_heap(arguments[0].into_int_value(), None);
 
                 let value = context.build_load(pointer, "");
@@ -1089,6 +1095,12 @@ impl FunctionCall {
             }
             Name::MStore => {
                 let arguments = self.pop_arguments::<2>(context);
+
+                if let Some(value) = arguments[0].into_int_value().get_zero_extended_constant() {
+                    if value % (compiler_const::size::FIELD as u64) != 0 {
+                        return None;
+                    }
+                }
 
                 let pointer = context.access_heap(arguments[0].into_int_value(), None);
 
@@ -1788,51 +1800,9 @@ impl FunctionCall {
                 None
             }
             Name::Revert => {
-                let arguments = self.pop_arguments::<2>(context);
+                let _arguments = self.pop_arguments::<2>(context);
 
                 let function = context.function().to_owned();
-
-                match context.target {
-                    Target::LLVM => {
-                        let heap_type = match context.target {
-                            Target::LLVM => {
-                                Some(context.integer_type(compiler_const::bitlength::BYTE))
-                            }
-                            Target::zkEVM => None,
-                        };
-
-                        let source = context.access_heap(arguments[0].into_int_value(), heap_type);
-
-                        if let Some(return_pointer) = function.return_pointer() {
-                            context
-                                .builder
-                                .build_memcpy(
-                                    return_pointer,
-                                    (compiler_const::size::BYTE) as u32,
-                                    source,
-                                    (compiler_const::size::BYTE) as u32,
-                                    arguments[1].into_int_value(),
-                                )
-                                .expect("Return memory copy failed");
-                        }
-                    }
-                    Target::zkEVM => {
-                        let source = context.builder.build_int_to_ptr(
-                            arguments[0].into_int_value(),
-                            context
-                                .integer_type(compiler_const::bitlength::FIELD)
-                                .ptr_type(AddressSpace::Heap.into()),
-                            "",
-                        );
-
-                        if context.test_entry_hash.is_some() {
-                            if let Some(return_pointer) = function.return_pointer() {
-                                let result = context.build_load(source, "");
-                                context.build_store(return_pointer, result);
-                            }
-                        }
-                    }
-                }
 
                 context.build_unconditional_branch(function.revert_block);
                 None
@@ -1840,38 +1810,7 @@ impl FunctionCall {
             Name::Stop => {
                 let function = context.function().to_owned();
 
-                if let Target::LLVM = context.target {
-                    if let Some(return_pointer) = function.return_pointer() {
-                        let heap_type = match context.target {
-                            Target::LLVM => {
-                                Some(context.integer_type(compiler_const::bitlength::BYTE))
-                            }
-                            Target::zkEVM => None,
-                        };
-
-                        let source = context.access_heap(
-                            context
-                                .integer_type(compiler_const::bitlength::FIELD)
-                                .const_zero(),
-                            heap_type,
-                        );
-                        let size = context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .const_zero();
-                        context
-                            .builder
-                            .build_memcpy(
-                                return_pointer,
-                                (compiler_const::size::BYTE) as u32,
-                                source,
-                                (compiler_const::size::BYTE) as u32,
-                                size,
-                            )
-                            .expect("Return memory copy failed");
-                    }
-                }
-
-                context.build_unconditional_branch(function.return_block);
+                context.build_unconditional_branch(function.revert_block);
                 None
             }
             Name::SelfDestruct => {
