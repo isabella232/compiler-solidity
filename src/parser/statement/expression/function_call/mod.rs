@@ -1220,8 +1220,10 @@ impl FunctionCall {
                 context.build_conditional_branch(is_zero, if_zero_block, if_non_zero_block);
 
                 context.set_basic_block(if_zero_block);
-                let offset =
-                    context.field_const(compiler_const::contract::ABI_OFFSET_ENTRY_HASH as u64);
+                let offset = context.field_const(
+                    (compiler_const::contract::ABI_OFFSET_ENTRY_HASH * compiler_const::size::FIELD)
+                        as u64,
+                );
                 let pointer = context.access_calldata(offset);
                 let value = context.build_load(pointer, "");
                 context.build_store(value_pointer, value);
@@ -1230,23 +1232,15 @@ impl FunctionCall {
                 context.set_basic_block(if_non_zero_block);
                 let offset = match context.target {
                     Target::LLVM => arguments[0].into_int_value(),
-                    Target::zkEVM => {
-                        let offset = context.builder.build_int_add(
-                            arguments[0].into_int_value(),
-                            context.field_const(
-                                (compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
-                                    * compiler_const::size::FIELD
-                                    - 4) as u64,
-                            ),
-                            "",
-                        );
-                        let offset = context.builder.build_int_unsigned_div(
-                            offset,
-                            context.field_const(compiler_const::size::FIELD as u64),
-                            "",
-                        );
-                        offset
-                    }
+                    Target::zkEVM => context.builder.build_int_add(
+                        arguments[0].into_int_value(),
+                        context.field_const(
+                            (compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
+                                * compiler_const::size::FIELD
+                                - 4) as u64,
+                        ),
+                        "",
+                    ),
                 };
                 let pointer = context.access_calldata(offset);
                 let value = context.build_load(pointer, "");
