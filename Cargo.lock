@@ -124,7 +124,7 @@ checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 [[package]]
 name = "inkwell"
 version = "0.1.0"
-source = "git+ssh://git@github.com/matter-labs-forks/inkwell?branch=master#94b554b491b5ea8bbd815e60cd88baf34f9de3b1"
+source = "git+ssh://git@github.com/matter-labs-forks/inkwell?branch=master#7bc33cac059ad550a0a32e6f7b7ae2008069da7c"
 dependencies = [
  "either",
  "inkwell_internals",
@@ -138,7 +138,7 @@ dependencies = [
 [[package]]
 name = "inkwell_internals"
 version = "0.3.0"
-source = "git+ssh://git@github.com/matter-labs-forks/inkwell?branch=master#94b554b491b5ea8bbd815e60cd88baf34f9de3b1"
+source = "git+ssh://git@github.com/matter-labs-forks/inkwell?branch=master#7bc33cac059ad550a0a32e6f7b7ae2008069da7c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -147,9 +147,9 @@ dependencies = [
 
 [[package]]
 name = "instant"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61124eeebbd69b8190558df225adf7e4caafce0d743919e5d6b19652314ec5ec"
+checksum = "bee0328b1209d157ef001c94dd85b4f8f64139adb0eac2659f4b08382b2f474d"
 dependencies = [
  "cfg-if",
 ]
