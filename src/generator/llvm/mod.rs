@@ -91,15 +91,36 @@ impl<'ctx> Context<'ctx> {
             module.set_data_layout(&machine.get_target_data().get_data_layout());
         }
 
+        const INTERNALIZE: bool = true;
+        const RUN_INLINER: bool = true;
+        const INLINER_THRESHOLD: usize = <usize>::MAX;
+
+        let size_level = match optimization_level {
+            inkwell::OptimizationLevel::Aggressive => 2,
+            inkwell::OptimizationLevel::Default => 2,
+            inkwell::OptimizationLevel::Less => 1,
+            inkwell::OptimizationLevel::None => 0,
+        };
+
         let pass_manager_builder = inkwell::passes::PassManagerBuilder::create();
         pass_manager_builder.set_optimization_level(optimization_level);
+        pass_manager_builder.set_size_level(size_level);
+        pass_manager_builder.set_disable_unroll_loops(true);
+        pass_manager_builder.set_inliner_with_threshold(INLINER_THRESHOLD as u32);
 
         let pass_manager_module = inkwell::passes::PassManager::create(());
+        pass_manager_builder.populate_lto_pass_manager(
+            &pass_manager_module,
+            INTERNALIZE,
+            RUN_INLINER,
+        );
         pass_manager_builder.populate_module_pass_manager(&pass_manager_module);
-        pass_manager_builder.populate_lto_pass_manager(&pass_manager_module, true, true);
 
         let pass_manager_function = inkwell::passes::PassManager::create(&module);
         pass_manager_builder.populate_function_pass_manager(&pass_manager_function);
+
+        let personality =
+            module.add_function("__personality", llvm.i32_type().fn_type(&[], false), None);
 
         Self {
             target: machine.into(),
