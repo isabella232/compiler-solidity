@@ -99,6 +99,7 @@ impl FunctionDefinition {
             self.name.as_str(),
             function_type,
             Some(inkwell::module::Linkage::Private),
+            true,
         );
 
         if self.result.len() > 1 {

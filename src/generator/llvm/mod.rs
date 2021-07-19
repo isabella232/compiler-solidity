@@ -41,6 +41,8 @@ pub struct Context<'ctx> {
     object: Option<String>,
     /// The current function.
     function: Option<Function<'ctx>>,
+    /// The personality function, used for exception handling.
+    personality: inkwell::values::FunctionValue<'ctx>,
     /// The loop context stack.
     loop_stack: Vec<Loop<'ctx>>,
 
@@ -131,6 +133,7 @@ impl<'ctx> Context<'ctx> {
             module,
             object: None,
             function: None,
+            personality,
             loop_stack: Vec::with_capacity(Self::LOOP_STACK_INITIAL_CAPACITY),
 
             optimization_level,
@@ -202,6 +205,7 @@ impl<'ctx> Context<'ctx> {
         name: &str,
         r#type: inkwell::types::FunctionType<'ctx>,
         linkage: Option<inkwell::module::Linkage>,
+        set_current: bool,
     ) {
         let value = self.module().add_function(name, r#type, linkage);
         if let Target::zkEVM = self.target {
@@ -214,6 +218,10 @@ impl<'ctx> Context<'ctx> {
                     value.set_param_alignment(index, compiler_const::size::FIELD as u32);
                 }
             }
+        }
+
+        if let Target::zkEVM = self.target {
+            value.set_personality_function(self.personality);
         }
 
         let entry_block = self.llvm.append_basic_block(value, "entry");
@@ -229,7 +237,9 @@ impl<'ctx> Context<'ctx> {
             None,
         );
         self.functions.insert(name.to_string(), function.clone());
-        self.function = Some(function);
+        if set_current {
+            self.function = Some(function);
+        }
     }
 
     ///

@@ -67,7 +67,7 @@ fn main_inner() -> Result<(), yul_compiler::Error> {
     let target_build_path = PathBuf::from(format!(
         "{}{}{}",
         file_name,
-        if target_extension.is_some() { "" } else { "." },
+        if target_extension.is_some() { "." } else { "" },
         target_extension.unwrap_or_default(),
     ));
     File::create(&target_build_path)

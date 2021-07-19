@@ -96,18 +96,7 @@ impl Block {
         let mut functions = Vec::with_capacity(self.statements.len());
         let mut local_statements = Vec::with_capacity(self.statements.len());
 
-        for statement in self.statements.into_iter() {
-            match statement {
-                Statement::FunctionDefinition(mut statement) => {
-                    statement.declare(context);
-                    functions.push(statement);
-                }
-                statement => local_statements.push(statement),
-            }
-        }
-
         let name = context.object().to_owned();
-
         let function_type = match context.target {
             Target::LLVM => context
                 .integer_type(compiler_const::bitlength::WORD)
@@ -121,8 +110,25 @@ impl Block {
             name.as_str(),
             function_type,
             Some(inkwell::module::Linkage::External),
+            false,
         );
-        let function = context.function().to_owned();
+
+        for statement in self.statements.into_iter() {
+            match statement {
+                Statement::FunctionDefinition(mut statement) => {
+                    statement.declare(context);
+                    functions.push(statement);
+                }
+                statement => local_statements.push(statement),
+            }
+        }
+
+        let function = context
+            .functions
+            .get(name.as_str())
+            .cloned()
+            .expect("Always exists");
+        context.set_function(name.as_str());
         context.set_basic_block(function.entry_block);
 
         let return_pointer = context.build_alloca(
