@@ -48,32 +48,30 @@ fn main_inner() -> Result<(), yul_compiler::Error> {
         arguments.optimization_level,
         arguments.dump_llvm,
     )?;
-    let representation = if arguments.binary {
-        let assembly = zkevm_assembly::Assembly::try_from(representation)?;
-        Vec::<u8>::from(&assembly)
-    } else {
-        representation.into_bytes()
-    };
-    let file_name = match target {
+
+    let text = representation.clone().into_bytes();
+    let binary = zkevm_assembly::Assembly::try_from(representation)?;
+    let binary = Vec::<u8>::from(&binary);
+
+    let text_file_name = match target {
         yul_compiler::Target::LLVM => compiler_const::file_name::LLVM_SOURCE,
-        yul_compiler::Target::zkEVM if arguments.binary => compiler_const::file_name::ZKEVM_BINARY,
         yul_compiler::Target::zkEVM => compiler_const::file_name::ZKEVM_ASSEMBLY,
     };
-    let target_extension = match target {
-        yul_compiler::Target::LLVM => Some(compiler_const::extension::LLVM_SOURCE),
-        yul_compiler::Target::zkEVM if arguments.binary => compiler_const::extension::ZKEVM_BINARY,
-        yul_compiler::Target::zkEVM => Some(compiler_const::extension::ZKEVM_ASSEMBLY),
+    let text_file_extension = match target {
+        yul_compiler::Target::LLVM => compiler_const::extension::LLVM_SOURCE,
+        yul_compiler::Target::zkEVM => compiler_const::extension::ZKEVM_ASSEMBLY,
     };
-    let target_build_path = PathBuf::from(format!(
-        "{}{}{}",
-        file_name,
-        if target_extension.is_some() { "." } else { "" },
-        target_extension.unwrap_or_default(),
-    ));
-    File::create(&target_build_path)
-        .expect("File creating error")
-        .write_all(representation.as_slice())
-        .expect("File writing error");
+    let text_file_path = PathBuf::from(format!("{}.{}", text_file_name, text_file_extension,));
+    File::create(&text_file_path)
+        .expect("Text file creating error")
+        .write_all(text.as_slice())
+        .expect("Text file writing error");
+
+    let binary_file_path = PathBuf::from(compiler_const::file_name::ZKEVM_BINARY);
+    File::create(&binary_file_path)
+        .expect("Binary file creating error")
+        .write_all(binary.as_slice())
+        .expect("Binary file writing error");
 
     Ok(())
 }

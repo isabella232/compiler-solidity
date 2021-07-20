@@ -95,7 +95,7 @@ impl<'ctx> Context<'ctx> {
 
         const INTERNALIZE: bool = true;
         const RUN_INLINER: bool = true;
-        // const INLINER_THRESHOLD: usize = <usize>::MAX;
+        const DISABLE_UNROLL_LOOPS: bool = true;
 
         let size_level = match optimization_level {
             inkwell::OptimizationLevel::Aggressive => 2,
@@ -107,8 +107,7 @@ impl<'ctx> Context<'ctx> {
         let pass_manager_builder = inkwell::passes::PassManagerBuilder::create();
         pass_manager_builder.set_optimization_level(optimization_level);
         pass_manager_builder.set_size_level(size_level);
-        pass_manager_builder.set_disable_unroll_loops(true);
-        // pass_manager_builder.set_inliner_with_threshold(INLINER_THRESHOLD as u32);
+        pass_manager_builder.set_disable_unroll_loops(DISABLE_UNROLL_LOOPS);
 
         let pass_manager_module = inkwell::passes::PassManager::create(());
         pass_manager_builder.populate_lto_pass_manager(
