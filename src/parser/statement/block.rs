@@ -142,32 +142,13 @@ impl Block {
         self.into_llvm_local(context);
         context.build_unconditional_branch(function.return_block);
 
-        context.set_basic_block(function.revert_block);
-        match context.target {
-            Target::LLVM => {
-                let mut return_value = context.build_load(return_pointer, "");
-                return_value = context
-                    .builder
-                    .build_int_truncate_or_bit_cast(
-                        return_value.into_int_value(),
-                        context.integer_type(compiler_const::bitlength::WORD),
-                        "",
-                    )
-                    .as_basic_value_enum();
-                context.build_return(Some(&return_value));
-            }
-            Target::zkEVM if context.test_entry_hash.is_some() => {
-                let return_value = context.build_load(return_pointer, "");
-                // let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                // context.build_call(intrinsic, &[], "");
-                context.build_return(Some(&return_value));
-            }
-            Target::zkEVM => {
-                // let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                // context.build_call(intrinsic, &[], "");
-                context.build_return(None);
-            }
-        }
+        context.set_basic_block(function.throw_block);
+        context.build_throw_block();
+        context.build_unreachable();
+
+        context.set_basic_block(function.catch_block);
+        context.build_catch_block();
+        context.build_unreachable();
 
         context.set_basic_block(function.return_block);
         match context.target {

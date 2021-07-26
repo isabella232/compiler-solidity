@@ -1351,7 +1351,7 @@ impl FunctionCall {
                         intrinsic,
                         &[context
                             .integer_type(compiler_const::bitlength::FIELD)
-                            .const_int(ContextValue::BlockNumber.into(), false)
+                            .const_int(ContextValue::Address.into(), false)
                             .as_basic_value_enum()],
                         "",
                     )
@@ -1798,13 +1798,13 @@ impl FunctionCall {
 
                 let function = context.function().to_owned();
 
-                context.build_unconditional_branch(function.revert_block);
+                context.build_unconditional_branch(function.throw_block);
                 None
             }
             Name::Stop => {
                 let function = context.function().to_owned();
 
-                context.build_unconditional_branch(function.revert_block);
+                context.build_unconditional_branch(function.throw_block);
                 None
             }
             Name::SelfDestruct => {
@@ -1812,13 +1812,13 @@ impl FunctionCall {
 
                 let function = context.function().to_owned();
 
-                context.build_unconditional_branch(function.revert_block);
+                context.build_unconditional_branch(function.throw_block);
                 None
             }
             Name::Invalid => {
                 let function = context.function().to_owned();
 
-                context.build_unconditional_branch(function.revert_block);
+                context.build_unconditional_branch(function.throw_block);
                 None
             }
 
@@ -1846,27 +1846,10 @@ impl FunctionCall {
                     arguments.insert(0, pointer.as_basic_value_enum());
                 }
 
-                let return_value = context.build_call(function.value, arguments.as_slice(), "");
-
-                // if let Target::zkEVM = context.target {
-                //     let join_block = context.append_basic_block("join");
-                //     let intrinsic = context.get_intrinsic_function(Intrinsic::LesserFlag);
-                //     let overflow_flag = context
-                //         .build_call(intrinsic, &[], "")
-                //         .expect("Intrinsic always returns a flag")
-                //         .into_int_value();
-                //     let overflow_flag = context.builder.build_int_truncate_or_bit_cast(
-                //         overflow_flag,
-                //         context.integer_type(compiler_const::bitlength::BOOLEAN),
-                //         "",
-                //     );
-                //     context.build_conditional_branch(
-                //         overflow_flag,
-                //         context.function().revert_block,
-                //         join_block,
-                //     );
-                //     context.set_basic_block(join_block);
-                // }
+                let return_value = match context.target {
+                    Target::LLVM => context.build_call(function.value, arguments.as_slice(), ""),
+                    Target::zkEVM => context.build_invoke(function.value, arguments.as_slice(), ""),
+                };
 
                 if let Some(FunctionReturn::Compound { .. }) = function.r#return {
                     let return_pointer = return_value.expect("Always exists").into_pointer_value();

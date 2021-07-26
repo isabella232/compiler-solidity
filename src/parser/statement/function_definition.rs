@@ -7,7 +7,6 @@ use inkwell::types::BasicType;
 use crate::error::Error;
 use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
-// use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
@@ -16,7 +15,6 @@ use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
 use crate::parser::identifier::Identifier;
 use crate::parser::statement::block::Block;
-// use crate::target::Target;
 
 ///
 /// The function definition statement.
@@ -214,24 +212,25 @@ impl ILLVMWritable for FunctionDefinition {
 
         match r#return {
             FunctionReturn::None => {
-                context.set_basic_block(function.revert_block);
-                // if let Target::zkEVM = context.target {
-                //     let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                //     context.build_call(intrinsic, &[], "");
-                // }
-                context.build_return(None);
+                context.set_basic_block(function.catch_block);
+                context.build_catch_block();
+                context.build_unreachable();
+
+                context.set_basic_block(function.throw_block);
+                context.build_throw_block();
+                context.build_unreachable();
 
                 context.set_basic_block(function.return_block);
                 context.build_return(None);
             }
             FunctionReturn::Primitive { pointer } => {
-                context.set_basic_block(function.revert_block);
-                let return_value = context.build_load(pointer, "");
-                // if let Target::zkEVM = context.target {
-                //     let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                //     context.build_call(intrinsic, &[], "");
-                // }
-                context.build_return(Some(&return_value));
+                context.set_basic_block(function.catch_block);
+                context.build_catch_block();
+                context.build_unreachable();
+
+                context.set_basic_block(function.throw_block);
+                context.build_throw_block();
+                context.build_unreachable();
 
                 context.set_basic_block(function.return_block);
                 let return_value = context.build_load(pointer, "");
@@ -241,12 +240,13 @@ impl ILLVMWritable for FunctionDefinition {
                 pointer: return_pointer,
                 ..
             } => {
-                context.set_basic_block(function.revert_block);
-                // if let Target::zkEVM = context.target {
-                //     let intrinsic = context.get_intrinsic_function(Intrinsic::Throw);
-                //     context.build_call(intrinsic, &[], "");
-                // }
-                context.build_return(Some(&return_pointer));
+                context.set_basic_block(function.catch_block);
+                context.build_catch_block();
+                context.build_unreachable();
+
+                context.set_basic_block(function.throw_block);
+                context.build_throw_block();
+                context.build_unreachable();
 
                 context.set_basic_block(function.return_block);
                 context.build_return(Some(&return_pointer));

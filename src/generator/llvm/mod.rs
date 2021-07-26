@@ -224,14 +224,16 @@ impl<'ctx> Context<'ctx> {
         }
 
         let entry_block = self.llvm.append_basic_block(value, "entry");
-        let revert_block = self.llvm.append_basic_block(value, "revert");
+        let throw_block = self.llvm.append_basic_block(value, "throw");
+        let catch_block = self.llvm.append_basic_block(value, "catch");
         let return_block = self.llvm.append_basic_block(value, "return");
 
         let function = Function::new(
             name.to_owned(),
             value,
             entry_block,
-            revert_block,
+            throw_block,
+            catch_block,
             return_block,
             None,
         );
@@ -314,7 +316,7 @@ impl<'ctx> Context<'ctx> {
     ///
     /// Sets the current basic block.
     ///
-    pub fn set_basic_block(&mut self, block: inkwell::basic_block::BasicBlock<'ctx>) {
+    pub fn set_basic_block(&self, block: inkwell::basic_block::BasicBlock<'ctx>) {
         self.builder.position_at_end(block);
     }
 
@@ -490,6 +492,57 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
+    /// Builds an invoke.
+    ///
+    /// Checks if there are no other terminators in the block.
+    ///
+    pub fn build_invoke(
+        &self,
+        function: inkwell::values::FunctionValue<'ctx>,
+        args: &[inkwell::values::BasicValueEnum<'ctx>],
+        name: &str,
+    ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+        let join_block = self.append_basic_block("join");
+
+        let call_site_value = self.builder.build_invoke(
+            function,
+            args,
+            join_block,
+            self.function().catch_block,
+            name,
+        );
+        if let Target::zkEVM = self.target {
+            for index in 0..function.count_params() {
+                if function
+                    .get_nth_param(index)
+                    .map(|argument| argument.get_type().is_pointer_type())
+                    .unwrap_or_default()
+                {
+                    call_site_value.set_alignment_attribute(
+                        inkwell::attributes::AttributeLoc::Param(index),
+                        compiler_const::size::FIELD as u32,
+                    );
+                }
+            }
+
+            if call_site_value
+                .try_as_basic_value()
+                .map_left(|value| value.is_pointer_value())
+                .left_or_default()
+            {
+                call_site_value.set_alignment_attribute(
+                    inkwell::attributes::AttributeLoc::Return,
+                    compiler_const::size::FIELD as u32,
+                );
+            }
+        }
+
+        self.set_basic_block(join_block);
+
+        call_site_value.try_as_basic_value().left()
+    }
+
+    ///
     /// Builds a return.
     ///
     /// Checks if there are no other terminators in the block.
@@ -500,6 +553,63 @@ impl<'ctx> Context<'ctx> {
         }
 
         self.builder.build_return(value);
+    }
+
+    ///
+    /// Builds an unreachable.
+    ///
+    /// Checks if there are no other terminators in the block.
+    ///
+    pub fn build_unreachable(&self) {
+        if self.basic_block().get_terminator().is_some() {
+            return;
+        }
+
+        self.builder.build_unreachable();
+    }
+
+    ///
+    /// Builds an exception catching block sequence.
+    ///
+    pub fn build_catch_block(&self) -> Option<inkwell::values::AnyValueEnum<'ctx>> {
+        if !matches!(self.target, Target::zkEVM) {
+            return None;
+        }
+
+        let landing_pad_type = self.structure_type(vec![
+            self.integer_type(compiler_const::bitlength::BYTE)
+                .ptr_type(AddressSpace::Stack.into())
+                .as_basic_type_enum(),
+            self.integer_type(compiler_const::bitlength::BYTE * 4)
+                .as_basic_type_enum(),
+        ]);
+        let landing_pad = self.builder.build_landing_pad(
+            landing_pad_type,
+            self.personality,
+            vec![self
+                .integer_type(compiler_const::bitlength::BYTE)
+                .ptr_type(AddressSpace::Stack.into())
+                .const_zero()
+                .as_basic_value_enum()],
+            "landing",
+        );
+
+        let intrinsic = self.get_intrinsic_function(Intrinsic::Throw);
+        self.build_call(intrinsic, &[], "");
+
+        Some(landing_pad)
+    }
+
+    ///
+    /// Builds an error throwing block sequence.
+    ///
+    pub fn build_throw_block(&self) {
+        if !matches!(self.target, Target::zkEVM) {
+            return;
+        }
+
+        let intrinsic = self.get_intrinsic_function(Intrinsic::Throw);
+        self.build_call(intrinsic, &[], "");
     }
 
     ///

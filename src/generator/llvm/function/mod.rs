@@ -20,8 +20,10 @@ pub struct Function<'ctx> {
     /// The entry block.
     pub entry_block: inkwell::basic_block::BasicBlock<'ctx>,
     /// The throw/revert block.
-    pub revert_block: inkwell::basic_block::BasicBlock<'ctx>,
-    /// The return or leave block.
+    pub throw_block: inkwell::basic_block::BasicBlock<'ctx>,
+    /// The catch block.
+    pub catch_block: inkwell::basic_block::BasicBlock<'ctx>,
+    /// The return/leave block.
     pub return_block: inkwell::basic_block::BasicBlock<'ctx>,
     /// The return value entity.
     pub r#return: Option<Return<'ctx>>,
@@ -40,7 +42,8 @@ impl<'ctx> Function<'ctx> {
         name: String,
         value: inkwell::values::FunctionValue<'ctx>,
         entry_block: inkwell::basic_block::BasicBlock<'ctx>,
-        revert_block: inkwell::basic_block::BasicBlock<'ctx>,
+        throw_block: inkwell::basic_block::BasicBlock<'ctx>,
+        catch_block: inkwell::basic_block::BasicBlock<'ctx>,
         return_block: inkwell::basic_block::BasicBlock<'ctx>,
         r#return: Option<Return<'ctx>>,
     ) -> Self {
@@ -48,7 +51,8 @@ impl<'ctx> Function<'ctx> {
             name,
             value,
             entry_block,
-            revert_block,
+            throw_block,
+            catch_block,
             return_block,
             r#return,
             stack: HashMap::with_capacity(Self::STACK_HASHMAP_INITIAL_CAPACITY),
