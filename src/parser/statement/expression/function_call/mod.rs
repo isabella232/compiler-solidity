@@ -1096,13 +1096,18 @@ impl FunctionCall {
             Name::MStore => {
                 let arguments = self.pop_arguments::<2>(context);
 
-                if let Some(value) = arguments[0].into_int_value().get_zero_extended_constant() {
-                    if value % (compiler_const::size::FIELD as u64) != 0 {
+                let offset = context.builder.build_int_truncate_or_bit_cast(
+                    arguments[0].into_int_value(),
+                    context.integer_type(compiler_const::bitlength::WORD),
+                    "",
+                );
+                if let Some(value) = offset.get_zero_extended_constant() {
+                    if value == 0 || value % (compiler_const::size::FIELD as u64) != 0 {
                         return None;
                     }
                 }
 
-                let pointer = context.access_heap(arguments[0].into_int_value(), None);
+                let pointer = context.access_heap(offset, None);
 
                 context.build_store(pointer, arguments[1]);
 
@@ -1111,8 +1116,19 @@ impl FunctionCall {
             Name::MStore8 => {
                 let arguments = self.pop_arguments::<2>(context);
 
-                let pointer = context.access_heap(
+                let offset = context.builder.build_int_truncate_or_bit_cast(
                     arguments[0].into_int_value(),
+                    context.integer_type(compiler_const::bitlength::WORD),
+                    "",
+                );
+                if let Some(value) = offset.get_zero_extended_constant() {
+                    if value == 0 || value % (compiler_const::size::FIELD as u64) != 0 {
+                        return None;
+                    }
+                }
+
+                let pointer = context.access_heap(
+                    offset,
                     Some(context.integer_type(compiler_const::bitlength::BYTE)),
                 );
 
