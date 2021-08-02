@@ -1298,8 +1298,10 @@ impl FunctionCall {
             Name::CallDataCopy => {
                 let arguments = self.pop_arguments::<3>(context);
 
-                if !matches!(context.target, Target::zkEVM) {
-                    return None;
+                match context.target {
+                    Target::LLVM => return None,
+                    Target::zkEVM if context.test_entry_hash.is_some() => return None,
+                    Target::zkEVM => {}
                 }
 
                 let destination = context.builder.build_int_to_ptr(

@@ -685,7 +685,7 @@ impl<'ctx> Context<'ctx> {
     /// The inner context reference. Only for testing.
     ///
     pub fn inner(&self) -> &'ctx inkwell::context::Context {
-        &self.llvm
+        self.llvm
     }
 
     ///
