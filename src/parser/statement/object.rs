@@ -12,6 +12,7 @@ use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
 use crate::parser::statement::code::Code;
+use crate::target::Target;
 
 ///
 /// The YUL object.
@@ -77,7 +78,7 @@ impl ILLVMWritable for Object {
         if is_selector {
             context.set_object(compiler_const::identifier::FUNCTION_SELECTOR);
             self.code.into_llvm_deployed(context);
-        } else if is_constructor {
+        } else if is_constructor && matches!(context.target, Target::zkEVM) {
             context.set_object(compiler_const::identifier::FUNCTION_CONSTRUCTOR);
             self.code.into_llvm_constructor(context);
         }

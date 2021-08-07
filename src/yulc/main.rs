@@ -54,11 +54,11 @@ fn main_inner() -> Result<(), yul_compiler::Error> {
     let binary = Vec::<u8>::from(&binary);
 
     let text_file_name = match target {
-        yul_compiler::Target::LLVM => compiler_const::file_name::LLVM_SOURCE,
+        yul_compiler::Target::X86 => compiler_const::file_name::LLVM_SOURCE,
         yul_compiler::Target::zkEVM => compiler_const::file_name::ZKEVM_ASSEMBLY,
     };
     let text_file_extension = match target {
-        yul_compiler::Target::LLVM => compiler_const::extension::LLVM_SOURCE,
+        yul_compiler::Target::X86 => compiler_const::extension::LLVM_SOURCE,
         yul_compiler::Target::zkEVM => compiler_const::extension::ZKEVM_ASSEMBLY,
     };
     let text_file_path = PathBuf::from(format!("{}.{}", text_file_name, text_file_extension,));

@@ -107,7 +107,7 @@ impl FunctionCall {
                 }
 
                 let return_value = match context.target {
-                    Target::LLVM => context.build_call(function.value, arguments.as_slice(), ""),
+                    Target::X86 => context.build_call(function.value, arguments.as_slice(), ""),
                     Target::zkEVM => context.build_invoke(function.value, arguments.as_slice(), ""),
                 };
 
@@ -175,7 +175,7 @@ impl FunctionCall {
 
                 context.set_basic_block(non_zero_block);
                 let initial_type = arguments[0].get_type().into_int_type();
-                if let Target::LLVM = context.target {
+                if let Target::X86 = context.target {
                     let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
                     arguments[0] = context
                         .builder
@@ -199,7 +199,7 @@ impl FunctionCall {
                     arguments[1].into_int_value(),
                     "",
                 );
-                if let Target::LLVM = context.target {
+                if let Target::X86 = context.target {
                     result =
                         context
                             .builder
@@ -236,7 +236,7 @@ impl FunctionCall {
 
                 context.set_basic_block(non_zero_block);
                 let initial_type = arguments[0].get_type().into_int_type();
-                if let Target::LLVM = context.target {
+                if let Target::X86 = context.target {
                     let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
                     arguments[0] = context
                         .builder
@@ -260,7 +260,7 @@ impl FunctionCall {
                     arguments[1].into_int_value(),
                     "",
                 );
-                if let Target::LLVM = context.target {
+                if let Target::X86 = context.target {
                     result =
                         context
                             .builder
@@ -343,7 +343,7 @@ impl FunctionCall {
             Name::And => {
                 let arguments = self.pop_arguments::<2>(context);
 
-                if matches!(context.target, Target::LLVM)
+                if matches!(context.target, Target::X86)
                     || (arguments[0].into_int_value().is_const()
                         && arguments[1].into_int_value().is_const())
                 {
@@ -447,7 +447,7 @@ impl FunctionCall {
             Name::Or => {
                 let arguments = self.pop_arguments::<2>(context);
 
-                if matches!(context.target, Target::LLVM)
+                if matches!(context.target, Target::X86)
                     || (arguments[0].into_int_value().is_const()
                         && arguments[1].into_int_value().is_const())
                 {
@@ -557,7 +557,7 @@ impl FunctionCall {
             Name::Xor => {
                 let arguments = self.pop_arguments::<2>(context);
 
-                if matches!(context.target, Target::LLVM)
+                if matches!(context.target, Target::X86)
                     || (arguments[0].into_int_value().is_const()
                         && arguments[1].into_int_value().is_const())
                 {
@@ -664,8 +664,7 @@ impl FunctionCall {
             Name::Not => {
                 let arguments = self.pop_arguments::<1>(context);
 
-                if matches!(context.target, Target::LLVM)
-                    || arguments[0].into_int_value().is_const()
+                if matches!(context.target, Target::X86) || arguments[0].into_int_value().is_const()
                 {
                     return Some(
                         context
@@ -766,8 +765,7 @@ impl FunctionCall {
             Name::Shl => {
                 let arguments = self.pop_arguments::<2>(context);
 
-                if matches!(context.target, Target::LLVM)
-                    || arguments[0].into_int_value().is_const()
+                if matches!(context.target, Target::X86) || arguments[0].into_int_value().is_const()
                 {
                     return Some(
                         context
@@ -833,8 +831,7 @@ impl FunctionCall {
             Name::Shr => {
                 let arguments = self.pop_arguments::<2>(context);
 
-                if matches!(context.target, Target::LLVM)
-                    || arguments[0].into_int_value().is_const()
+                if matches!(context.target, Target::X86) || arguments[0].into_int_value().is_const()
                 {
                     return Some(
                         context
@@ -925,7 +922,7 @@ impl FunctionCall {
                     "",
                 );
                 let initial_type = arguments[0].get_type().into_int_type();
-                if let Target::LLVM = context.target {
+                if let Target::X86 = context.target {
                     let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
                     result =
                         context
@@ -945,7 +942,7 @@ impl FunctionCall {
                     arguments[2].into_int_value(),
                     "",
                 );
-                if let Target::LLVM = context.target {
+                if let Target::X86 = context.target {
                     result =
                         context
                             .builder
@@ -987,7 +984,7 @@ impl FunctionCall {
                     "",
                 );
                 let initial_type = arguments[0].get_type().into_int_type();
-                if let Target::LLVM = context.target {
+                if let Target::X86 = context.target {
                     let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
                     result =
                         context
@@ -1007,7 +1004,7 @@ impl FunctionCall {
                     arguments[2].into_int_value(),
                     "",
                 );
-                if let Target::LLVM = context.target {
+                if let Target::X86 = context.target {
                     result =
                         context
                             .builder
@@ -1248,7 +1245,7 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<1>(context);
 
                 let value = match context.target {
-                    Target::LLVM => {
+                    Target::X86 => {
                         let pointer = context.access_storage(arguments[0].into_int_value());
                         context.build_load(pointer, "")
                     }
@@ -1268,7 +1265,7 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<2>(context);
 
                 match context.target {
-                    Target::LLVM => {
+                    Target::X86 => {
                         let pointer = context.access_storage(arguments[0].into_int_value());
                         context.build_store(pointer, arguments[1]);
                     }
@@ -1346,7 +1343,7 @@ impl FunctionCall {
 
                 context.set_basic_block(if_non_zero_block);
                 let offset = match context.target {
-                    Target::LLVM => arguments[0].into_int_value(),
+                    Target::X86 => arguments[0].into_int_value(),
                     Target::zkEVM => context.builder.build_int_add(
                         arguments[0].into_int_value(),
                         context.field_const(
@@ -1367,7 +1364,7 @@ impl FunctionCall {
                 Some(value)
             }
             Name::CallDataSize => match context.target {
-                Target::LLVM => Some(context.field_const(4).as_basic_value_enum()),
+                Target::X86 => Some(context.field_const(4).as_basic_value_enum()),
                 Target::zkEVM if context.test_entry_hash.is_some() => {
                     Some(context.field_const(4).as_basic_value_enum())
                 }
@@ -1398,7 +1395,7 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<3>(context);
 
                 match context.target {
-                    Target::LLVM => return None,
+                    Target::X86 => return None,
                     Target::zkEVM if context.test_entry_hash.is_some() => return None,
                     Target::zkEVM => {}
                 }
@@ -1570,7 +1567,7 @@ impl FunctionCall {
             Name::Call => {
                 let arguments = self.pop_arguments::<7>(context);
 
-                if let Target::LLVM = context.target {
+                if let Target::X86 = context.target {
                     return Some(
                         context
                             .integer_type(compiler_const::bitlength::FIELD)
@@ -1597,7 +1594,7 @@ impl FunctionCall {
             Name::CallCode => {
                 let arguments = self.pop_arguments::<7>(context);
 
-                if let Target::LLVM = context.target {
+                if let Target::X86 = context.target {
                     return Some(
                         context
                             .integer_type(compiler_const::bitlength::FIELD)
@@ -1624,7 +1621,7 @@ impl FunctionCall {
             Name::DelegateCall => {
                 let arguments = self.pop_arguments::<6>(context);
 
-                if let Target::LLVM = context.target {
+                if let Target::X86 = context.target {
                     return Some(
                         context
                             .integer_type(compiler_const::bitlength::FIELD)
@@ -1651,7 +1648,7 @@ impl FunctionCall {
             Name::StaticCall => {
                 let arguments = self.pop_arguments::<6>(context);
 
-                if let Target::LLVM = context.target {
+                if let Target::X86 = context.target {
                     return Some(
                         context
                             .integer_type(compiler_const::bitlength::FIELD)
@@ -1682,9 +1679,9 @@ impl FunctionCall {
                 let function = context.function().to_owned();
 
                 match context.target {
-                    Target::LLVM => {
+                    Target::X86 => {
                         let heap_type = match context.target {
-                            Target::LLVM => {
+                            Target::X86 => {
                                 Some(context.integer_type(compiler_const::bitlength::BYTE))
                             }
                             Target::zkEVM => None,
@@ -1761,7 +1758,7 @@ impl FunctionCall {
                 None
             }
             Name::ReturnDataSize => match context.target {
-                Target::LLVM => Some(
+                Target::X86 => Some(
                     context
                         .integer_type(compiler_const::bitlength::FIELD)
                         .const_zero()

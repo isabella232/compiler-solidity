@@ -502,6 +502,10 @@ impl<'ctx> Context<'ctx> {
         args: &[inkwell::values::BasicValueEnum<'ctx>],
         name: &str,
     ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+        if let Target::X86 = self.target {
+            return self.build_call(function, args, name);
+        }
+
         let join_block = self.append_basic_block("join");
 
         let call_site_value = self.builder.build_invoke(
@@ -511,30 +515,29 @@ impl<'ctx> Context<'ctx> {
             self.function().catch_block,
             name,
         );
-        if let Target::zkEVM = self.target {
-            for index in 0..function.count_params() {
-                if function
-                    .get_nth_param(index)
-                    .map(|argument| argument.get_type().is_pointer_type())
-                    .unwrap_or_default()
-                {
-                    call_site_value.set_alignment_attribute(
-                        inkwell::attributes::AttributeLoc::Param(index),
-                        compiler_const::size::FIELD as u32,
-                    );
-                }
-            }
 
-            if call_site_value
-                .try_as_basic_value()
-                .map_left(|value| value.is_pointer_value())
-                .left_or_default()
+        for index in 0..function.count_params() {
+            if function
+                .get_nth_param(index)
+                .map(|argument| argument.get_type().is_pointer_type())
+                .unwrap_or_default()
             {
                 call_site_value.set_alignment_attribute(
-                    inkwell::attributes::AttributeLoc::Return,
+                    inkwell::attributes::AttributeLoc::Param(index),
                     compiler_const::size::FIELD as u32,
                 );
             }
+        }
+
+        if call_site_value
+            .try_as_basic_value()
+            .map_left(|value| value.is_pointer_value())
+            .left_or_default()
+        {
+            call_site_value.set_alignment_attribute(
+                inkwell::attributes::AttributeLoc::Return,
+                compiler_const::size::FIELD as u32,
+            );
         }
 
         self.set_basic_block(join_block);
@@ -699,10 +702,10 @@ impl<'ctx> Context<'ctx> {
         r#type: Option<inkwell::types::IntType<'ctx>>,
     ) -> inkwell::values::PointerValue<'ctx> {
         match self.target {
-            Target::LLVM => {
+            Target::X86 => {
                 let pointer = self.heap.expect("Always exists").as_pointer_value();
                 let mut indexes = Vec::with_capacity(2);
-                if let Target::LLVM = self.target {
+                if let Target::X86 = self.target {
                     indexes.push(self.field_const(0));
                 }
                 indexes.push(offset);
@@ -748,7 +751,7 @@ impl<'ctx> Context<'ctx> {
         offset: inkwell::values::IntValue<'ctx>,
     ) -> inkwell::values::PointerValue<'ctx> {
         match self.target {
-            Target::LLVM => {
+            Target::X86 => {
                 let pointer = self.calldata.expect("Always exists").as_pointer_value();
                 let indexes = vec![self.field_const(0), offset];
                 let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
@@ -767,7 +770,7 @@ impl<'ctx> Context<'ctx> {
     /// Allocates the heap, if it has not been allocated yet.
     ///
     pub fn allocate_heap(&mut self, size: usize) {
-        if !matches!(self.target, Target::LLVM) {
+        if !matches!(self.target, Target::X86) {
             return;
         }
 
@@ -787,7 +790,7 @@ impl<'ctx> Context<'ctx> {
     /// Allocates the contract storage, if it has not been allocated yet.
     ///
     pub fn allocate_storage(&mut self, size: usize) {
-        if !matches!(self.target, Target::LLVM) {
+        if !matches!(self.target, Target::X86) {
             return;
         }
 
@@ -807,7 +810,7 @@ impl<'ctx> Context<'ctx> {
     /// Allocates the calldata, if it has not been allocated yet.
     ///
     pub fn allocate_calldata(&mut self, size: usize) {
-        if !matches!(self.target, Target::LLVM) {
+        if !matches!(self.target, Target::X86) {
             return;
         }
 

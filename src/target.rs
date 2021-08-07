@@ -11,8 +11,8 @@ use std::convert::TryFrom;
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Target {
-    /// The middle-end LLVM IR target.
-    LLVM,
+    /// The x86 target.
+    X86,
     /// The zkEVM assembly target.
     zkEVM,
 }
@@ -22,7 +22,8 @@ impl TryFrom<&str> for Target {
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
         Ok(match input {
-            "llvm" => Self::LLVM,
+            "llvm" => Self::X86,
+            "x86" => Self::X86,
             "zkevm" => Self::zkEVM,
 
             _ => return Err(input.to_owned()),
@@ -39,10 +40,10 @@ impl From<Option<&inkwell::targets::TargetMachine>> for Target {
                 {
                     Self::zkEVM
                 } else {
-                    Self::LLVM
+                    Self::X86
                 }
             }
-            None => Self::LLVM,
+            None => Self::X86,
         }
     }
 }

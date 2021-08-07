@@ -108,6 +108,7 @@ impl Block {
             .cloned()
             .expect("Function always exists");
         context.set_function(function_name.as_str());
+        context.update_function(FunctionReturn::none());
 
         context.set_basic_block(function.entry_block);
         self.into_llvm_local(context);
@@ -145,7 +146,7 @@ impl Block {
 
         let name = context.object().to_owned();
         let function_type = match context.target {
-            Target::LLVM => context
+            Target::X86 => context
                 .integer_type(compiler_const::bitlength::WORD)
                 .fn_type(&[], false),
             Target::zkEVM if context.test_entry_hash.is_some() => context
@@ -206,7 +207,7 @@ impl Block {
 
         context.set_basic_block(function.return_block);
         match context.target {
-            Target::LLVM => {
+            Target::X86 => {
                 let mut return_value = context.build_load(return_pointer, "");
                 return_value = context
                     .builder
@@ -292,7 +293,7 @@ impl Block {
 
         context.set_basic_block(call_block);
         context.build_invoke(constructor.value, &[], "");
-        context.build_return(None);
+        context.build_unconditional_branch(context.function().return_block);
 
         context.set_basic_block(join_block);
     }
