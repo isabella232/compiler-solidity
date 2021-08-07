@@ -5,8 +5,9 @@
 use inkwell::values::BasicValue;
 
 use crate::error::Error;
+use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
-// use crate::generator::llvm::intrinsic::Intrinsic;
+use crate::generator::llvm::function::Function;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
@@ -90,9 +91,55 @@ impl Block {
     }
 
     ///
-    /// Translates an object block into LLVM.
+    /// Translates the constructor code block into LLVM.
     ///
-    pub fn into_llvm_code(mut self, context: &mut LLVMContext) {
+    pub fn into_llvm_constructor(self, context: &mut LLVMContext) {
+        let function_name = context.object().to_owned();
+        let function_type = context.function_type(&[], vec![]);
+        context.add_function(
+            function_name.as_str(),
+            function_type,
+            Some(inkwell::module::Linkage::External),
+            true,
+        );
+        let function = context
+            .functions
+            .get(function_name.as_str())
+            .cloned()
+            .expect("Function always exists");
+        context.set_function(function_name.as_str());
+
+        context.set_basic_block(function.entry_block);
+        self.into_llvm_local(context);
+        match context.basic_block().get_last_instruction() {
+            Some(instruction) => match instruction.get_opcode() {
+                inkwell::values::InstructionOpcode::Br => {}
+                inkwell::values::InstructionOpcode::Switch => {}
+                _ => {
+                    context.build_unconditional_branch(function.return_block);
+                }
+            },
+            None => {
+                context.build_unconditional_branch(function.return_block);
+            }
+        };
+
+        context.set_basic_block(function.catch_block);
+        context.build_catch_block();
+        context.build_unreachable();
+
+        context.set_basic_block(function.throw_block);
+        context.build_throw_block();
+        context.build_unreachable();
+
+        context.set_basic_block(function.return_block);
+        context.build_return(None);
+    }
+
+    ///
+    /// Translates the main deployed code block into LLVM.
+    ///
+    pub fn into_llvm_deployed(mut self, context: &mut LLVMContext) {
         let mut functions = Vec::with_capacity(self.statements.len());
         let mut local_statements = Vec::with_capacity(self.statements.len());
 
@@ -139,6 +186,13 @@ impl Block {
         let function = context.update_function(r#return);
 
         self.statements = local_statements;
+        if let Some(constructor) = context
+            .functions
+            .get(compiler_const::identifier::FUNCTION_CONSTRUCTOR)
+            .cloned()
+        {
+            self.constructor_call(context, constructor);
+        }
         self.into_llvm_local(context);
         context.build_unconditional_branch(function.return_block);
 
@@ -205,6 +259,42 @@ impl Block {
                 _ => {}
             }
         }
+    }
+
+    ///
+    /// Writes a conditional constructor call at the beginning of the selector.
+    ///
+    fn constructor_call<'ctx>(&self, context: &mut LLVMContext<'ctx>, constructor: Function<'ctx>) {
+        let call_block = context.append_basic_block("call_block");
+        let join_block = context.append_basic_block("join_block");
+
+        let hash_pointer = context.builder.build_int_to_ptr(
+            context
+                .integer_type(compiler_const::bitlength::FIELD)
+                .const_int(
+                    (compiler_const::contract::ABI_OFFSET_ENTRY_HASH * compiler_const::size::FIELD)
+                        as u64,
+                    false,
+                ),
+            context
+                .integer_type(compiler_const::bitlength::FIELD)
+                .ptr_type(AddressSpace::Parent.into()),
+            "",
+        );
+        let hash = context.build_load(hash_pointer, "");
+        let is_zero = context.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            hash.into_int_value(),
+            context.field_const(0),
+            "",
+        );
+        context.build_conditional_branch(is_zero, call_block, join_block);
+
+        context.set_basic_block(call_block);
+        context.build_invoke(constructor.value, &[], "");
+        context.build_return(None);
+
+        context.set_basic_block(join_block);
     }
 }
 

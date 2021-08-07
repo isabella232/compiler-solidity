@@ -68,14 +68,18 @@ impl Object {
 impl ILLVMWritable for Object {
     fn into_llvm(self, context: &mut LLVMContext) {
         let is_selector = self.identifier.ends_with("_deployed");
+        let is_constructor = !is_selector;
 
-        context.set_object(self.identifier);
         context.allocate_heap(1024 * compiler_const::size::FIELD);
-        context.allocate_storage(1024);
+        context.allocate_storage(256);
         context.allocate_calldata(64);
 
         if is_selector {
-            self.code.into_llvm(context);
+            context.set_object(compiler_const::identifier::FUNCTION_SELECTOR);
+            self.code.into_llvm_deployed(context);
+        } else if is_constructor {
+            context.set_object(compiler_const::identifier::FUNCTION_CONSTRUCTOR);
+            self.code.into_llvm_constructor(context);
         }
 
         if let Some(object) = self.object {

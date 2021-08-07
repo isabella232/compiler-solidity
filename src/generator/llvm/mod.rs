@@ -185,8 +185,8 @@ impl<'ctx> Context<'ctx> {
     ///
     /// Sets the current YUL object name.
     ///
-    pub fn set_object(&mut self, name: String) {
-        self.object = Some(name);
+    pub fn set_object(&mut self, name: &str) {
+        self.object = Some(name.to_owned());
     }
 
     ///

@@ -48,10 +48,24 @@ impl Code {
             object: None,
         }
     }
+
+    ///
+    /// Translates the constructor code block into LLVM.
+    ///
+    pub fn into_llvm_constructor(self, context: &mut LLVMContext) {
+        self.block.into_llvm_constructor(context);
+    }
+
+    ///
+    /// Translates the main deployed code block into LLVM.
+    ///
+    pub fn into_llvm_deployed(self, context: &mut LLVMContext) {
+        self.block.into_llvm_deployed(context);
+    }
 }
 
 impl ILLVMWritable for Code {
     fn into_llvm(self, context: &mut LLVMContext) {
-        self.block.into_llvm_code(context);
+        self.block.into_llvm_deployed(context);
     }
 }

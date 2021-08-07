@@ -7,6 +7,9 @@
 ///
 #[derive(Debug, PartialEq, Clone)]
 pub enum Name {
+    /// The user-defined function.
+    UserDefined(String),
+
     /// `x + y`
     Add,
     /// `x - y`
@@ -182,9 +185,6 @@ pub enum Name {
     SelfDestruct,
     /// end execution with invalid instruction
     Invalid,
-
-    /// The user-defined function.
-    UserDefined(String),
 }
 
 impl From<&str> for Name {
