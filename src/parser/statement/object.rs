@@ -71,7 +71,7 @@ impl ILLVMWritable for Object {
         let is_selector = self.identifier.ends_with("_deployed");
         let is_constructor = !is_selector;
 
-        context.allocate_heap(1024 * compiler_const::size::FIELD);
+        context.allocate_heap(2048 * compiler_const::size::FIELD);
         context.allocate_storage(256);
         context.allocate_calldata(64);
 
