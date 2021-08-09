@@ -5,7 +5,6 @@
 use inkwell::types::BasicType;
 
 use crate::error::Error;
-use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
@@ -131,7 +130,7 @@ impl ILLVMWritable for FunctionDefinition {
                             &[
                                 context.field_const(0),
                                 context
-                                    .integer_type(compiler_const::bitlength::BYTE * 4)
+                                    .integer_type(compiler_common::bitlength::BYTE * 4)
                                     .const_int(index as u64, false),
                             ],
                             "",
@@ -140,8 +139,8 @@ impl ILLVMWritable for FunctionDefinition {
                     let pointer = context.builder.build_pointer_cast(
                         pointer,
                         context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .ptr_type(AddressSpace::Stack.into()),
+                            .integer_type(compiler_common::bitlength::FIELD)
+                            .ptr_type(compiler_common::AddressSpace::Stack.into()),
                         "",
                     );
                     context

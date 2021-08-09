@@ -71,15 +71,15 @@ impl ILLVMWritable for Object {
         let is_selector = self.identifier.ends_with("_deployed");
         let is_constructor = !is_selector;
 
-        context.allocate_heap(2048 * compiler_const::size::FIELD);
+        context.allocate_heap(2048 * compiler_common::size::FIELD);
         context.allocate_storage(256);
         context.allocate_calldata(64);
 
         if is_selector {
-            context.set_object(compiler_const::identifier::FUNCTION_SELECTOR);
+            context.set_object(compiler_common::identifier::FUNCTION_SELECTOR);
             self.code.into_llvm_deployed(context);
         } else if is_constructor && matches!(context.target, Target::zkEVM) {
-            context.set_object(compiler_const::identifier::FUNCTION_CONSTRUCTOR);
+            context.set_object(compiler_common::identifier::FUNCTION_CONSTRUCTOR);
             self.code.into_llvm_constructor(context);
         }
 

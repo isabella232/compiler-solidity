@@ -5,7 +5,6 @@
 use inkwell::values::BasicValue;
 
 use crate::error::Error;
-use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
 use crate::generator::llvm::function::Function;
 use crate::generator::llvm::Context as LLVMContext;
@@ -93,7 +92,10 @@ impl Block {
     ///
     /// Translates the constructor code block into LLVM.
     ///
-    pub fn into_llvm_constructor(self, context: &mut LLVMContext) {
+    pub fn into_llvm_constructor(mut self, context: &mut LLVMContext) {
+        let mut functions = Vec::with_capacity(self.statements.len());
+        let mut local_statements = Vec::with_capacity(self.statements.len());
+
         let function_name = context.object().to_owned();
         let function_type = context.function_type(&[], vec![]);
         context.add_function(
@@ -102,15 +104,27 @@ impl Block {
             Some(inkwell::module::Linkage::External),
             true,
         );
+
+        for statement in self.statements.into_iter() {
+            match statement {
+                Statement::FunctionDefinition(mut statement) => {
+                    statement.declare(context);
+                    functions.push(statement);
+                }
+                statement => local_statements.push(statement),
+            }
+        }
+
         let function = context
             .functions
             .get(function_name.as_str())
             .cloned()
             .expect("Function always exists");
         context.set_function(function_name.as_str());
+        context.set_basic_block(function.entry_block);
         context.update_function(FunctionReturn::none());
 
-        context.set_basic_block(function.entry_block);
+        self.statements = local_statements;
         self.into_llvm_local(context);
         match context.basic_block().get_last_instruction() {
             Some(instruction) => match instruction.get_opcode() {
@@ -135,6 +149,10 @@ impl Block {
 
         context.set_basic_block(function.return_block);
         context.build_return(None);
+
+        for function in functions.into_iter() {
+            function.into_llvm(context);
+        }
     }
 
     ///
@@ -144,18 +162,18 @@ impl Block {
         let mut functions = Vec::with_capacity(self.statements.len());
         let mut local_statements = Vec::with_capacity(self.statements.len());
 
-        let name = context.object().to_owned();
+        let function_name = context.object().to_owned();
         let function_type = match context.target {
             Target::X86 => context
-                .integer_type(compiler_const::bitlength::WORD)
+                .integer_type(compiler_common::bitlength::WORD)
                 .fn_type(&[], false),
             Target::zkEVM if context.test_entry_hash.is_some() => context
-                .integer_type(compiler_const::bitlength::FIELD)
+                .integer_type(compiler_common::bitlength::FIELD)
                 .fn_type(&[], false),
             Target::zkEVM => context.void_type().fn_type(&[], false),
         };
         context.add_function(
-            name.as_str(),
+            function_name.as_str(),
             function_type,
             Some(inkwell::module::Linkage::External),
             false,
@@ -173,14 +191,13 @@ impl Block {
 
         let function = context
             .functions
-            .get(name.as_str())
+            .get(function_name.as_str())
             .cloned()
             .expect("Always exists");
-        context.set_function(name.as_str());
+        context.set_function(function_name.as_str());
         context.set_basic_block(function.entry_block);
-
         let return_pointer = context.build_alloca(
-            context.integer_type(compiler_const::bitlength::FIELD),
+            context.integer_type(compiler_common::bitlength::FIELD),
             "result",
         );
         let r#return = FunctionReturn::primitive(return_pointer);
@@ -189,7 +206,7 @@ impl Block {
         self.statements = local_statements;
         if let Some(constructor) = context
             .functions
-            .get(compiler_const::identifier::FUNCTION_CONSTRUCTOR)
+            .get(compiler_common::identifier::FUNCTION_CONSTRUCTOR)
             .cloned()
         {
             self.constructor_call(context, constructor);
@@ -213,7 +230,7 @@ impl Block {
                     .builder
                     .build_int_truncate_or_bit_cast(
                         return_value.into_int_value(),
-                        context.integer_type(compiler_const::bitlength::WORD),
+                        context.integer_type(compiler_common::bitlength::WORD),
                         "",
                     )
                     .as_basic_value_enum();
@@ -271,15 +288,15 @@ impl Block {
 
         let hash_pointer = context.builder.build_int_to_ptr(
             context
-                .integer_type(compiler_const::bitlength::FIELD)
+                .integer_type(compiler_common::bitlength::FIELD)
                 .const_int(
-                    (compiler_const::contract::ABI_OFFSET_ENTRY_HASH * compiler_const::size::FIELD)
-                        as u64,
+                    (compiler_common::contract::ABI_OFFSET_ENTRY_HASH
+                        * compiler_common::size::FIELD) as u64,
                     false,
                 ),
             context
-                .integer_type(compiler_const::bitlength::FIELD)
-                .ptr_type(AddressSpace::Parent.into()),
+                .integer_type(compiler_common::bitlength::FIELD)
+                .ptr_type(compiler_common::AddressSpace::Parent.into()),
             "",
         );
         let hash = context.build_load(hash_pointer, "");

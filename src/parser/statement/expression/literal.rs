@@ -92,12 +92,12 @@ impl Literal {
             LexicalLiteral::String(inner) => {
                 let string = inner.to_string();
                 let r#type = self.yul_type.unwrap_or_default().into_llvm(context);
-                let mut hex_string = String::with_capacity(compiler_const::size::FIELD * 2);
+                let mut hex_string = String::with_capacity(compiler_common::size::FIELD * 2);
                 for byte in string.bytes() {
                     hex_string.push_str(format!("{:02x}", byte).as_str());
                 }
                 hex_string.push_str(
-                    "00".repeat(compiler_const::size::FIELD - string.len())
+                    "00".repeat(compiler_common::size::FIELD - string.len())
                         .as_str(),
                 );
                 r#type

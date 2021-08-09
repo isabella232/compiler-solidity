@@ -17,10 +17,10 @@ use self::arguments::Arguments;
 ///
 fn main() {
     std::process::exit(match main_inner() {
-        Ok(()) => compiler_const::exit_code::SUCCESS,
+        Ok(()) => compiler_common::exit_code::SUCCESS,
         Err(error) => {
             eprintln!("{:?}", error);
-            compiler_const::exit_code::FAILURE
+            compiler_common::exit_code::FAILURE
         }
     })
 }
@@ -54,12 +54,12 @@ fn main_inner() -> Result<(), yul_compiler::Error> {
     let binary = Vec::<u8>::from(&binary);
 
     let text_file_name = match target {
-        yul_compiler::Target::X86 => compiler_const::file_name::LLVM_SOURCE,
-        yul_compiler::Target::zkEVM => compiler_const::file_name::ZKEVM_ASSEMBLY,
+        yul_compiler::Target::X86 => compiler_common::file_name::LLVM_SOURCE,
+        yul_compiler::Target::zkEVM => compiler_common::file_name::ZKEVM_ASSEMBLY,
     };
     let text_file_extension = match target {
-        yul_compiler::Target::X86 => compiler_const::extension::LLVM_SOURCE,
-        yul_compiler::Target::zkEVM => compiler_const::extension::ZKEVM_ASSEMBLY,
+        yul_compiler::Target::X86 => compiler_common::extension::LLVM_SOURCE,
+        yul_compiler::Target::zkEVM => compiler_common::extension::ZKEVM_ASSEMBLY,
     };
     let text_file_path = PathBuf::from(format!("{}.{}", text_file_name, text_file_extension,));
     File::create(&text_file_path)
@@ -67,7 +67,7 @@ fn main_inner() -> Result<(), yul_compiler::Error> {
         .write_all(text.as_slice())
         .expect("Text file writing error");
 
-    let binary_file_path = PathBuf::from(compiler_const::file_name::ZKEVM_BINARY);
+    let binary_file_path = PathBuf::from(compiler_common::file_name::ZKEVM_BINARY);
     File::create(&binary_file_path)
         .expect("Binary file creating error")
         .write_all(binary.as_slice())

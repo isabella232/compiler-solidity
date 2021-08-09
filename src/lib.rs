@@ -59,17 +59,17 @@ pub fn compile(
                 &inkwell::targets::InitializationConfig::default(),
             );
             let target =
-                inkwell::targets::Target::from_name(compiler_const::virtual_machine::TARGET_NAME)
+                inkwell::targets::Target::from_name(compiler_common::virtual_machine::TARGET_NAME)
                     .ok_or_else(|| {
-                    Error::LLVM(format!(
-                        "Target `{}` not found",
-                        compiler_const::virtual_machine::TARGET_NAME
-                    ))
-                })?;
+                        Error::LLVM(format!(
+                            "Target `{}` not found",
+                            compiler_common::virtual_machine::TARGET_NAME
+                        ))
+                    })?;
             let target_machine = target
                 .create_target_machine(
                     &inkwell::targets::TargetTriple::create(
-                        compiler_const::virtual_machine::TARGET_NAME,
+                        compiler_common::virtual_machine::TARGET_NAME,
                     ),
                     "",
                     "",
@@ -80,7 +80,7 @@ pub fn compile(
                 .ok_or_else(|| {
                     Error::LLVM(format!(
                         "Target machine `{}` creation error",
-                        compiler_const::virtual_machine::TARGET_NAME
+                        compiler_common::virtual_machine::TARGET_NAME
                     ))
                 })?;
             Some(target_machine)

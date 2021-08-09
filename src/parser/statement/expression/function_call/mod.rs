@@ -10,8 +10,6 @@ use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
 
 use crate::error::Error;
-use crate::generator::llvm::address_space::AddressSpace;
-use crate::generator::llvm::context_value::ContextValue;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
@@ -97,7 +95,7 @@ impl FunctionCall {
                 if let Some(FunctionReturn::Compound { size, .. }) = function.r#return {
                     let r#type = context.structure_type(vec![
                         context
-                            .integer_type(compiler_const::bitlength::FIELD)
+                            .integer_type(compiler_common::bitlength::FIELD)
                             .as_basic_type_enum();
                         size
                     ]);
@@ -106,10 +104,7 @@ impl FunctionCall {
                     arguments.insert(0, pointer.as_basic_value_enum());
                 }
 
-                let return_value = match context.target {
-                    Target::X86 => context.build_call(function.value, arguments.as_slice(), ""),
-                    Target::zkEVM => context.build_invoke(function.value, arguments.as_slice(), ""),
-                };
+                let return_value = context.build_invoke(function.value, arguments.as_slice(), "");
 
                 if let Some(FunctionReturn::Compound { .. }) = function.r#return {
                     let return_pointer = return_value.expect("Always exists").into_pointer_value();
@@ -164,7 +159,7 @@ impl FunctionCall {
                 let join_block = context.append_basic_block("join");
 
                 let result_pointer = context
-                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
                 let condition = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
                     arguments[1].into_int_value(),
@@ -176,7 +171,7 @@ impl FunctionCall {
                 context.set_basic_block(non_zero_block);
                 let initial_type = arguments[0].get_type().into_int_type();
                 if let Target::X86 = context.target {
-                    let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
+                    let allowed_type = context.integer_type(compiler_common::bitlength::BYTE * 16);
                     arguments[0] = context
                         .builder
                         .build_int_truncate_or_bit_cast(
@@ -225,7 +220,7 @@ impl FunctionCall {
                 let join_block = context.append_basic_block("join");
 
                 let result_pointer = context
-                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
                 let condition = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
                     arguments[1].into_int_value(),
@@ -237,7 +232,7 @@ impl FunctionCall {
                 context.set_basic_block(non_zero_block);
                 let initial_type = arguments[0].get_type().into_int_type();
                 if let Target::X86 = context.target {
-                    let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
+                    let allowed_type = context.integer_type(compiler_common::bitlength::BYTE * 16);
                     arguments[0] = context
                         .builder
                         .build_int_truncate_or_bit_cast(
@@ -289,7 +284,7 @@ impl FunctionCall {
                 );
                 result = context.builder.build_int_z_extend_or_bit_cast(
                     result,
-                    context.integer_type(compiler_const::bitlength::FIELD),
+                    context.integer_type(compiler_common::bitlength::FIELD),
                     "",
                 );
                 Some(result.as_basic_value_enum())
@@ -304,7 +299,7 @@ impl FunctionCall {
                 );
                 result = context.builder.build_int_z_extend_or_bit_cast(
                     result,
-                    context.integer_type(compiler_const::bitlength::FIELD),
+                    context.integer_type(compiler_common::bitlength::FIELD),
                     "",
                 );
                 Some(result.as_basic_value_enum())
@@ -319,7 +314,7 @@ impl FunctionCall {
                 );
                 result = context.builder.build_int_z_extend_or_bit_cast(
                     result,
-                    context.integer_type(compiler_const::bitlength::FIELD),
+                    context.integer_type(compiler_common::bitlength::FIELD),
                     "",
                 );
                 Some(result.as_basic_value_enum())
@@ -334,7 +329,7 @@ impl FunctionCall {
                 );
                 result = context.builder.build_int_z_extend_or_bit_cast(
                     result,
-                    context.integer_type(compiler_const::bitlength::FIELD),
+                    context.integer_type(compiler_common::bitlength::FIELD),
                     "",
                 );
                 Some(result.as_basic_value_enum())
@@ -359,7 +354,7 @@ impl FunctionCall {
                     );
                 }
 
-                let llvm_type = context.integer_type(compiler_const::bitlength::FIELD);
+                let llvm_type = context.integer_type(compiler_common::bitlength::FIELD);
 
                 let condition_block = context.append_basic_block("condition");
                 let body_block = context.append_basic_block("body");
@@ -373,7 +368,7 @@ impl FunctionCall {
                 let operand_2_pointer = context.build_alloca(llvm_type, "");
                 context.build_store(operand_2_pointer, arguments[1]);
                 let index_pointer = context
-                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
                 context.build_store(index_pointer, context.field_const(0));
                 let shift_pointer = context.build_alloca(llvm_type, "");
                 context.build_store(shift_pointer, llvm_type.const_int(1, false));
@@ -384,7 +379,7 @@ impl FunctionCall {
                 let condition = context.builder.build_int_compare(
                     inkwell::IntPredicate::ULT,
                     index_value,
-                    context.field_const(compiler_const::bitlength::FIELD as u64),
+                    context.field_const(compiler_common::bitlength::FIELD as u64),
                     "",
                 );
                 context.build_conditional_branch(condition, body_block, join_block);
@@ -463,7 +458,7 @@ impl FunctionCall {
                     );
                 }
 
-                let llvm_type = context.integer_type(compiler_const::bitlength::FIELD);
+                let llvm_type = context.integer_type(compiler_common::bitlength::FIELD);
 
                 let condition_block = context.append_basic_block("condition");
                 let body_block = context.append_basic_block("body");
@@ -477,7 +472,7 @@ impl FunctionCall {
                 let operand_2_pointer = context.build_alloca(llvm_type, "");
                 context.build_store(operand_2_pointer, arguments[1]);
                 let index_pointer = context
-                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
                 context.build_store(index_pointer, context.field_const(0));
                 let shift_pointer = context.build_alloca(llvm_type, "");
                 context.build_store(shift_pointer, llvm_type.const_int(1, false));
@@ -488,7 +483,7 @@ impl FunctionCall {
                 let condition = context.builder.build_int_compare(
                     inkwell::IntPredicate::ULT,
                     index_value,
-                    context.field_const(compiler_const::bitlength::FIELD as u64),
+                    context.field_const(compiler_common::bitlength::FIELD as u64),
                     "",
                 );
                 context.build_conditional_branch(condition, body_block, join_block);
@@ -573,7 +568,7 @@ impl FunctionCall {
                     );
                 }
 
-                let llvm_type = context.integer_type(compiler_const::bitlength::FIELD);
+                let llvm_type = context.integer_type(compiler_common::bitlength::FIELD);
 
                 let condition_block = context.append_basic_block("condition");
                 let body_block = context.append_basic_block("body");
@@ -587,7 +582,7 @@ impl FunctionCall {
                 let operand_2_pointer = context.build_alloca(llvm_type, "");
                 context.build_store(operand_2_pointer, arguments[1]);
                 let index_pointer = context
-                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
                 context.build_store(index_pointer, context.field_const(0));
                 let shift_pointer = context.build_alloca(llvm_type, "");
                 context.build_store(shift_pointer, llvm_type.const_int(1, false));
@@ -598,7 +593,7 @@ impl FunctionCall {
                 let condition = context.builder.build_int_compare(
                     inkwell::IntPredicate::ULT,
                     index_value,
-                    context.field_const(compiler_const::bitlength::FIELD as u64),
+                    context.field_const(compiler_common::bitlength::FIELD as u64),
                     "",
                 );
                 context.build_conditional_branch(condition, body_block, join_block);
@@ -674,7 +669,7 @@ impl FunctionCall {
                     );
                 }
 
-                let llvm_type = context.integer_type(compiler_const::bitlength::FIELD);
+                let llvm_type = context.integer_type(compiler_common::bitlength::FIELD);
 
                 let condition_block = context.append_basic_block("condition");
                 let body_block = context.append_basic_block("body");
@@ -688,7 +683,7 @@ impl FunctionCall {
                 let operand_2_pointer = context.build_alloca(llvm_type, "");
                 context.build_store(operand_2_pointer, llvm_type.const_all_ones());
                 let index_pointer = context
-                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
                 context.build_store(index_pointer, context.field_const(0));
                 let shift_pointer = context.build_alloca(llvm_type, "");
                 context.build_store(shift_pointer, llvm_type.const_int(1, false));
@@ -699,7 +694,7 @@ impl FunctionCall {
                 let condition = context.builder.build_int_compare(
                     inkwell::IntPredicate::ULT,
                     index_value,
-                    context.field_const(compiler_const::bitlength::FIELD as u64),
+                    context.field_const(compiler_common::bitlength::FIELD as u64),
                     "",
                 );
                 context.build_conditional_branch(condition, body_block, join_block);
@@ -906,7 +901,7 @@ impl FunctionCall {
                 let join_block = context.append_basic_block("join");
 
                 let result_pointer = context
-                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
                 let condition = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
                     arguments[2].into_int_value(),
@@ -923,7 +918,7 @@ impl FunctionCall {
                 );
                 let initial_type = arguments[0].get_type().into_int_type();
                 if let Target::X86 = context.target {
-                    let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
+                    let allowed_type = context.integer_type(compiler_common::bitlength::BYTE * 16);
                     result =
                         context
                             .builder
@@ -968,7 +963,7 @@ impl FunctionCall {
                 let join_block = context.append_basic_block("join");
 
                 let result_pointer = context
-                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
                 let condition = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
                     arguments[2].into_int_value(),
@@ -985,7 +980,7 @@ impl FunctionCall {
                 );
                 let initial_type = arguments[0].get_type().into_int_type();
                 if let Target::X86 = context.target {
-                    let allowed_type = context.integer_type(compiler_const::bitlength::BYTE * 16);
+                    let allowed_type = context.integer_type(compiler_common::bitlength::BYTE * 16);
                     result =
                         context
                             .builder
@@ -1105,6 +1100,10 @@ impl FunctionCall {
             Name::Keccak256 => {
                 let arguments = self.pop_arguments::<2>(context);
 
+                if let Target::X86 = context.target {
+                    return Some(context.field_const(0).as_basic_value_enum());
+                }
+
                 let condition_block = context.append_basic_block("condition");
                 let body_block = context.append_basic_block("body");
                 let increment_block = context.append_basic_block("increment");
@@ -1136,7 +1135,7 @@ impl FunctionCall {
                     arguments[1]
                         .get_type()
                         .into_int_type()
-                        .const_int(compiler_const::size::FIELD as u64, false),
+                        .const_int(compiler_common::size::FIELD as u64, false),
                     "",
                 );
                 context.build_store(index_pointer, incremented);
@@ -1169,7 +1168,7 @@ impl FunctionCall {
                 context.set_basic_block(join_block);
                 let intrinsic = context.get_intrinsic_function(Intrinsic::HashOutput);
                 let result = context
-                    .build_call(intrinsic, &[value], "")
+                    .build_call(intrinsic, &[], "")
                     .expect("Hash output function always returns a value");
 
                 Some(result)
@@ -1179,7 +1178,7 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<1>(context);
 
                 if let Some(value) = arguments[0].into_int_value().get_zero_extended_constant() {
-                    if value % (compiler_const::size::FIELD as u64) != 0 {
+                    if value % (compiler_common::size::FIELD as u64) != 0 {
                         return None;
                     }
                 }
@@ -1195,11 +1194,11 @@ impl FunctionCall {
 
                 let offset = context.builder.build_int_truncate_or_bit_cast(
                     arguments[0].into_int_value(),
-                    context.integer_type(compiler_const::bitlength::WORD),
+                    context.integer_type(compiler_common::bitlength::WORD),
                     "",
                 );
                 if let Some(value) = offset.get_zero_extended_constant() {
-                    if value == 0 || value % (compiler_const::size::FIELD as u64) != 0 {
+                    if value == 0 || value % (compiler_common::size::FIELD as u64) != 0 {
                         return None;
                     }
                 }
@@ -1215,22 +1214,22 @@ impl FunctionCall {
 
                 let offset = context.builder.build_int_truncate_or_bit_cast(
                     arguments[0].into_int_value(),
-                    context.integer_type(compiler_const::bitlength::WORD),
+                    context.integer_type(compiler_common::bitlength::WORD),
                     "",
                 );
                 if let Some(value) = offset.get_zero_extended_constant() {
-                    if value == 0 || value % (compiler_const::size::FIELD as u64) != 0 {
+                    if value == 0 || value % (compiler_common::size::FIELD as u64) != 0 {
                         return None;
                     }
                 }
 
                 let pointer = context.access_heap(
                     offset,
-                    Some(context.integer_type(compiler_const::bitlength::BYTE)),
+                    Some(context.integer_type(compiler_common::bitlength::BYTE)),
                 );
 
                 let byte_mask = context
-                    .integer_type(compiler_const::bitlength::BYTE)
+                    .integer_type(compiler_common::bitlength::BYTE)
                     .const_int(0xff, false);
                 let value = context
                     .builder
@@ -1287,7 +1286,7 @@ impl FunctionCall {
                     .build_call(
                         intrinsic,
                         &[context
-                            .field_const(ContextValue::MessageSender.into())
+                            .field_const(compiler_common::ContextValue::MessageSender.into())
                             .as_basic_value_enum()],
                         "",
                     )
@@ -1299,7 +1298,7 @@ impl FunctionCall {
 
                 if let Some(ref test_entry_hash) = context.test_entry_hash {
                     let hash = context
-                        .integer_type(compiler_const::bitlength::FIELD)
+                        .integer_type(compiler_common::bitlength::FIELD)
                         .const_int_from_string(
                             test_entry_hash,
                             inkwell::types::StringRadix::Hexadecimal,
@@ -1308,7 +1307,7 @@ impl FunctionCall {
                     let hash = context.builder.build_left_shift(
                         hash,
                         context.field_const(
-                            ((compiler_const::size::FIELD - 4) * compiler_const::bitlength::BYTE)
+                            ((compiler_common::size::FIELD - 4) * compiler_common::bitlength::BYTE)
                                 as u64,
                         ),
                         "",
@@ -1321,7 +1320,7 @@ impl FunctionCall {
                 let join_block = context.append_basic_block("join");
 
                 let value_pointer = context
-                    .build_alloca(context.integer_type(compiler_const::bitlength::FIELD), "");
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
                 context.build_store(value_pointer, context.field_const(0));
                 let is_zero = context.builder.build_int_compare(
                     inkwell::IntPredicate::EQ,
@@ -1333,8 +1332,8 @@ impl FunctionCall {
 
                 context.set_basic_block(if_zero_block);
                 let offset = context.field_const(
-                    (compiler_const::contract::ABI_OFFSET_ENTRY_HASH * compiler_const::size::FIELD)
-                        as u64,
+                    (compiler_common::contract::ABI_OFFSET_ENTRY_HASH
+                        * compiler_common::size::FIELD) as u64,
                 );
                 let pointer = context.access_calldata(offset);
                 let value = context.build_load(pointer, "");
@@ -1347,8 +1346,8 @@ impl FunctionCall {
                     Target::zkEVM => context.builder.build_int_add(
                         arguments[0].into_int_value(),
                         context.field_const(
-                            (compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
-                                * compiler_const::size::FIELD
+                            (compiler_common::contract::ABI_OFFSET_CALL_RETURN_DATA
+                                * compiler_common::size::FIELD
                                 - 4) as u64,
                         ),
                         "",
@@ -1371,18 +1370,18 @@ impl FunctionCall {
                 Target::zkEVM => {
                     let pointer = context.builder.build_int_to_ptr(
                         context.field_const(
-                            (compiler_const::contract::ABI_OFFSET_CALLDATA_SIZE
-                                * compiler_const::size::FIELD) as u64,
+                            (compiler_common::contract::ABI_OFFSET_CALLDATA_SIZE
+                                * compiler_common::size::FIELD) as u64,
                         ),
                         context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .ptr_type(AddressSpace::Parent.into()),
+                            .integer_type(compiler_common::bitlength::FIELD)
+                            .ptr_type(compiler_common::AddressSpace::Parent.into()),
                         "",
                     );
                     let value = context.build_load(pointer, "");
                     let value = context.builder.build_int_mul(
                         value.into_int_value(),
-                        context.field_const(compiler_const::size::FIELD as u64),
+                        context.field_const(compiler_common::size::FIELD as u64),
                         "",
                     );
                     let value = context
@@ -1403,13 +1402,13 @@ impl FunctionCall {
                 let destination = context.builder.build_int_to_ptr(
                     arguments[0].into_int_value(),
                     context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .ptr_type(AddressSpace::Heap.into()),
+                        .integer_type(compiler_common::bitlength::FIELD)
+                        .ptr_type(compiler_common::AddressSpace::Heap.into()),
                     "",
                 );
 
-                let source_offset_shift = compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
-                    * compiler_const::size::FIELD
+                let source_offset_shift = compiler_common::contract::ABI_OFFSET_CALL_RETURN_DATA
+                    * compiler_common::size::FIELD
                     - 4;
                 let source_offset = context.builder.build_int_add(
                     arguments[1].into_int_value(),
@@ -1419,8 +1418,8 @@ impl FunctionCall {
                 let source = context.builder.build_int_to_ptr(
                     source_offset,
                     context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .ptr_type(AddressSpace::Parent.into()),
+                        .integer_type(compiler_common::bitlength::FIELD)
+                        .ptr_type(compiler_common::AddressSpace::Parent.into()),
                     "",
                 );
 
@@ -1434,7 +1433,7 @@ impl FunctionCall {
                         source.as_basic_value_enum(),
                         size.as_basic_value_enum(),
                         context
-                            .integer_type(compiler_const::bitlength::BOOLEAN)
+                            .integer_type(compiler_common::bitlength::BOOLEAN)
                             .const_zero()
                             .as_basic_value_enum(),
                     ],
@@ -1450,7 +1449,7 @@ impl FunctionCall {
                     .build_call(
                         intrinsic,
                         &[context
-                            .field_const(ContextValue::GasLeft.into())
+                            .field_const(compiler_common::ContextValue::GasLeft.into())
                             .as_basic_value_enum()],
                         "",
                     )
@@ -1463,8 +1462,8 @@ impl FunctionCall {
                     .build_call(
                         intrinsic,
                         &[context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .const_int(ContextValue::Address.into(), false)
+                            .integer_type(compiler_common::bitlength::FIELD)
+                            .const_int(compiler_common::ContextValue::Address.into(), false)
                             .as_basic_value_enum()],
                         "",
                     )
@@ -1478,8 +1477,8 @@ impl FunctionCall {
                     .build_call(
                         intrinsic,
                         &[context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .const_int(ContextValue::BlockTimestamp.into(), false)
+                            .integer_type(compiler_common::bitlength::FIELD)
+                            .const_int(compiler_common::ContextValue::BlockTimestamp.into(), false)
                             .as_basic_value_enum()],
                         "",
                     )
@@ -1492,8 +1491,8 @@ impl FunctionCall {
                     .build_call(
                         intrinsic,
                         &[context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .const_int(ContextValue::BlockNumber.into(), false)
+                            .integer_type(compiler_common::bitlength::FIELD)
+                            .const_int(compiler_common::ContextValue::BlockNumber.into(), false)
                             .as_basic_value_enum()],
                         "",
                     )
@@ -1570,7 +1569,7 @@ impl FunctionCall {
                 if let Target::X86 = context.target {
                     return Some(
                         context
-                            .integer_type(compiler_const::bitlength::FIELD)
+                            .integer_type(compiler_common::bitlength::FIELD)
                             .const_zero()
                             .as_basic_value_enum(),
                     );
@@ -1597,7 +1596,7 @@ impl FunctionCall {
                 if let Target::X86 = context.target {
                     return Some(
                         context
-                            .integer_type(compiler_const::bitlength::FIELD)
+                            .integer_type(compiler_common::bitlength::FIELD)
                             .const_zero()
                             .as_basic_value_enum(),
                     );
@@ -1624,7 +1623,7 @@ impl FunctionCall {
                 if let Target::X86 = context.target {
                     return Some(
                         context
-                            .integer_type(compiler_const::bitlength::FIELD)
+                            .integer_type(compiler_common::bitlength::FIELD)
                             .const_zero()
                             .as_basic_value_enum(),
                     );
@@ -1651,7 +1650,7 @@ impl FunctionCall {
                 if let Target::X86 = context.target {
                     return Some(
                         context
-                            .integer_type(compiler_const::bitlength::FIELD)
+                            .integer_type(compiler_common::bitlength::FIELD)
                             .const_zero()
                             .as_basic_value_enum(),
                     );
@@ -1682,7 +1681,7 @@ impl FunctionCall {
                     Target::X86 => {
                         let heap_type = match context.target {
                             Target::X86 => {
-                                Some(context.integer_type(compiler_const::bitlength::BYTE))
+                                Some(context.integer_type(compiler_common::bitlength::BYTE))
                             }
                             Target::zkEVM => None,
                         };
@@ -1694,9 +1693,9 @@ impl FunctionCall {
                                 .builder
                                 .build_memcpy(
                                     return_pointer,
-                                    (compiler_const::size::BYTE) as u32,
+                                    (compiler_common::size::BYTE) as u32,
                                     source,
-                                    (compiler_const::size::BYTE) as u32,
+                                    (compiler_common::size::BYTE) as u32,
                                     arguments[1].into_int_value(),
                                 )
                                 .expect("Return memory copy failed");
@@ -1709,8 +1708,8 @@ impl FunctionCall {
                         let source = context.builder.build_int_to_ptr(
                             arguments[0].into_int_value(),
                             context
-                                .integer_type(compiler_const::bitlength::FIELD)
-                                .ptr_type(AddressSpace::Heap.into()),
+                                .integer_type(compiler_common::bitlength::FIELD)
+                                .ptr_type(compiler_common::AddressSpace::Heap.into()),
                             "",
                         );
 
@@ -1722,16 +1721,16 @@ impl FunctionCall {
                         } else {
                             let destination = context.builder.build_int_to_ptr(
                                 context
-                                    .integer_type(compiler_const::bitlength::FIELD)
+                                    .integer_type(compiler_common::bitlength::FIELD)
                                     .const_int(
-                                        (compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
-                                            * compiler_const::size::FIELD)
+                                        (compiler_common::contract::ABI_OFFSET_CALL_RETURN_DATA
+                                            * compiler_common::size::FIELD)
                                             as u64,
                                         false,
                                     ),
                                 context
-                                    .integer_type(compiler_const::bitlength::FIELD)
-                                    .ptr_type(AddressSpace::Parent.into()),
+                                    .integer_type(compiler_common::bitlength::FIELD)
+                                    .ptr_type(compiler_common::AddressSpace::Parent.into()),
                                 "",
                             );
 
@@ -1744,7 +1743,7 @@ impl FunctionCall {
                                     source.as_basic_value_enum(),
                                     size.as_basic_value_enum(),
                                     context
-                                        .integer_type(compiler_const::bitlength::BOOLEAN)
+                                        .integer_type(compiler_common::bitlength::BOOLEAN)
                                         .const_zero()
                                         .as_basic_value_enum(),
                                 ],
@@ -1760,25 +1759,25 @@ impl FunctionCall {
             Name::ReturnDataSize => match context.target {
                 Target::X86 => Some(
                     context
-                        .integer_type(compiler_const::bitlength::FIELD)
+                        .integer_type(compiler_common::bitlength::FIELD)
                         .const_zero()
                         .as_basic_value_enum(),
                 ),
                 Target::zkEVM => {
                     let pointer = context.builder.build_int_to_ptr(
                         context.field_const(
-                            (compiler_const::contract::ABI_OFFSET_RETURN_DATA_SIZE
-                                * compiler_const::size::FIELD) as u64,
+                            (compiler_common::contract::ABI_OFFSET_RETURN_DATA_SIZE
+                                * compiler_common::size::FIELD) as u64,
                         ),
                         context
-                            .integer_type(compiler_const::bitlength::FIELD)
-                            .ptr_type(AddressSpace::Child.into()),
+                            .integer_type(compiler_common::bitlength::FIELD)
+                            .ptr_type(compiler_common::AddressSpace::Child.into()),
                         "",
                     );
                     let value = context.build_load(pointer, "");
                     let value = context.builder.build_int_mul(
                         value.into_int_value(),
-                        context.field_const(compiler_const::size::FIELD as u64),
+                        context.field_const(compiler_common::size::FIELD as u64),
                         "",
                     );
                     Some(value.as_basic_value_enum())
@@ -1794,13 +1793,13 @@ impl FunctionCall {
                 let destination = context.builder.build_int_to_ptr(
                     arguments[0].into_int_value(),
                     context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .ptr_type(AddressSpace::Heap.into()),
+                        .integer_type(compiler_common::bitlength::FIELD)
+                        .ptr_type(compiler_common::AddressSpace::Heap.into()),
                     "",
                 );
 
-                let source_offset_shift = compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
-                    * compiler_const::size::FIELD
+                let source_offset_shift = compiler_common::contract::ABI_OFFSET_CALL_RETURN_DATA
+                    * compiler_common::size::FIELD
                     - 4;
                 let source_offset = context.builder.build_int_add(
                     arguments[1].into_int_value(),
@@ -1810,8 +1809,8 @@ impl FunctionCall {
                 let source = context.builder.build_int_to_ptr(
                     source_offset,
                     context
-                        .integer_type(compiler_const::bitlength::FIELD)
-                        .ptr_type(AddressSpace::Child.into()),
+                        .integer_type(compiler_common::bitlength::FIELD)
+                        .ptr_type(compiler_common::AddressSpace::Child.into()),
                     "",
                 );
 
@@ -1825,7 +1824,7 @@ impl FunctionCall {
                         source.as_basic_value_enum(),
                         size.as_basic_value_enum(),
                         context
-                            .integer_type(compiler_const::bitlength::BOOLEAN)
+                            .integer_type(compiler_common::bitlength::BOOLEAN)
                             .const_zero()
                             .as_basic_value_enum(),
                     ],
@@ -1941,57 +1940,57 @@ impl FunctionCall {
         let input_offset = context.builder.build_int_unsigned_div(
             input_offset,
             context
-                .integer_type(compiler_const::bitlength::FIELD)
-                .const_int(compiler_const::size::FIELD as u64, false),
+                .integer_type(compiler_common::bitlength::FIELD)
+                .const_int(compiler_common::size::FIELD as u64, false),
             "",
         );
         let output_offset = context.builder.build_int_unsigned_div(
             output_offset,
             context
-                .integer_type(compiler_const::bitlength::FIELD)
-                .const_int(compiler_const::size::FIELD as u64, false),
+                .integer_type(compiler_common::bitlength::FIELD)
+                .const_int(compiler_common::size::FIELD as u64, false),
             "",
         );
 
         let stack_pointer = context.builder.build_int_to_ptr(
             input_offset,
             context
-                .integer_type(compiler_const::bitlength::FIELD)
-                .ptr_type(AddressSpace::Heap.into()),
+                .integer_type(compiler_common::bitlength::FIELD)
+                .ptr_type(compiler_common::AddressSpace::Heap.into()),
             "",
         );
 
         let child_pointer_input = context.builder.build_int_to_ptr(
             context.field_const(
-                (compiler_const::contract::ABI_OFFSET_CALLDATA_SIZE * compiler_const::size::FIELD)
+                (compiler_common::contract::ABI_OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD)
                     as u64,
             ),
             context
-                .integer_type(compiler_const::bitlength::FIELD)
-                .ptr_type(AddressSpace::Child.into()),
+                .integer_type(compiler_common::bitlength::FIELD)
+                .ptr_type(compiler_common::AddressSpace::Child.into()),
             "",
         );
         context.build_store(child_pointer_input, input_size);
         let child_pointer_output = context.builder.build_int_to_ptr(
             context.field_const(
-                (compiler_const::contract::ABI_OFFSET_RETURN_DATA_SIZE
-                    * compiler_const::size::FIELD) as u64,
+                (compiler_common::contract::ABI_OFFSET_RETURN_DATA_SIZE
+                    * compiler_common::size::FIELD) as u64,
             ),
             context
-                .integer_type(compiler_const::bitlength::FIELD)
-                .ptr_type(AddressSpace::Child.into()),
+                .integer_type(compiler_common::bitlength::FIELD)
+                .ptr_type(compiler_common::AddressSpace::Child.into()),
             "",
         );
         context.build_store(child_pointer_output, output_size);
 
         let destination = context.builder.build_int_to_ptr(
             context.field_const(
-                (compiler_const::contract::ABI_OFFSET_CALL_RETURN_DATA
-                    * compiler_const::size::FIELD) as u64,
+                (compiler_common::contract::ABI_OFFSET_CALL_RETURN_DATA
+                    * compiler_common::size::FIELD) as u64,
             ),
             context
-                .integer_type(compiler_const::bitlength::FIELD)
-                .ptr_type(AddressSpace::Child.into()),
+                .integer_type(compiler_common::bitlength::FIELD)
+                .ptr_type(compiler_common::AddressSpace::Child.into()),
             "",
         );
         let source = stack_pointer;
@@ -2004,7 +2003,7 @@ impl FunctionCall {
                 source.as_basic_value_enum(),
                 input_size.as_basic_value_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::BOOLEAN)
+                    .integer_type(compiler_common::bitlength::BOOLEAN)
                     .const_zero()
                     .as_basic_value_enum(),
             ],
@@ -2029,7 +2028,7 @@ impl FunctionCall {
                 source.as_basic_value_enum(),
                 input_size.as_basic_value_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::BOOLEAN)
+                    .integer_type(compiler_common::bitlength::BOOLEAN)
                     .const_zero()
                     .as_basic_value_enum(),
             ],
@@ -2037,7 +2036,7 @@ impl FunctionCall {
         );
 
         context
-            .integer_type(compiler_const::bitlength::FIELD)
+            .integer_type(compiler_common::bitlength::FIELD)
             .const_int(1, false)
             .as_basic_value_enum()
     }
@@ -2077,7 +2076,7 @@ impl FunctionCall {
             index_value,
             length
                 .get_type()
-                .const_int(compiler_const::size::FIELD as u64, false),
+                .const_int(compiler_common::size::FIELD as u64, false),
             "",
         );
         context.build_store(index_pointer, incremented);

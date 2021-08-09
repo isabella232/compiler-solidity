@@ -45,7 +45,7 @@ impl ILLVMWritable for IfConditional {
             .into_int_value();
         let condition = context.builder.build_int_truncate_or_bit_cast(
             condition,
-            context.integer_type(compiler_const::bitlength::BOOLEAN),
+            context.integer_type(compiler_common::bitlength::BOOLEAN),
             "",
         );
         let main_block = context.append_basic_block("if.main");

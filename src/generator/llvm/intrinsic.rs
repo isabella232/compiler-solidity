@@ -4,7 +4,6 @@
 
 use inkwell::types::BasicType;
 
-use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::Context as LLVMContext;
 
 ///
@@ -118,89 +117,89 @@ impl Intrinsic {
 
             Self::MemoryCopy => vec![
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Stack.into())
+                    .integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Stack.into())
                     .as_basic_type_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Stack.into())
+                    .integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Stack.into())
                     .as_basic_type_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
+                    .integer_type(compiler_common::bitlength::FIELD)
                     .as_basic_type_enum(),
             ],
             Self::MemoryCopyFromParent => vec![
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Heap.into())
+                    .integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Heap.into())
                     .as_basic_type_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Parent.into())
+                    .integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Parent.into())
                     .as_basic_type_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
+                    .integer_type(compiler_common::bitlength::FIELD)
                     .as_basic_type_enum(),
             ],
             Self::MemoryCopyToParent => vec![
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Parent.into())
+                    .integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Parent.into())
                     .as_basic_type_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Heap.into())
+                    .integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Heap.into())
                     .as_basic_type_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
+                    .integer_type(compiler_common::bitlength::FIELD)
                     .as_basic_type_enum(),
             ],
             Self::MemoryCopyFromChild => vec![
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Heap.into())
+                    .integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Heap.into())
                     .as_basic_type_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Child.into())
+                    .integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Child.into())
                     .as_basic_type_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
+                    .integer_type(compiler_common::bitlength::FIELD)
                     .as_basic_type_enum(),
             ],
             Self::MemoryCopyToChild => vec![
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Child.into())
+                    .integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Child.into())
                     .as_basic_type_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Heap.into())
+                    .integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Heap.into())
                     .as_basic_type_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
+                    .integer_type(compiler_common::bitlength::FIELD)
                     .as_basic_type_enum(),
             ],
             Self::MemoryMove => vec![
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Stack.into())
+                    .integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Stack.into())
                     .as_basic_type_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Stack.into())
+                    .integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Stack.into())
                     .as_basic_type_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
+                    .integer_type(compiler_common::bitlength::FIELD)
                     .as_basic_type_enum(),
             ],
             Self::MemorySet => vec![
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Stack.into())
+                    .integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Stack.into())
                     .as_basic_type_enum(),
                 context
-                    .integer_type(compiler_const::bitlength::FIELD)
+                    .integer_type(compiler_common::bitlength::FIELD)
                     .as_basic_type_enum(),
             ],
 

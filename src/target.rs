@@ -36,7 +36,7 @@ impl From<Option<&inkwell::targets::TargetMachine>> for Target {
         match machine {
             Some(machine) => {
                 if machine.get_target().get_name().to_string_lossy().as_ref()
-                    == compiler_const::virtual_machine::TARGET_NAME
+                    == compiler_common::virtual_machine::TARGET_NAME
                 {
                     Self::zkEVM
                 } else {

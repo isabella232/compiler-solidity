@@ -63,9 +63,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "compiler-const"
+name = "compiler-common"
 version = "0.3.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-const?branch=main#f49634c162f567336060bd43b1a451619fe2819a"
+source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=main#c06bdb0d59493439d4c2ce6622fb5a957b47580a"
+dependencies = [
+ "inkwell",
+]
 
 [[package]]
 name = "either"
@@ -531,7 +534,7 @@ name = "yul-compiler"
 version = "0.1.0"
 dependencies = [
  "colored",
- "compiler-const",
+ "compiler-common",
  "inkwell",
  "rand",
  "regex",

@@ -2,8 +2,6 @@
 //! The LLVM generator context.
 //!
 
-pub mod address_space;
-pub mod context_value;
 pub mod function;
 pub mod intrinsic;
 pub mod r#loop;
@@ -16,7 +14,6 @@ use inkwell::values::BasicValue;
 use crate::parser::identifier::Identifier;
 use crate::target::Target;
 
-use self::address_space::AddressSpace;
 use self::function::r#return::Return as FunctionReturn;
 use self::function::Function;
 use self::intrinsic::Intrinsic;
@@ -87,7 +84,7 @@ impl<'ctx> Context<'ctx> {
         machine: Option<&inkwell::targets::TargetMachine>,
         optimization_level: inkwell::OptimizationLevel,
     ) -> Self {
-        let module = llvm.create_module(compiler_const::identifier::FUNCTION_MAIN);
+        let module = llvm.create_module(compiler_common::identifier::FUNCTION_MAIN);
         if let Some(machine) = machine {
             module.set_triple(&machine.get_triple());
             module.set_data_layout(&machine.get_target_data().get_data_layout());
@@ -214,7 +211,7 @@ impl<'ctx> Context<'ctx> {
                     .map(|argument| argument.get_type().is_pointer_type())
                     .unwrap_or_default()
                 {
-                    value.set_param_alignment(index, compiler_const::size::FIELD as u32);
+                    value.set_param_alignment(index, compiler_common::size::FIELD as u32);
                 }
             }
         }
@@ -249,7 +246,7 @@ impl<'ctx> Context<'ctx> {
     pub fn function(&self) -> &Function<'ctx> {
         self.function
             .as_ref()
-            .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION)
+            .expect(compiler_common::panic::VALIDATED_DURING_CODE_GENERATION)
     }
 
     ///
@@ -258,7 +255,7 @@ impl<'ctx> Context<'ctx> {
     pub fn function_mut(&mut self) -> &mut Function<'ctx> {
         self.function
             .as_mut()
-            .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION)
+            .expect(compiler_common::panic::VALIDATED_DURING_CODE_GENERATION)
     }
 
     ///
@@ -272,7 +269,7 @@ impl<'ctx> Context<'ctx> {
             self.functions
                 .get(name)
                 .cloned()
-                .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION),
+                .expect(compiler_common::panic::VALIDATED_DURING_CODE_GENERATION),
         );
     }
 
@@ -303,7 +300,7 @@ impl<'ctx> Context<'ctx> {
     ) -> inkwell::values::FunctionValue<'ctx> {
         self.module()
             .get_intrinsic_function(intrinsic.name(), intrinsic.argument_types(self).as_slice())
-            .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION)
+            .expect(compiler_common::panic::VALIDATED_DURING_CODE_GENERATION)
     }
 
     ///
@@ -353,7 +350,7 @@ impl<'ctx> Context<'ctx> {
     pub fn r#loop(&self) -> &Loop<'ctx> {
         self.loop_stack
             .last()
-            .expect(compiler_const::panic::VALIDATED_DURING_CODE_GENERATION)
+            .expect(compiler_common::panic::VALIDATED_DURING_CODE_GENERATION)
     }
 
     ///
@@ -371,7 +368,7 @@ impl<'ctx> Context<'ctx> {
             self.basic_block()
                 .get_last_instruction()
                 .expect("Always exists")
-                .set_alignment(compiler_const::size::FIELD as u32)
+                .set_alignment(compiler_common::size::FIELD as u32)
                 .expect("Alignment is valid");
         }
         pointer
@@ -390,7 +387,7 @@ impl<'ctx> Context<'ctx> {
         let instruction = self.builder.build_store(pointer, value);
         if let Target::zkEVM = self.target {
             instruction
-                .set_alignment(compiler_const::size::FIELD as u32)
+                .set_alignment(compiler_common::size::FIELD as u32)
                 .expect("Alignment is valid");
         }
     }
@@ -410,7 +407,7 @@ impl<'ctx> Context<'ctx> {
             self.basic_block()
                 .get_last_instruction()
                 .expect("Always exists")
-                .set_alignment(compiler_const::size::FIELD as u32)
+                .set_alignment(compiler_common::size::FIELD as u32)
                 .expect("Alignment is valid");
         }
         value
@@ -472,7 +469,7 @@ impl<'ctx> Context<'ctx> {
                 {
                     call_site_value.set_alignment_attribute(
                         inkwell::attributes::AttributeLoc::Param(index),
-                        compiler_const::size::FIELD as u32,
+                        compiler_common::size::FIELD as u32,
                     );
                 }
             }
@@ -484,7 +481,7 @@ impl<'ctx> Context<'ctx> {
             {
                 call_site_value.set_alignment_attribute(
                     inkwell::attributes::AttributeLoc::Return,
-                    compiler_const::size::FIELD as u32,
+                    compiler_common::size::FIELD as u32,
                 );
             }
         }
@@ -524,7 +521,7 @@ impl<'ctx> Context<'ctx> {
             {
                 call_site_value.set_alignment_attribute(
                     inkwell::attributes::AttributeLoc::Param(index),
-                    compiler_const::size::FIELD as u32,
+                    compiler_common::size::FIELD as u32,
                 );
             }
         }
@@ -536,7 +533,7 @@ impl<'ctx> Context<'ctx> {
         {
             call_site_value.set_alignment_attribute(
                 inkwell::attributes::AttributeLoc::Return,
-                compiler_const::size::FIELD as u32,
+                compiler_common::size::FIELD as u32,
             );
         }
 
@@ -580,18 +577,18 @@ impl<'ctx> Context<'ctx> {
         }
 
         let landing_pad_type = self.structure_type(vec![
-            self.integer_type(compiler_const::bitlength::BYTE)
-                .ptr_type(AddressSpace::Stack.into())
+            self.integer_type(compiler_common::bitlength::BYTE)
+                .ptr_type(compiler_common::AddressSpace::Stack.into())
                 .as_basic_type_enum(),
-            self.integer_type(compiler_const::bitlength::BYTE * 4)
+            self.integer_type(compiler_common::bitlength::BYTE * 4)
                 .as_basic_type_enum(),
         ]);
         let landing_pad = self.builder.build_landing_pad(
             landing_pad_type,
             self.personality,
             vec![self
-                .integer_type(compiler_const::bitlength::BYTE)
-                .ptr_type(AddressSpace::Stack.into())
+                .integer_type(compiler_common::bitlength::BYTE)
+                .ptr_type(compiler_common::AddressSpace::Stack.into())
                 .const_zero()
                 .as_basic_value_enum()],
             "landing",
@@ -619,7 +616,7 @@ impl<'ctx> Context<'ctx> {
     /// Returns a field type constants.
     ///
     pub fn field_const(&self, value: u64) -> inkwell::values::IntValue<'ctx> {
-        self.integer_type(compiler_const::bitlength::FIELD)
+        self.integer_type(compiler_common::bitlength::FIELD)
             .const_int(value, false)
     }
 
@@ -679,7 +676,7 @@ impl<'ctx> Context<'ctx> {
         let return_type = self
             .llvm
             .struct_type(return_types.as_slice(), false)
-            .ptr_type(AddressSpace::Stack.into());
+            .ptr_type(compiler_common::AddressSpace::Stack.into());
         argument_types.insert(0, return_type.as_basic_type_enum());
         return_type.fn_type(argument_types.as_slice(), false)
     }
@@ -711,18 +708,18 @@ impl<'ctx> Context<'ctx> {
                 indexes.push(offset);
                 let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
                 let r#type =
-                    r#type.unwrap_or_else(|| self.integer_type(compiler_const::bitlength::FIELD));
+                    r#type.unwrap_or_else(|| self.integer_type(compiler_common::bitlength::FIELD));
                 let pointer = self.builder.build_pointer_cast(
                     pointer,
-                    r#type.ptr_type(AddressSpace::Stack.into()),
+                    r#type.ptr_type(compiler_common::AddressSpace::Stack.into()),
                     "",
                 );
                 pointer
             }
             Target::zkEVM => self.builder.build_int_to_ptr(
                 offset,
-                self.integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Heap.into()),
+                self.integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Heap.into()),
                 "",
             ),
         }
@@ -759,8 +756,8 @@ impl<'ctx> Context<'ctx> {
             }
             Target::zkEVM => self.builder.build_int_to_ptr(
                 offset,
-                self.integer_type(compiler_const::bitlength::FIELD)
-                    .ptr_type(AddressSpace::Parent.into()),
+                self.integer_type(compiler_common::bitlength::FIELD)
+                    .ptr_type(compiler_common::AddressSpace::Parent.into()),
                 "",
             ),
         }
@@ -779,7 +776,7 @@ impl<'ctx> Context<'ctx> {
         }
 
         let r#type = self
-            .integer_type(compiler_const::bitlength::BYTE)
+            .integer_type(compiler_common::bitlength::BYTE)
             .array_type(size as u32);
         let global = self.module().add_global(r#type, None, "heap");
         global.set_initializer(&r#type.const_zero());
@@ -799,7 +796,7 @@ impl<'ctx> Context<'ctx> {
         }
 
         let r#type = self
-            .integer_type(compiler_const::bitlength::FIELD)
+            .integer_type(compiler_common::bitlength::FIELD)
             .array_type(size as u32);
         let global = self.module().add_global(r#type, None, "storage");
         global.set_initializer(&r#type.const_zero());
@@ -819,7 +816,7 @@ impl<'ctx> Context<'ctx> {
         }
 
         let r#type = self
-            .integer_type(compiler_const::bitlength::FIELD)
+            .integer_type(compiler_common::bitlength::FIELD)
             .array_type(size as u32);
         let global = self.module().add_global(r#type, None, "calldata");
         global.set_initializer(&r#type.const_zero());
