@@ -6,7 +6,6 @@ use inkwell::values::BasicValue;
 
 use crate::error::Error;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
-use crate::generator::llvm::function::Function;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
@@ -204,13 +203,7 @@ impl Block {
         let function = context.update_function(r#return);
 
         self.statements = local_statements;
-        if let Some(constructor) = context
-            .functions
-            .get(compiler_common::identifier::FUNCTION_CONSTRUCTOR)
-            .cloned()
-        {
-            self.constructor_call(context, constructor);
-        }
+        self.constructor_call(context);
         self.into_llvm_local(context);
         context.build_unconditional_branch(function.return_block);
 
@@ -282,7 +275,16 @@ impl Block {
     ///
     /// Writes a conditional constructor call at the beginning of the selector.
     ///
-    fn constructor_call<'ctx>(&self, context: &mut LLVMContext<'ctx>, constructor: Function<'ctx>) {
+    fn constructor_call(&self, context: &mut LLVMContext) {
+        let constructor = match context
+            .functions
+            .get(compiler_common::identifier::FUNCTION_CONSTRUCTOR)
+            .cloned()
+        {
+            Some(constructor) => constructor,
+            None => return,
+        };
+
         let call_block = context.append_basic_block("call_block");
         let join_block = context.append_basic_block("join_block");
 
