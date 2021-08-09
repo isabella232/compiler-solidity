@@ -75,24 +75,25 @@ impl ILLVMWritable for Object {
         context.allocate_storage(256);
         context.allocate_calldata(64);
 
+        let selector_type = match context.target {
+            Target::X86 => context
+                .integer_type(compiler_common::bitlength::WORD)
+                .fn_type(&[], false),
+            Target::zkEVM if context.test_entry_hash.is_some() => context
+                .integer_type(compiler_common::bitlength::FIELD)
+                .fn_type(&[], false),
+            Target::zkEVM => context.void_type().fn_type(&[], false),
+        };
+
         if is_selector {
             self.code.into_llvm_deployed(context);
         } else if is_constructor
             && matches!(context.target, Target::zkEVM)
             && context.test_entry_hash.is_none()
         {
-            let function_type = match context.target {
-                Target::X86 => context
-                    .integer_type(compiler_common::bitlength::WORD)
-                    .fn_type(&[], false),
-                Target::zkEVM if context.test_entry_hash.is_some() => context
-                    .integer_type(compiler_common::bitlength::FIELD)
-                    .fn_type(&[], false),
-                Target::zkEVM => context.void_type().fn_type(&[], false),
-            };
             context.add_function(
                 compiler_common::identifier::FUNCTION_SELECTOR,
-                function_type,
+                selector_type,
                 Some(inkwell::module::Linkage::External),
                 false,
             );
