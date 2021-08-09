@@ -156,7 +156,16 @@ impl Block {
     ///
     /// Translates the main deployed code block into LLVM.
     ///
-    pub fn into_llvm_deployed(mut self, context: &mut LLVMContext) {
+    pub fn into_llvm_selector(mut self, context: &mut LLVMContext) {
+        let function = match context
+            .functions
+            .get(compiler_common::identifier::FUNCTION_SELECTOR)
+            .cloned()
+        {
+            Some(function) => function,
+            None => return,
+        };
+
         let mut functions = Vec::with_capacity(self.statements.len());
         let mut local_statements = Vec::with_capacity(self.statements.len());
 
@@ -170,11 +179,6 @@ impl Block {
             }
         }
 
-        let function = context
-            .functions
-            .get(compiler_common::identifier::FUNCTION_SELECTOR)
-            .cloned()
-            .expect("Always exists");
         context.set_function(compiler_common::identifier::FUNCTION_SELECTOR);
         context.set_basic_block(function.entry_block);
         let return_pointer = context.build_alloca(

@@ -59,13 +59,13 @@ impl Code {
     ///
     /// Translates the main deployed code block into LLVM.
     ///
-    pub fn into_llvm_deployed(self, context: &mut LLVMContext) {
-        self.block.into_llvm_deployed(context);
+    pub fn into_llvm_selector(self, context: &mut LLVMContext) {
+        self.block.into_llvm_selector(context);
     }
 }
 
 impl ILLVMWritable for Code {
     fn into_llvm(self, context: &mut LLVMContext) {
-        self.block.into_llvm_deployed(context);
+        self.block.into_llvm_selector(context);
     }
 }
