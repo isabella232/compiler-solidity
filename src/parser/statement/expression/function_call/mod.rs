@@ -1502,7 +1502,7 @@ impl FunctionCall {
 
             Name::Log0 => {
                 let arguments = self.pop_arguments::<2>(context);
-                Self::log_call(
+                Self::event_call(
                     context,
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
@@ -1512,7 +1512,7 @@ impl FunctionCall {
             }
             Name::Log1 => {
                 let arguments = self.pop_arguments::<3>(context);
-                Self::log_call(
+                Self::event_call(
                     context,
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
@@ -1525,7 +1525,7 @@ impl FunctionCall {
             }
             Name::Log2 => {
                 let arguments = self.pop_arguments::<4>(context);
-                Self::log_call(
+                Self::event_call(
                     context,
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
@@ -1538,7 +1538,7 @@ impl FunctionCall {
             }
             Name::Log3 => {
                 let arguments = self.pop_arguments::<5>(context);
-                Self::log_call(
+                Self::event_call(
                     context,
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
@@ -1551,7 +1551,7 @@ impl FunctionCall {
             }
             Name::Log4 => {
                 let arguments = self.pop_arguments::<6>(context);
-                Self::log_call(
+                Self::event_call(
                     context,
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
@@ -2044,81 +2044,94 @@ impl FunctionCall {
     ///
     /// Translates a log or event call.
     ///
-    fn log_call<'ctx>(
+    fn event_call<'ctx>(
         context: &mut LLVMContext<'ctx>,
         range_start: inkwell::values::IntValue<'ctx>,
         length: inkwell::values::IntValue<'ctx>,
-        topics: Vec<inkwell::values::IntValue<'ctx>>,
+        mut topics: Vec<inkwell::values::IntValue<'ctx>>,
     ) {
-        let condition_block = context.append_basic_block("condition");
-        let body_block = context.append_basic_block("body");
-        let increment_block = context.append_basic_block("increment");
-        let join_block = context.append_basic_block("join");
-
-        let index_pointer = context.build_alloca(range_start.get_type(), "");
-        context.build_store(index_pointer, range_start);
-        let range_end = context.builder.build_int_add(range_start, length, "");
-        context.build_unconditional_branch(condition_block);
-
-        context.set_basic_block(condition_block);
-        let index_value = context.build_load(index_pointer, "").into_int_value();
-        let condition = context.builder.build_int_compare(
-            inkwell::IntPredicate::ULT,
-            index_value,
-            range_end,
-            "",
-        );
-        context.build_conditional_branch(condition, body_block, join_block);
-
-        context.set_basic_block(increment_block);
-        let index_value = context.build_load(index_pointer, "").into_int_value();
-        let incremented = context.builder.build_int_add(
-            index_value,
-            length
-                .get_type()
-                .const_int(compiler_common::size::FIELD as u64, false),
-            "",
-        );
-        context.build_store(index_pointer, incremented);
-        context.build_unconditional_branch(condition_block);
-
-        context.set_basic_block(body_block);
-        let index_value = context.build_load(index_pointer, "").into_int_value();
-        let pointer = context.access_heap(index_value, None);
-        let value = context.build_load(pointer, "");
-        let condition = context.builder.build_int_compare(
-            inkwell::IntPredicate::EQ,
-            index_value,
-            range_start,
-            "",
-        );
         let intrinsic = context.get_intrinsic_function(Intrinsic::Event);
+
         if topics.is_empty() {
+            topics = vec![context.field_const(0)];
+        }
+
+        for topic in topics.into_iter() {
+            let pointer = context.access_heap(range_start, None);
+            let value = context.build_load(pointer, "");
             context.build_call(
                 intrinsic,
                 &[
                     value,
-                    context.field_const(0).as_basic_value_enum(),
-                    condition.as_basic_value_enum(),
+                    topic.as_basic_value_enum(),
+                    context.field_const(1).as_basic_value_enum(),
                 ],
                 "",
             );
-        } else {
-            for topic in topics.into_iter() {
-                context.build_call(
-                    intrinsic,
-                    &[
-                        value,
-                        topic.as_basic_value_enum(),
-                        condition.as_basic_value_enum(),
-                    ],
-                    "",
-                );
-            }
-        }
-        context.build_unconditional_branch(increment_block);
 
-        context.set_basic_block(join_block);
+            let condition_block = context.append_basic_block("condition");
+            let body_block = context.append_basic_block("body");
+            let increment_block = context.append_basic_block("increment");
+            let join_block = context.append_basic_block("join");
+
+            let index_pointer = context.build_alloca(range_start.get_type(), "");
+            let range_start = context.builder.build_int_add(
+                range_start,
+                range_start
+                    .get_type()
+                    .const_int(compiler_common::size::FIELD as u64, false),
+                "",
+            );
+            let length = context.builder.build_int_sub(
+                length,
+                length
+                    .get_type()
+                    .const_int(compiler_common::size::FIELD as u64, false),
+                "",
+            );
+            let range_end = context.builder.build_int_add(range_start, length, "");
+            context.build_store(index_pointer, range_start);
+            context.build_unconditional_branch(condition_block);
+
+            context.set_basic_block(condition_block);
+            let index_value = context.build_load(index_pointer, "").into_int_value();
+            let condition = context.builder.build_int_compare(
+                inkwell::IntPredicate::ULT,
+                index_value,
+                range_end,
+                "",
+            );
+            context.build_conditional_branch(condition, body_block, join_block);
+
+            context.set_basic_block(increment_block);
+            let index_value = context.build_load(index_pointer, "").into_int_value();
+            let incremented = context.builder.build_int_add(
+                index_value,
+                length
+                    .get_type()
+                    .const_int(compiler_common::size::FIELD as u64, false),
+                "",
+            );
+            context.build_store(index_pointer, incremented);
+            context.build_unconditional_branch(condition_block);
+
+            context.set_basic_block(body_block);
+            let index_value = context.build_load(index_pointer, "").into_int_value();
+            let pointer = context.access_heap(index_value, None);
+            let value = context.build_load(pointer, "");
+            context.build_call(
+                intrinsic,
+                &[
+                    value,
+                    topic.as_basic_value_enum(),
+                    context.field_const(0).as_basic_value_enum(),
+                ],
+                "",
+            );
+            context.build_unconditional_branch(increment_block);
+
+            context.set_basic_block(join_block);
+        }
     }
 
     ///

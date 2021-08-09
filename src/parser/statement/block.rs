@@ -95,10 +95,9 @@ impl Block {
         let mut functions = Vec::with_capacity(self.statements.len());
         let mut local_statements = Vec::with_capacity(self.statements.len());
 
-        let function_name = context.object().to_owned();
         let function_type = context.function_type(&[], vec![]);
         context.add_function(
-            function_name.as_str(),
+            compiler_common::identifier::FUNCTION_CONSTRUCTOR,
             function_type,
             Some(inkwell::module::Linkage::External),
             true,
@@ -116,10 +115,10 @@ impl Block {
 
         let function = context
             .functions
-            .get(function_name.as_str())
+            .get(compiler_common::identifier::FUNCTION_CONSTRUCTOR)
             .cloned()
             .expect("Function always exists");
-        context.set_function(function_name.as_str());
+        context.set_function(compiler_common::identifier::FUNCTION_CONSTRUCTOR);
         context.set_basic_block(function.entry_block);
         context.update_function(FunctionReturn::none());
 
@@ -161,23 +160,6 @@ impl Block {
         let mut functions = Vec::with_capacity(self.statements.len());
         let mut local_statements = Vec::with_capacity(self.statements.len());
 
-        let function_name = context.object().to_owned();
-        let function_type = match context.target {
-            Target::X86 => context
-                .integer_type(compiler_common::bitlength::WORD)
-                .fn_type(&[], false),
-            Target::zkEVM if context.test_entry_hash.is_some() => context
-                .integer_type(compiler_common::bitlength::FIELD)
-                .fn_type(&[], false),
-            Target::zkEVM => context.void_type().fn_type(&[], false),
-        };
-        context.add_function(
-            function_name.as_str(),
-            function_type,
-            Some(inkwell::module::Linkage::External),
-            false,
-        );
-
         for statement in self.statements.into_iter() {
             match statement {
                 Statement::FunctionDefinition(mut statement) => {
@@ -190,10 +172,10 @@ impl Block {
 
         let function = context
             .functions
-            .get(function_name.as_str())
+            .get(compiler_common::identifier::FUNCTION_SELECTOR)
             .cloned()
             .expect("Always exists");
-        context.set_function(function_name.as_str());
+        context.set_function(compiler_common::identifier::FUNCTION_SELECTOR);
         context.set_basic_block(function.entry_block);
         let return_pointer = context.build_alloca(
             context.integer_type(compiler_common::bitlength::FIELD),

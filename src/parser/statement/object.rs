@@ -76,13 +76,11 @@ impl ILLVMWritable for Object {
         context.allocate_calldata(64);
 
         if is_selector {
-            context.set_object(compiler_common::identifier::FUNCTION_SELECTOR);
             self.code.into_llvm_deployed(context);
         } else if is_constructor
             && matches!(context.target, Target::zkEVM)
             && context.test_entry_hash.is_none()
         {
-            context.set_object(compiler_common::identifier::FUNCTION_CONSTRUCTOR);
             self.code.into_llvm_constructor(context);
         }
 

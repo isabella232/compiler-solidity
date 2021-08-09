@@ -34,8 +34,6 @@ pub struct Context<'ctx> {
     llvm: &'ctx inkwell::context::Context,
     /// The current module.
     module: inkwell::module::Module<'ctx>,
-    /// The current object name.
-    object: Option<String>,
     /// The current function.
     function: Option<Function<'ctx>>,
     /// The personality function, used for exception handling.
@@ -90,28 +88,11 @@ impl<'ctx> Context<'ctx> {
             module.set_data_layout(&machine.get_target_data().get_data_layout());
         }
 
-        const INTERNALIZE: bool = true;
-        const RUN_INLINER: bool = true;
-        const DISABLE_UNROLL_LOOPS: bool = true;
-
-        let size_level = match optimization_level {
-            inkwell::OptimizationLevel::Aggressive => 2,
-            inkwell::OptimizationLevel::Default => 2,
-            inkwell::OptimizationLevel::Less => 1,
-            inkwell::OptimizationLevel::None => 0,
-        };
-
         let pass_manager_builder = inkwell::passes::PassManagerBuilder::create();
         pass_manager_builder.set_optimization_level(optimization_level);
-        pass_manager_builder.set_size_level(size_level);
-        pass_manager_builder.set_disable_unroll_loops(DISABLE_UNROLL_LOOPS);
 
         let pass_manager_module = inkwell::passes::PassManager::create(());
-        pass_manager_builder.populate_lto_pass_manager(
-            &pass_manager_module,
-            INTERNALIZE,
-            RUN_INLINER,
-        );
+        pass_manager_builder.populate_lto_pass_manager(&pass_manager_module, true, true);
         pass_manager_builder.populate_module_pass_manager(&pass_manager_module);
 
         let pass_manager_function = inkwell::passes::PassManager::create(&module);
@@ -127,7 +108,6 @@ impl<'ctx> Context<'ctx> {
 
             llvm,
             module,
-            object: None,
             function: None,
             personality,
             loop_stack: Vec::with_capacity(Self::LOOP_STACK_INITIAL_CAPACITY),
@@ -177,20 +157,6 @@ impl<'ctx> Context<'ctx> {
     ///
     pub fn module(&self) -> &inkwell::module::Module<'ctx> {
         &self.module
-    }
-
-    ///
-    /// Sets the current YUL object name.
-    ///
-    pub fn set_object(&mut self, name: &str) {
-        self.object = Some(name.to_owned());
-    }
-
-    ///
-    /// Returns the current YUL object name.
-    ///
-    pub fn object(&self) -> &str {
-        self.object.as_ref().expect("Always exists")
     }
 
     ///
