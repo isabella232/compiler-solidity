@@ -16,20 +16,10 @@ pub use self::parser::statement::object::Object;
 pub use self::target::Target;
 
 ///
-/// Removes the metadata put by `solc` at the beginning of the Yul input.
-///
-pub fn clean(mut input: &str) -> &str {
-    input = input.strip_prefix("IR:").unwrap_or(input);
-    input = input.strip_prefix("Optimized IR:").unwrap_or(input);
-    input
-}
-
-///
 /// Parses the source code and returns the AST.
 ///
 pub fn parse(input: &str) -> Result<Object, Error> {
-    let input = clean(input).to_owned();
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new(input.to_owned());
     Object::parse(&mut lexer, None)
 }
 
