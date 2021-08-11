@@ -1419,7 +1419,7 @@ impl FunctionCall {
                 let if_calldata_block = context.append_basic_block("if_calldata");
                 let join_block = context.append_basic_block("join");
 
-                let is_calldata_empty = match context.target {
+                let is_calldata_zeroing = match context.target {
                     Target::X86 => context
                         .integer_type(compiler_common::bitlength::BOOLEAN)
                         .const_int(1, false),
@@ -1440,15 +1440,15 @@ impl FunctionCall {
                         );
                         let calldata_size = context.build_load(pointer, "").into_int_value();
                         context.builder.build_int_compare(
-                            inkwell::IntPredicate::EQ,
+                            inkwell::IntPredicate::ULT,
                             calldata_size,
-                            context.field_const(0),
+                            arguments[2].into_int_value(),
                             "",
                         )
                     }
                 };
                 context.build_conditional_branch(
-                    is_calldata_empty,
+                    is_calldata_zeroing,
                     if_zeroing_block,
                     if_calldata_block,
                 );
