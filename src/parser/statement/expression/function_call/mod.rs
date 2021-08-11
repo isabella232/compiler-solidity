@@ -1081,12 +1081,34 @@ impl FunctionCall {
                 Some(context.field_const(0).as_basic_value_enum())
             }
             Name::Slt => {
-                let _arguments = self.pop_arguments::<2>(context);
-                Some(context.field_const(0).as_basic_value_enum())
+                let arguments = self.pop_arguments::<2>(context);
+                let mut result = context.builder.build_int_compare(
+                    inkwell::IntPredicate::ULT,
+                    arguments[0].into_int_value(),
+                    arguments[1].into_int_value(),
+                    "",
+                );
+                result = context.builder.build_int_z_extend_or_bit_cast(
+                    result,
+                    context.integer_type(compiler_common::bitlength::FIELD),
+                    "",
+                );
+                Some(result.as_basic_value_enum())
             }
             Name::Sgt => {
-                let _arguments = self.pop_arguments::<2>(context);
-                Some(context.field_const(0).as_basic_value_enum())
+                let arguments = self.pop_arguments::<2>(context);
+                let mut result = context.builder.build_int_compare(
+                    inkwell::IntPredicate::UGT,
+                    arguments[0].into_int_value(),
+                    arguments[1].into_int_value(),
+                    "",
+                );
+                result = context.builder.build_int_z_extend_or_bit_cast(
+                    result,
+                    context.integer_type(compiler_common::bitlength::FIELD),
+                    "",
+                );
+                Some(result.as_basic_value_enum())
             }
             Name::Sar => {
                 let arguments = self.pop_arguments::<2>(context);
