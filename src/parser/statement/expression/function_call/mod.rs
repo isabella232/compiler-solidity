@@ -169,7 +169,7 @@ impl FunctionCall {
                 context.build_conditional_branch(condition, zero_block, non_zero_block);
 
                 context.set_basic_block(non_zero_block);
-                let initial_type = arguments[0].get_type().into_int_type();
+                let initial_type = context.integer_type(compiler_common::bitlength::FIELD);
                 if let Target::X86 = context.target {
                     let allowed_type = context.integer_type(compiler_common::bitlength::BYTE * 16);
                     arguments[0] = context
@@ -230,7 +230,7 @@ impl FunctionCall {
                 context.build_conditional_branch(condition, zero_block, non_zero_block);
 
                 context.set_basic_block(non_zero_block);
-                let initial_type = arguments[0].get_type().into_int_type();
+                let initial_type = context.integer_type(compiler_common::bitlength::FIELD);
                 if let Target::X86 = context.target {
                     let allowed_type = context.integer_type(compiler_common::bitlength::BYTE * 16);
                     arguments[0] = context
@@ -774,7 +774,8 @@ impl FunctionCall {
                     );
                 }
 
-                let result_pointer = context.build_alloca(arguments[1].get_type(), "");
+                let result_pointer = context
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
                 context.build_store(result_pointer, arguments[1]);
 
                 let condition_block = context.append_basic_block("condition");
@@ -782,12 +783,9 @@ impl FunctionCall {
                 let increment_block = context.append_basic_block("increment");
                 let join_block = context.append_basic_block("join");
 
-                let index_pointer = context.build_alloca(arguments[0].get_type(), "");
-                let index_value = arguments[0]
-                    .get_type()
-                    .into_int_type()
-                    .const_zero()
-                    .as_basic_value_enum();
+                let index_pointer = context
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
+                let index_value = context.field_const(0).as_basic_value_enum();
                 context.build_store(index_pointer, index_value);
                 context.build_unconditional_branch(condition_block);
 
@@ -803,17 +801,16 @@ impl FunctionCall {
 
                 context.set_basic_block(increment_block);
                 let index_value = context.build_load(index_pointer, "").into_int_value();
-                let incremented = context.builder.build_int_add(
-                    index_value,
-                    arguments[0].get_type().into_int_type().const_int(1, false),
-                    "",
-                );
+                let incremented =
+                    context
+                        .builder
+                        .build_int_add(index_value, context.field_const(1), "");
                 context.build_store(index_pointer, incremented);
                 context.build_unconditional_branch(condition_block);
 
                 context.set_basic_block(body_block);
                 let intermediate = context.build_load(result_pointer, "").into_int_value();
-                let multiplier = arguments[1].get_type().into_int_type().const_int(2, false);
+                let multiplier = context.field_const(2);
                 let result = context.builder.build_int_mul(intermediate, multiplier, "");
                 context.build_store(result_pointer, result);
                 context.build_unconditional_branch(increment_block);
@@ -841,7 +838,8 @@ impl FunctionCall {
                     );
                 }
 
-                let result_pointer = context.build_alloca(arguments[1].get_type(), "");
+                let result_pointer = context
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
                 context.build_store(result_pointer, arguments[1]);
 
                 let condition_block = context.append_basic_block("condition");
@@ -849,12 +847,9 @@ impl FunctionCall {
                 let increment_block = context.append_basic_block("increment");
                 let join_block = context.append_basic_block("join");
 
-                let index_pointer = context.build_alloca(arguments[0].get_type(), "");
-                let index_value = arguments[0]
-                    .get_type()
-                    .into_int_type()
-                    .const_zero()
-                    .as_basic_value_enum();
+                let index_pointer = context
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
+                let index_value = context.field_const(0).as_basic_value_enum();
                 context.build_store(index_pointer, index_value);
                 context.build_unconditional_branch(condition_block);
 
@@ -870,17 +865,16 @@ impl FunctionCall {
 
                 context.set_basic_block(increment_block);
                 let index_value = context.build_load(index_pointer, "").into_int_value();
-                let incremented = context.builder.build_int_add(
-                    index_value,
-                    arguments[0].get_type().into_int_type().const_int(1, false),
-                    "",
-                );
+                let incremented =
+                    context
+                        .builder
+                        .build_int_add(index_value, context.field_const(1), "");
                 context.build_store(index_pointer, incremented);
                 context.build_unconditional_branch(condition_block);
 
                 context.set_basic_block(body_block);
                 let intermediate = context.build_load(result_pointer, "").into_int_value();
-                let divider = arguments[1].get_type().into_int_type().const_int(2, false);
+                let divider = context.field_const(2);
                 let result = context
                     .builder
                     .build_int_unsigned_div(intermediate, divider, "");
@@ -916,7 +910,7 @@ impl FunctionCall {
                     arguments[1].into_int_value(),
                     "",
                 );
-                let initial_type = arguments[0].get_type().into_int_type();
+                let initial_type = context.integer_type(compiler_common::bitlength::FIELD);
                 if let Target::X86 = context.target {
                     let allowed_type = context.integer_type(compiler_common::bitlength::BYTE * 16);
                     result =
@@ -978,7 +972,7 @@ impl FunctionCall {
                     arguments[1].into_int_value(),
                     "",
                 );
-                let initial_type = arguments[0].get_type().into_int_type();
+                let initial_type = context.integer_type(compiler_common::bitlength::FIELD);
                 if let Target::X86 = context.target {
                     let allowed_type = context.integer_type(compiler_common::bitlength::BYTE * 16);
                     result =
@@ -1020,7 +1014,8 @@ impl FunctionCall {
             Name::Exp => {
                 let arguments = self.pop_arguments::<2>(context);
 
-                let result_pointer = context.build_alloca(arguments[0].get_type(), "");
+                let result_pointer = context
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
                 context.build_store(result_pointer, arguments[0]);
 
                 let condition_block = context.append_basic_block("condition");
@@ -1028,12 +1023,9 @@ impl FunctionCall {
                 let increment_block = context.append_basic_block("increment");
                 let join_block = context.append_basic_block("join");
 
-                let index_pointer = context.build_alloca(arguments[1].get_type(), "");
-                let index_value = arguments[1]
-                    .get_type()
-                    .into_int_type()
-                    .const_zero()
-                    .as_basic_value_enum();
+                let index_pointer = context
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
+                let index_value = context.field_const(0).as_basic_value_enum();
                 context.build_store(index_pointer, index_value);
                 context.build_unconditional_branch(condition_block);
 
@@ -1049,11 +1041,10 @@ impl FunctionCall {
 
                 context.set_basic_block(increment_block);
                 let index_value = context.build_load(index_pointer, "").into_int_value();
-                let incremented = context.builder.build_int_add(
-                    index_value,
-                    arguments[1].get_type().into_int_type().const_int(1, false),
-                    "",
-                );
+                let incremented =
+                    context
+                        .builder
+                        .build_int_add(index_value, context.field_const(1), "");
                 context.build_store(index_pointer, incremented);
                 context.build_unconditional_branch(condition_block);
 
@@ -1131,13 +1122,26 @@ impl FunctionCall {
                 let increment_block = context.append_basic_block("increment");
                 let join_block = context.append_basic_block("join");
 
-                let index_pointer = context.build_alloca(arguments[0].get_type(), "");
-                context.build_store(index_pointer, arguments[0]);
-                let range_end = context.builder.build_int_add(
+                let index_pointer = context
+                    .build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
+                let index_value = context.build_load(index_pointer, "").into_int_value();
+                let pointer = context.access_heap(index_value, None);
+                let value = context.build_load(pointer, "");
+                let intrinsic = context.get_intrinsic_function(Intrinsic::HashAbsorbReset);
+                context.build_call(intrinsic, &[value], "");
+                let range_start = context.builder.build_int_add(
                     arguments[0].into_int_value(),
-                    arguments[1].into_int_value(),
+                    context.field_const(compiler_common::size::FIELD as u64),
                     "",
                 );
+                let length = context.builder.build_int_sub(
+                    arguments[1].into_int_value(),
+                    context.field_const(compiler_common::size::FIELD as u64),
+                    "",
+                );
+                let range_end = context.builder.build_int_add(range_start, length, "");
+                context.build_store(index_pointer, range_start);
+
                 context.build_unconditional_branch(condition_block);
 
                 context.set_basic_block(condition_block);
@@ -1154,10 +1158,7 @@ impl FunctionCall {
                 let index_value = context.build_load(index_pointer, "").into_int_value();
                 let incremented = context.builder.build_int_add(
                     index_value,
-                    arguments[1]
-                        .get_type()
-                        .into_int_type()
-                        .const_int(compiler_common::size::FIELD as u64, false),
+                    context.field_const(compiler_common::size::FIELD as u64),
                     "",
                 );
                 context.build_store(index_pointer, incremented);
@@ -1167,23 +1168,7 @@ impl FunctionCall {
                 let index_value = context.build_load(index_pointer, "").into_int_value();
                 let pointer = context.access_heap(index_value, None);
                 let value = context.build_load(pointer, "");
-                let call_ordinar_block = context.append_basic_block("call_ordinar");
-                let call_reset_block = context.append_basic_block("call_reset");
-                let condition = context.builder.build_int_compare(
-                    inkwell::IntPredicate::EQ,
-                    index_value,
-                    arguments[0].into_int_value(),
-                    "",
-                );
-                context.build_conditional_branch(condition, call_reset_block, call_ordinar_block);
-
-                context.set_basic_block(call_ordinar_block);
                 let intrinsic = context.get_intrinsic_function(Intrinsic::HashAbsorb);
-                context.build_call(intrinsic, &[value], "");
-                context.build_unconditional_branch(increment_block);
-
-                context.set_basic_block(call_reset_block);
-                let intrinsic = context.get_intrinsic_function(Intrinsic::HashAbsorbReset);
                 context.build_call(intrinsic, &[value], "");
                 context.build_unconditional_branch(increment_block);
 
@@ -1415,17 +1400,17 @@ impl FunctionCall {
             Name::CallDataCopy => {
                 let arguments = self.pop_arguments::<3>(context);
 
-                let if_zeroing_block = context.append_basic_block("if_zeroing");
-                let if_calldata_block = context.append_basic_block("if_calldata");
+                let copy_block = context.append_basic_block("copy");
+                let zero_block = context.append_basic_block("zero");
                 let join_block = context.append_basic_block("join");
 
-                let is_calldata_zeroing = match context.target {
+                let is_calldata_available = match context.target {
                     Target::X86 => context
                         .integer_type(compiler_common::bitlength::BOOLEAN)
-                        .const_int(1, false),
+                        .const_int(0, false),
                     Target::zkEVM if context.test_entry_hash.is_some() => context
                         .integer_type(compiler_common::bitlength::BOOLEAN)
-                        .const_int(1, false),
+                        .const_int(0, false),
                     Target::zkEVM => {
                         let pointer = context.builder.build_int_to_ptr(
                             context.field_const(
@@ -1439,21 +1424,22 @@ impl FunctionCall {
                             "",
                         );
                         let calldata_size = context.build_load(pointer, "").into_int_value();
+                        let calldata_size = context.builder.build_int_mul(
+                            calldata_size,
+                            context.field_const(compiler_common::size::FIELD as u64),
+                            "",
+                        );
                         context.builder.build_int_compare(
-                            inkwell::IntPredicate::ULT,
+                            inkwell::IntPredicate::UGE,
                             calldata_size,
                             arguments[2].into_int_value(),
                             "",
                         )
                     }
                 };
-                context.build_conditional_branch(
-                    is_calldata_zeroing,
-                    if_zeroing_block,
-                    if_calldata_block,
-                );
+                context.build_conditional_branch(is_calldata_available, copy_block, zero_block);
 
-                context.set_basic_block(if_calldata_block);
+                context.set_basic_block(copy_block);
                 let destination = context.builder.build_int_to_ptr(
                     arguments[0].into_int_value(),
                     context
@@ -1496,8 +1482,7 @@ impl FunctionCall {
                 );
                 context.build_unconditional_branch(join_block);
 
-                context.set_basic_block(if_zeroing_block);
-
+                context.set_basic_block(zero_block);
                 let condition_block = context.append_basic_block("condition");
                 let body_block = context.append_basic_block("body");
                 let increment_block = context.append_basic_block("increment");
@@ -2173,19 +2158,16 @@ impl FunctionCall {
             let increment_block = context.append_basic_block("increment");
             let join_block = context.append_basic_block("join");
 
-            let index_pointer = context.build_alloca(range_start.get_type(), "");
+            let index_pointer =
+                context.build_alloca(context.integer_type(compiler_common::bitlength::FIELD), "");
             let range_start = context.builder.build_int_add(
                 range_start,
-                range_start
-                    .get_type()
-                    .const_int(compiler_common::size::FIELD as u64, false),
+                context.field_const(compiler_common::size::FIELD as u64),
                 "",
             );
             let length = context.builder.build_int_sub(
                 length,
-                length
-                    .get_type()
-                    .const_int(compiler_common::size::FIELD as u64, false),
+                context.field_const(compiler_common::size::FIELD as u64),
                 "",
             );
             let range_end = context.builder.build_int_add(range_start, length, "");
@@ -2206,9 +2188,7 @@ impl FunctionCall {
             let index_value = context.build_load(index_pointer, "").into_int_value();
             let incremented = context.builder.build_int_add(
                 index_value,
-                length
-                    .get_type()
-                    .const_int(compiler_common::size::FIELD as u64, false),
+                context.field_const(compiler_common::size::FIELD as u64),
                 "",
             );
             context.build_store(index_pointer, incremented);
