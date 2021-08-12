@@ -1429,10 +1429,17 @@ impl FunctionCall {
                             context.field_const(compiler_common::size::FIELD as u64),
                             "",
                         );
+
+                        let range_end = context.builder.build_int_sub(
+                            arguments[1].into_int_value(),
+                            context.field_const(4),
+                            "",
+                        );
+
                         context.builder.build_int_compare(
-                            inkwell::IntPredicate::UGE,
+                            inkwell::IntPredicate::UGT,
+                            range_end,
                             calldata_size,
-                            arguments[2].into_int_value(),
                             "",
                         )
                     }
