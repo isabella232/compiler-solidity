@@ -28,16 +28,12 @@ pub fn call<'ctx>(
 
     let input_offset = context.builder.build_int_unsigned_div(
         input_offset,
-        context
-            .field_type()
-            .const_int(compiler_common::size::FIELD as u64, false),
+        context.field_const(compiler_common::size::FIELD as u64),
         "contract_call_input_offset",
     );
     let output_offset = context.builder.build_int_unsigned_div(
         output_offset,
-        context
-            .field_type()
-            .const_int(compiler_common::size::FIELD as u64, false),
+        context.field_const(compiler_common::size::FIELD as u64),
         "contract_call_output_offset",
     );
 
