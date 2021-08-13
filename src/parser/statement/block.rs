@@ -181,10 +181,7 @@ impl Block {
 
         context.set_function(compiler_common::identifier::FUNCTION_SELECTOR);
         context.set_basic_block(function.entry_block);
-        let return_pointer = context.build_alloca(
-            context.integer_type(compiler_common::bitlength::FIELD),
-            "result",
-        );
+        let return_pointer = context.build_alloca(context.field_type(), "result");
         let r#return = FunctionReturn::primitive(return_pointer);
         let function = context.update_function(r#return);
 
@@ -203,20 +200,20 @@ impl Block {
 
         context.set_basic_block(function.return_block);
         match context.target {
-            Target::X86 => {
-                let mut return_value = context.build_load(return_pointer, "");
+            Target::x86 => {
+                let mut return_value = context.build_load(return_pointer, "return_value");
                 return_value = context
                     .builder
                     .build_int_truncate_or_bit_cast(
                         return_value.into_int_value(),
                         context.integer_type(compiler_common::bitlength::WORD),
-                        "",
+                        "return_value_truncated",
                     )
                     .as_basic_value_enum();
                 context.build_return(Some(&return_value));
             }
             Target::zkEVM if context.test_entry_hash.is_some() => {
-                let return_value = context.build_load(return_pointer, "");
+                let return_value = context.build_load(return_pointer, "return_value");
                 context.build_return(Some(&return_value));
             }
             Target::zkEVM => {
@@ -271,33 +268,30 @@ impl Block {
             None => return,
         };
 
-        let call_block = context.append_basic_block("call_block");
-        let join_block = context.append_basic_block("join_block");
+        let call_block = context.append_basic_block("constructor_call");
+        let join_block = context.append_basic_block("constructor_join");
 
         let hash_pointer = context.builder.build_int_to_ptr(
+            context.field_const(
+                (compiler_common::contract::ABI_OFFSET_ENTRY_HASH * compiler_common::size::FIELD)
+                    as u64,
+            ),
             context
-                .integer_type(compiler_common::bitlength::FIELD)
-                .const_int(
-                    (compiler_common::contract::ABI_OFFSET_ENTRY_HASH
-                        * compiler_common::size::FIELD) as u64,
-                    false,
-                ),
-            context
-                .integer_type(compiler_common::bitlength::FIELD)
+                .field_type()
                 .ptr_type(compiler_common::AddressSpace::Parent.into()),
-            "",
+            "entry_hash_pointer",
         );
-        let hash = context.build_load(hash_pointer, "");
+        let hash = context.build_load(hash_pointer, "entry_hash_value");
         let is_zero = context.builder.build_int_compare(
             inkwell::IntPredicate::EQ,
             hash.into_int_value(),
             context.field_const(0),
-            "",
+            "entry_hash_is_zero_condition",
         );
         context.build_conditional_branch(is_zero, call_block, join_block);
 
         context.set_basic_block(call_block);
-        context.build_invoke(constructor.value, &[], "");
+        context.build_invoke(constructor.value, &[], "constructor_call");
         context.build_unconditional_branch(context.function().return_block);
 
         context.set_basic_block(join_block);

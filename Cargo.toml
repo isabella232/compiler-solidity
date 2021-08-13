@@ -1,5 +1,5 @@
 [package]
-name = "yul-compiler"
+name = "compiler-yul"
 version = "0.1.0"
 authors = [
     "Alex Zarudnyy <a.zarudnyy@matterlabs.dev>",

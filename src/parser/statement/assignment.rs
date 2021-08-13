@@ -81,7 +81,7 @@ impl ILLVMWritable for Assignment {
         }
 
         let llvm_type = value.into_struct_value().get_type();
-        let pointer = context.build_alloca(llvm_type, "");
+        let pointer = context.build_alloca(llvm_type, "assignment_pointer");
         context.build_store(pointer, value);
 
         for (index, binding) in self.bindings.into_iter().enumerate() {
@@ -94,11 +94,14 @@ impl ILLVMWritable for Assignment {
                             .integer_type(compiler_common::bitlength::BYTE * 4)
                             .const_int(index as u64, false),
                     ],
-                    "",
+                    format!("assignment_binding_{}_gep_pointer", index).as_str(),
                 )
             };
 
-            let value = context.build_load(pointer, binding.as_str());
+            let value = context.build_load(
+                pointer,
+                format!("assignment_binding_{}_value", index).as_str(),
+            );
 
             context.build_store(context.function().stack[binding.as_str()], value);
         }

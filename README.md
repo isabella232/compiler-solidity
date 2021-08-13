@@ -1,6 +1,19 @@
-# YUL to SyncVM
+# YUL compiler
 
-The compiler from YUL intermediate language to SyncVM bytecode.
+The compiler from YUL intermediate language to zkEVM bytecode.
+
+## Usage
+
+```
+solc ERC20.sol --ir-optimized --optimize | yulc - -O3
+```
+
+## Tested
+
+Solidity compiler versions:
+```
+0.8.3
+```
 
 ## Grammar
 

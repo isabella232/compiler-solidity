@@ -133,15 +133,15 @@ impl ILLVMWritable for FunctionDefinition {
                                     .integer_type(compiler_common::bitlength::BYTE * 4)
                                     .const_int(index as u64, false),
                             ],
-                            "",
+                            format!("return_{}_gep_pointer", index).as_str(),
                         )
                     };
                     let pointer = context.builder.build_pointer_cast(
                         pointer,
                         context
-                            .integer_type(compiler_common::bitlength::FIELD)
+                            .field_type()
                             .ptr_type(compiler_common::AddressSpace::Stack.into()),
-                        "",
+                        format!("return_{}_gep_pointer_field", index).as_str(),
                     );
                     context
                         .function_mut()
@@ -153,13 +153,13 @@ impl ILLVMWritable for FunctionDefinition {
             None => {
                 if let Some(identifier) = self.result.pop() {
                     let r#type = identifier.yul_type.unwrap_or_default();
-                    let pointer = context
-                        .build_alloca(r#type.clone().into_llvm(context), identifier.name.as_str());
+                    let pointer =
+                        context.build_alloca(r#type.clone().into_llvm(context), "return_pointer");
                     context.build_store(pointer, r#type.into_llvm(context).const_zero());
                     context
                         .function_mut()
                         .stack
-                        .insert(identifier.name.clone(), pointer);
+                        .insert(identifier.name, pointer);
                     FunctionReturn::primitive(pointer)
                 } else {
                     FunctionReturn::none()
@@ -232,7 +232,7 @@ impl ILLVMWritable for FunctionDefinition {
                 context.build_unreachable();
 
                 context.set_basic_block(function.return_block);
-                let return_value = context.build_load(pointer, "");
+                let return_value = context.build_load(pointer, "return_value");
                 context.build_return(Some(&return_value));
             }
             FunctionReturn::Compound {

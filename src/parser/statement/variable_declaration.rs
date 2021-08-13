@@ -101,7 +101,7 @@ impl ILLVMWritable for VariableDeclaration {
                 })
                 .collect(),
         );
-        let pointer = context.build_alloca(llvm_type, "");
+        let pointer = context.build_alloca(llvm_type, "bindings_pointer");
         match self.expression.take() {
             Some(expression) => {
                 if let Some(value) = expression.into_llvm(context) {
@@ -117,15 +117,18 @@ impl ILLVMWritable for VariableDeclaration {
                                         .integer_type(compiler_common::bitlength::BYTE * 4)
                                         .const_int(index as u64, false),
                                 ],
-                                "",
+                                format!("binding_{}_gep_pointer", index).as_str(),
                             )
                         };
 
-                        let value = context.build_load(pointer, binding.name.as_str());
+                        let value = context
+                            .build_load(pointer, format!("binding_{}_value", index).as_str());
 
                         let yul_type = binding.yul_type.unwrap_or_default().into_llvm(context);
-                        let pointer = context
-                            .build_alloca(yul_type.as_basic_type_enum(), binding.name.as_str());
+                        let pointer = context.build_alloca(
+                            yul_type.as_basic_type_enum(),
+                            format!("binding_{}_pointer", index).as_str(),
+                        );
                         context.function_mut().stack.insert(binding.name, pointer);
                         context.build_store(pointer, value);
                     }

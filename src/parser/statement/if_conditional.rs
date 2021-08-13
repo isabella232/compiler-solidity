@@ -46,10 +46,10 @@ impl ILLVMWritable for IfConditional {
         let condition = context.builder.build_int_truncate_or_bit_cast(
             condition,
             context.integer_type(compiler_common::bitlength::BOOLEAN),
-            "",
+            "if_condition",
         );
-        let main_block = context.append_basic_block("if.main");
-        let join_block = context.append_basic_block("if.join");
+        let main_block = context.append_basic_block("if_main");
+        let join_block = context.append_basic_block("if_join");
         context.build_conditional_branch(condition, main_block, join_block);
         context.set_basic_block(main_block);
         self.block.into_llvm_local(context);

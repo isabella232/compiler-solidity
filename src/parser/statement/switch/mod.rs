@@ -87,9 +87,9 @@ impl Switch {
 
 impl ILLVMWritable for Switch {
     fn into_llvm(self, context: &mut LLVMContext) {
-        let join_block = context.append_basic_block("join");
+        let join_block = context.append_basic_block("switch_join");
 
-        let mut current_block = context.append_basic_block("left1");
+        let mut current_block = context.append_basic_block("switch_case_constant_1");
         context.build_unconditional_branch(current_block);
 
         let branches_count = self.cases.len();
@@ -102,7 +102,7 @@ impl ILLVMWritable for Switch {
             }
 
             let expression_block =
-                context.append_basic_block(format!("right{}", index + 1).as_str());
+                context.append_basic_block(format!("switch_case_branch_{}", index + 1).as_str());
             context.set_basic_block(expression_block);
             case.block.into_llvm_local(context);
             context.build_unconditional_branch(join_block);
@@ -118,9 +118,10 @@ impl ILLVMWritable for Switch {
                 inkwell::IntPredicate::EQ,
                 constant.into_int_value(),
                 scrutinee.into_int_value(),
-                "",
+                format!("switch_case_condition_{}", index).as_str(),
             );
-            let next_block = context.append_basic_block(format!("left{}", index + 2).as_str());
+            let next_block =
+                context.append_basic_block(format!("switch_case_constant_{}", index + 2).as_str());
             context.build_conditional_branch(comparison, expression_block, next_block);
             current_block = next_block;
         }

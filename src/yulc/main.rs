@@ -28,11 +28,11 @@ fn main() {
 ///
 /// The auxiliary `main` function to facilitate the `?` error conversion operator.
 ///
-fn main_inner() -> Result<(), yul_compiler::Error> {
+fn main_inner() -> Result<(), compiler_yul::Error> {
     let arguments = Arguments::new();
 
-    let target = yul_compiler::Target::try_from(arguments.target.as_str())
-        .map_err(yul_compiler::Error::Target)?;
+    let target = compiler_yul::Target::try_from(arguments.target.as_str())
+        .map_err(compiler_yul::Error::Target)?;
 
     let code = if arguments.input.to_string_lossy() == "-" {
         let mut buffer = String::with_capacity(16384);
@@ -42,7 +42,7 @@ fn main_inner() -> Result<(), yul_compiler::Error> {
         std::fs::read_to_string(&arguments.input)?
     };
 
-    let representation = yul_compiler::compile(
+    let representation = compiler_yul::compile(
         &code,
         target,
         arguments.optimization_level,
@@ -54,12 +54,12 @@ fn main_inner() -> Result<(), yul_compiler::Error> {
     let binary = Vec::<u8>::from(&binary);
 
     let text_file_name = match target {
-        yul_compiler::Target::X86 => compiler_common::file_name::LLVM_SOURCE,
-        yul_compiler::Target::zkEVM => compiler_common::file_name::ZKEVM_ASSEMBLY,
+        compiler_yul::Target::x86 => compiler_common::file_name::LLVM_SOURCE,
+        compiler_yul::Target::zkEVM => compiler_common::file_name::ZKEVM_ASSEMBLY,
     };
     let text_file_extension = match target {
-        yul_compiler::Target::X86 => compiler_common::extension::LLVM_SOURCE,
-        yul_compiler::Target::zkEVM => compiler_common::extension::ZKEVM_ASSEMBLY,
+        compiler_yul::Target::x86 => compiler_common::extension::LLVM_SOURCE,
+        compiler_yul::Target::zkEVM => compiler_common::extension::ZKEVM_ASSEMBLY,
     };
     let text_file_path = PathBuf::from(format!("{}.{}", text_file_name, text_file_extension,));
     File::create(&text_file_path)

@@ -12,7 +12,7 @@ use std::convert::TryFrom;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Target {
     /// The x86 target.
-    X86,
+    x86,
     /// The zkEVM assembly target.
     zkEVM,
 }
@@ -22,8 +22,8 @@ impl TryFrom<&str> for Target {
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
         Ok(match input {
-            "llvm" => Self::X86,
-            "x86" => Self::X86,
+            "llvm" => Self::x86,
+            "x86" => Self::x86,
             "zkevm" => Self::zkEVM,
 
             _ => return Err(input.to_owned()),
@@ -40,10 +40,10 @@ impl From<Option<&inkwell::targets::TargetMachine>> for Target {
                 {
                     Self::zkEVM
                 } else {
-                    Self::X86
+                    Self::x86
                 }
             }
-            None => Self::X86,
+            None => Self::x86,
         }
     }
 }

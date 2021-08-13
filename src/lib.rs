@@ -43,7 +43,7 @@ pub fn compile(
 
     let llvm = inkwell::context::Context::create();
     let target_machine = match target {
-        Target::X86 => None,
+        Target::x86 => None,
         Target::zkEVM => {
             inkwell::targets::Target::initialize_syncvm(
                 &inkwell::targets::InitializationConfig::default(),
@@ -84,9 +84,9 @@ pub fn compile(
     context
         .verify()
         .map_err(|error| Error::LLVM(error.to_string()))?;
-    if dump_llvm || matches!(target, Target::X86) {
+    if dump_llvm || matches!(target, Target::x86) {
         let llvm_code = context.module().print_to_string().to_string();
-        if let Target::X86 = target {
+        if let Target::x86 = target {
             return Ok(llvm_code);
         }
         if dump_llvm {

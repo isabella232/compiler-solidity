@@ -48,6 +48,8 @@ pub struct Context<'ctx> {
     /// The function optimization pass manager.
     pass_manager_function: inkwell::passes::PassManager<inkwell::values::FunctionValue<'ctx>>,
 
+    /// Whether the bitwise operations are supported.
+    pub bitwise_supported: bool,
     /// The test heap representation.
     pub heap: Option<inkwell::values::GlobalValue<'ctx>>,
     /// The test contract storage representation.
@@ -116,6 +118,7 @@ impl<'ctx> Context<'ctx> {
             pass_manager_module,
             pass_manager_function,
 
+            bitwise_supported: true,
             heap: None,
             storage: None,
             calldata: None,
@@ -465,7 +468,7 @@ impl<'ctx> Context<'ctx> {
         args: &[inkwell::values::BasicValueEnum<'ctx>],
         name: &str,
     ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-        if let Target::X86 = self.target {
+        if let Target::x86 = self.target {
             return self.build_call(function, args, name);
         }
 
@@ -561,7 +564,7 @@ impl<'ctx> Context<'ctx> {
         );
 
         let intrinsic = self.get_intrinsic_function(Intrinsic::Throw);
-        self.build_call(intrinsic, &[], "");
+        self.build_call(intrinsic, &[], "throw");
 
         Some(landing_pad)
     }
@@ -575,15 +578,14 @@ impl<'ctx> Context<'ctx> {
         }
 
         let intrinsic = self.get_intrinsic_function(Intrinsic::Throw);
-        self.build_call(intrinsic, &[], "");
+        self.build_call(intrinsic, &[], "throw");
     }
 
     ///
     /// Returns a field type constants.
     ///
     pub fn field_const(&self, value: u64) -> inkwell::values::IntValue<'ctx> {
-        self.integer_type(compiler_common::bitlength::FIELD)
-            .const_int(value, false)
+        self.field_type().const_int(value, false)
     }
 
     ///
@@ -598,6 +600,14 @@ impl<'ctx> Context<'ctx> {
     ///
     pub fn integer_type(&self, bitlength: usize) -> inkwell::types::IntType<'ctx> {
         self.llvm.custom_width_int_type(bitlength as u32)
+    }
+
+    ///
+    /// Returns the default field type.
+    ///
+    pub fn field_type(&self) -> inkwell::types::IntType<'ctx> {
+        self.llvm
+            .custom_width_int_type(compiler_common::bitlength::FIELD as u32)
     }
 
     ///
@@ -665,28 +675,26 @@ impl<'ctx> Context<'ctx> {
         r#type: Option<inkwell::types::IntType<'ctx>>,
     ) -> inkwell::values::PointerValue<'ctx> {
         match self.target {
-            Target::X86 => {
+            Target::x86 => {
                 let pointer = self.heap.expect("Always exists").as_pointer_value();
-                let mut indexes = Vec::with_capacity(2);
-                if let Target::X86 = self.target {
-                    indexes.push(self.field_const(0));
-                }
-                indexes.push(offset);
-                let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
-                let r#type =
-                    r#type.unwrap_or_else(|| self.integer_type(compiler_common::bitlength::FIELD));
+                let indexes = vec![self.field_const(0), offset];
+                let pointer = unsafe {
+                    self.builder
+                        .build_gep(pointer, indexes.as_slice(), "heap_array")
+                };
+                let r#type = r#type.unwrap_or_else(|| self.field_type());
                 let pointer = self.builder.build_pointer_cast(
                     pointer,
                     r#type.ptr_type(compiler_common::AddressSpace::Stack.into()),
-                    "",
+                    "heap_pointer",
                 );
                 pointer
             }
             Target::zkEVM => self.builder.build_int_to_ptr(
                 offset,
-                self.integer_type(compiler_common::bitlength::FIELD)
+                self.field_type()
                     .ptr_type(compiler_common::AddressSpace::Heap.into()),
-                "",
+                "heap_pointer",
             ),
         }
     }
@@ -702,7 +710,10 @@ impl<'ctx> Context<'ctx> {
     ) -> inkwell::values::PointerValue<'ctx> {
         let pointer = self.storage.expect("Always exists").as_pointer_value();
         let indexes = vec![self.field_const(0), offset];
-        let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
+        let pointer = unsafe {
+            self.builder
+                .build_gep(pointer, indexes.as_slice(), "storage_pointer")
+        };
         pointer
     }
 
@@ -714,17 +725,20 @@ impl<'ctx> Context<'ctx> {
         offset: inkwell::values::IntValue<'ctx>,
     ) -> inkwell::values::PointerValue<'ctx> {
         match self.target {
-            Target::X86 => {
+            Target::x86 => {
                 let pointer = self.calldata.expect("Always exists").as_pointer_value();
                 let indexes = vec![self.field_const(0), offset];
-                let pointer = unsafe { self.builder.build_gep(pointer, indexes.as_slice(), "") };
+                let pointer = unsafe {
+                    self.builder
+                        .build_gep(pointer, indexes.as_slice(), "calldata")
+                };
                 pointer
             }
             Target::zkEVM => self.builder.build_int_to_ptr(
                 offset,
-                self.integer_type(compiler_common::bitlength::FIELD)
+                self.field_type()
                     .ptr_type(compiler_common::AddressSpace::Parent.into()),
-                "",
+                "calldata",
             ),
         }
     }
@@ -733,7 +747,7 @@ impl<'ctx> Context<'ctx> {
     /// Allocates the heap, if it has not been allocated yet.
     ///
     pub fn allocate_heap(&mut self, size: usize) {
-        if !matches!(self.target, Target::X86) {
+        if !matches!(self.target, Target::x86) {
             return;
         }
 
@@ -753,7 +767,7 @@ impl<'ctx> Context<'ctx> {
     /// Allocates the contract storage, if it has not been allocated yet.
     ///
     pub fn allocate_storage(&mut self, size: usize) {
-        if !matches!(self.target, Target::X86) {
+        if !matches!(self.target, Target::x86) {
             return;
         }
 
@@ -761,9 +775,7 @@ impl<'ctx> Context<'ctx> {
             return;
         }
 
-        let r#type = self
-            .integer_type(compiler_common::bitlength::FIELD)
-            .array_type(size as u32);
+        let r#type = self.field_type().array_type(size as u32);
         let global = self.module().add_global(r#type, None, "storage");
         global.set_initializer(&r#type.const_zero());
         self.storage = Some(global);
@@ -773,7 +785,7 @@ impl<'ctx> Context<'ctx> {
     /// Allocates the calldata, if it has not been allocated yet.
     ///
     pub fn allocate_calldata(&mut self, size: usize) {
-        if !matches!(self.target, Target::X86) {
+        if !matches!(self.target, Target::x86) {
             return;
         }
 
@@ -781,9 +793,7 @@ impl<'ctx> Context<'ctx> {
             return;
         }
 
-        let r#type = self
-            .integer_type(compiler_common::bitlength::FIELD)
-            .array_type(size as u32);
+        let r#type = self.field_type().array_type(size as u32);
         let global = self.module().add_global(r#type, None, "calldata");
         global.set_initializer(&r#type.const_zero());
         self.calldata = Some(global);

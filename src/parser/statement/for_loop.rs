@@ -53,10 +53,10 @@ impl ILLVMWritable for ForLoop {
     fn into_llvm(self, context: &mut LLVMContext) {
         self.initializer.into_llvm_local(context);
 
-        let condition_block = context.append_basic_block("for.condition");
-        let body_block = context.append_basic_block("for.body");
-        let increment_block = context.append_basic_block("for.increment");
-        let join_block = context.append_basic_block("for.join");
+        let condition_block = context.append_basic_block("for_condition");
+        let body_block = context.append_basic_block("for_body");
+        let increment_block = context.append_basic_block("for_increment");
+        let join_block = context.append_basic_block("for_join");
 
         context.build_unconditional_branch(condition_block);
         context.set_basic_block(condition_block);
@@ -68,7 +68,7 @@ impl ILLVMWritable for ForLoop {
         let condition = context.builder.build_int_truncate_or_bit_cast(
             condition_expression,
             context.integer_type(compiler_common::bitlength::BOOLEAN),
-            "",
+            "for_condition",
         );
         context.build_conditional_branch(condition, body_block, join_block);
 

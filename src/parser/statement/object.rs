@@ -77,12 +77,12 @@ impl ILLVMWritable for Object {
 
         if is_constructor {
             let selector_type = match context.target {
-                Target::X86 => context
+                Target::x86 => context
                     .integer_type(compiler_common::bitlength::WORD)
                     .fn_type(&[], false),
-                Target::zkEVM if context.test_entry_hash.is_some() => context
-                    .integer_type(compiler_common::bitlength::FIELD)
-                    .fn_type(&[], false),
+                Target::zkEVM if context.test_entry_hash.is_some() => {
+                    context.field_type().fn_type(&[], false)
+                }
                 Target::zkEVM => context.void_type().fn_type(&[], false),
             };
             context.add_function(
