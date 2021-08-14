@@ -181,6 +181,12 @@ impl Block {
 
         context.set_function(compiler_common::identifier::FUNCTION_SELECTOR);
         context.set_basic_block(function.entry_block);
+        let zero_slot_pointer = context.access_heap(
+            context.field_const((3 * compiler_common::size::FIELD) as u64),
+            None,
+        );
+        context.build_store(zero_slot_pointer, context.field_const(0));
+
         let return_pointer = context.build_alloca(context.field_type(), "result");
         let r#return = FunctionReturn::primitive(return_pointer);
         let function = context.update_function(r#return);

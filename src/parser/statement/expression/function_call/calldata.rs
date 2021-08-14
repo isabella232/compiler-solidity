@@ -206,7 +206,7 @@ pub fn copy<'ctx>(
                 .const_zero()
                 .as_basic_value_enum(),
         ],
-        "calldata_memcpy_from_parent",
+        "calldata_copy_memcpy_from_parent",
     );
     context.build_unconditional_branch(join_block);
 

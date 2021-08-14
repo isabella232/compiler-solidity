@@ -3,6 +3,7 @@
 //!
 
 pub mod arithmetic;
+pub mod bitwise;
 pub mod calldata;
 pub mod comparison;
 pub mod context;
@@ -12,6 +13,7 @@ pub mod hash;
 pub mod mathematic;
 pub mod memory;
 pub mod name;
+pub mod return_data;
 pub mod storage;
 
 use std::convert::TryInto;
@@ -180,548 +182,35 @@ impl FunctionCall {
                 comparison::compare(context, arguments, inkwell::IntPredicate::UGT)
             }
 
-            Name::And => {
-                let arguments = self.pop_arguments::<2>(context);
-
-                if matches!(context.target, Target::x86)
-                    || (arguments[0].into_int_value().is_const()
-                        && arguments[1].into_int_value().is_const())
-                {
-                    return Some(
-                        context
-                            .builder
-                            .build_and(
-                                arguments[0].into_int_value(),
-                                arguments[1].into_int_value(),
-                                "",
-                            )
-                            .as_basic_value_enum(),
-                    );
-                }
-
-                let llvm_type = context.field_type();
-
-                let condition_block = context.append_basic_block("condition");
-                let body_block = context.append_basic_block("body");
-                let increment_block = context.append_basic_block("increment");
-                let join_block = context.append_basic_block("join");
-
-                let result_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(result_pointer, llvm_type.const_zero());
-                let operand_1_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(operand_1_pointer, arguments[0]);
-                let operand_2_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(operand_2_pointer, arguments[1]);
-                let index_pointer = context.build_alloca(context.field_type(), "");
-                context.build_store(index_pointer, context.field_const(0));
-                let shift_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(shift_pointer, llvm_type.const_int(1, false));
-                context.build_unconditional_branch(condition_block);
-
-                context.set_basic_block(condition_block);
-                let index_value = context.build_load(index_pointer, "").into_int_value();
-                let condition = context.builder.build_int_compare(
-                    inkwell::IntPredicate::ULT,
-                    index_value,
-                    context.field_const(compiler_common::bitlength::FIELD as u64),
-                    "",
-                );
-                context.build_conditional_branch(condition, body_block, join_block);
-
-                context.set_basic_block(increment_block);
-                let index_value = context.build_load(index_pointer, "").into_int_value();
-                let incremented =
-                    context
-                        .builder
-                        .build_int_add(index_value, context.field_const(1), "");
-                context.build_store(index_pointer, incremented);
-                context.build_unconditional_branch(condition_block);
-
-                context.set_basic_block(body_block);
-                let operand_1 = context.build_load(operand_1_pointer, "").into_int_value();
-                let operand_2 = context.build_load(operand_2_pointer, "").into_int_value();
-                let bit_1 = context.builder.build_int_unsigned_rem(
-                    operand_1,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                let bit_2 = context.builder.build_int_unsigned_rem(
-                    operand_2,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                let operand_1 = context.builder.build_int_unsigned_div(
-                    operand_1,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                context.build_store(operand_1_pointer, operand_1);
-                let operand_2 = context.builder.build_int_unsigned_div(
-                    operand_2,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                context.build_store(operand_2_pointer, operand_2);
-                let bit_result = context.builder.build_int_mul(bit_1, bit_2, "");
-                let bit_result = context
-                    .builder
-                    .build_int_z_extend_or_bit_cast(bit_result, llvm_type, "");
-                let shift_value = context.build_load(shift_pointer, "").into_int_value();
-                let bit_result = context.builder.build_int_mul(bit_result, shift_value, "");
-                let shift_value =
-                    context
-                        .builder
-                        .build_int_mul(shift_value, llvm_type.const_int(2, false), "");
-                context.build_store(shift_pointer, shift_value);
-                let result = context.build_load(result_pointer, "").into_int_value();
-                let result = context.builder.build_int_add(result, bit_result, "");
-                context.build_store(result_pointer, result);
-                context.build_unconditional_branch(increment_block);
-
-                context.set_basic_block(join_block);
-                let result = context.build_load(result_pointer, "");
-
-                Some(result)
-            }
             Name::Or => {
                 let arguments = self.pop_arguments::<2>(context);
-
-                if matches!(context.target, Target::x86)
-                    || (arguments[0].into_int_value().is_const()
-                        && arguments[1].into_int_value().is_const())
-                {
-                    return Some(
-                        context
-                            .builder
-                            .build_or(
-                                arguments[0].into_int_value(),
-                                arguments[1].into_int_value(),
-                                "",
-                            )
-                            .as_basic_value_enum(),
-                    );
-                }
-
-                let llvm_type = context.field_type();
-
-                let condition_block = context.append_basic_block("condition");
-                let body_block = context.append_basic_block("body");
-                let increment_block = context.append_basic_block("increment");
-                let join_block = context.append_basic_block("join");
-
-                let result_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(result_pointer, llvm_type.const_zero());
-                let operand_1_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(operand_1_pointer, arguments[0]);
-                let operand_2_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(operand_2_pointer, arguments[1]);
-                let index_pointer = context.build_alloca(context.field_type(), "");
-                context.build_store(index_pointer, context.field_const(0));
-                let shift_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(shift_pointer, llvm_type.const_int(1, false));
-                context.build_unconditional_branch(condition_block);
-
-                context.set_basic_block(condition_block);
-                let index_value = context.build_load(index_pointer, "").into_int_value();
-                let condition = context.builder.build_int_compare(
-                    inkwell::IntPredicate::ULT,
-                    index_value,
-                    context.field_const(compiler_common::bitlength::FIELD as u64),
-                    "",
-                );
-                context.build_conditional_branch(condition, body_block, join_block);
-
-                context.set_basic_block(increment_block);
-                let index_value = context.build_load(index_pointer, "").into_int_value();
-                let incremented =
-                    context
-                        .builder
-                        .build_int_add(index_value, context.field_const(1), "");
-                context.build_store(index_pointer, incremented);
-                context.build_unconditional_branch(condition_block);
-
-                context.set_basic_block(body_block);
-                let operand_1 = context.build_load(operand_1_pointer, "").into_int_value();
-                let operand_2 = context.build_load(operand_2_pointer, "").into_int_value();
-                let bit_1 = context.builder.build_int_unsigned_rem(
-                    operand_1,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                let bit_2 = context.builder.build_int_unsigned_rem(
-                    operand_2,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                let operand_1 = context.builder.build_int_unsigned_div(
-                    operand_1,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                context.build_store(operand_1_pointer, operand_1);
-                let operand_2 = context.builder.build_int_unsigned_div(
-                    operand_2,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                context.build_store(operand_2_pointer, operand_2);
-                let bit_result = context.builder.build_int_add(bit_1, bit_2, "");
-                let bit_result = context.builder.build_int_compare(
-                    inkwell::IntPredicate::UGT,
-                    bit_result,
-                    llvm_type.const_zero(),
-                    "",
-                );
-                let bit_result = context
-                    .builder
-                    .build_int_z_extend_or_bit_cast(bit_result, llvm_type, "");
-                let shift_value = context.build_load(shift_pointer, "").into_int_value();
-                let bit_result = context.builder.build_int_mul(bit_result, shift_value, "");
-                let shift_value =
-                    context
-                        .builder
-                        .build_int_mul(shift_value, llvm_type.const_int(2, false), "");
-                context.build_store(shift_pointer, shift_value);
-                let result = context.build_load(result_pointer, "").into_int_value();
-                let result = context.builder.build_int_add(result, bit_result, "");
-                context.build_store(result_pointer, result);
-                context.build_unconditional_branch(increment_block);
-
-                context.set_basic_block(join_block);
-                let result = context.build_load(result_pointer, "");
-
-                Some(result)
+                bitwise::or(context, arguments)
             }
             Name::Xor => {
                 let arguments = self.pop_arguments::<2>(context);
-
-                if matches!(context.target, Target::x86)
-                    || (arguments[0].into_int_value().is_const()
-                        && arguments[1].into_int_value().is_const())
-                {
-                    return Some(
-                        context
-                            .builder
-                            .build_xor(
-                                arguments[0].into_int_value(),
-                                arguments[1].into_int_value(),
-                                "",
-                            )
-                            .as_basic_value_enum(),
-                    );
-                }
-
-                let llvm_type = context.field_type();
-
-                let condition_block = context.append_basic_block("condition");
-                let body_block = context.append_basic_block("body");
-                let increment_block = context.append_basic_block("increment");
-                let join_block = context.append_basic_block("join");
-
-                let result_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(result_pointer, llvm_type.const_zero());
-                let operand_1_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(operand_1_pointer, arguments[0]);
-                let operand_2_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(operand_2_pointer, arguments[1]);
-                let index_pointer = context.build_alloca(context.field_type(), "");
-                context.build_store(index_pointer, context.field_const(0));
-                let shift_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(shift_pointer, llvm_type.const_int(1, false));
-                context.build_unconditional_branch(condition_block);
-
-                context.set_basic_block(condition_block);
-                let index_value = context.build_load(index_pointer, "").into_int_value();
-                let condition = context.builder.build_int_compare(
-                    inkwell::IntPredicate::ULT,
-                    index_value,
-                    context.field_const(compiler_common::bitlength::FIELD as u64),
-                    "",
-                );
-                context.build_conditional_branch(condition, body_block, join_block);
-
-                context.set_basic_block(increment_block);
-                let index_value = context.build_load(index_pointer, "").into_int_value();
-                let incremented =
-                    context
-                        .builder
-                        .build_int_add(index_value, context.field_const(1), "");
-                context.build_store(index_pointer, incremented);
-                context.build_unconditional_branch(condition_block);
-
-                context.set_basic_block(body_block);
-                let operand_1 = context.build_load(operand_1_pointer, "").into_int_value();
-                let operand_2 = context.build_load(operand_2_pointer, "").into_int_value();
-                let bit_1 = context.builder.build_int_unsigned_rem(
-                    operand_1,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                let bit_2 = context.builder.build_int_unsigned_rem(
-                    operand_2,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                let operand_1 = context.builder.build_int_unsigned_div(
-                    operand_1,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                context.build_store(operand_1_pointer, operand_1);
-                let operand_2 = context.builder.build_int_unsigned_div(
-                    operand_2,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                context.build_store(operand_2_pointer, operand_2);
-                let bit_result =
-                    context
-                        .builder
-                        .build_int_compare(inkwell::IntPredicate::NE, bit_1, bit_2, "");
-                let bit_result = context
-                    .builder
-                    .build_int_z_extend_or_bit_cast(bit_result, llvm_type, "");
-                let shift_value = context.build_load(shift_pointer, "").into_int_value();
-                let bit_result = context.builder.build_int_mul(bit_result, shift_value, "");
-                let shift_value =
-                    context
-                        .builder
-                        .build_int_mul(shift_value, llvm_type.const_int(2, false), "");
-                context.build_store(shift_pointer, shift_value);
-                let result = context.build_load(result_pointer, "").into_int_value();
-                let result = context.builder.build_int_add(result, bit_result, "");
-                context.build_store(result_pointer, result);
-                context.build_unconditional_branch(increment_block);
-
-                context.set_basic_block(join_block);
-                let result = context.build_load(result_pointer, "");
-
-                Some(result)
+                bitwise::xor(context, arguments)
             }
             Name::Not => {
                 let arguments = self.pop_arguments::<1>(context);
-
-                if matches!(context.target, Target::x86) || arguments[0].into_int_value().is_const()
-                {
-                    return Some(
-                        context
-                            .builder
-                            .build_not(arguments[0].into_int_value(), "")
-                            .as_basic_value_enum(),
-                    );
-                }
-
-                let llvm_type = context.field_type();
-
-                let condition_block = context.append_basic_block("condition");
-                let body_block = context.append_basic_block("body");
-                let increment_block = context.append_basic_block("increment");
-                let join_block = context.append_basic_block("join");
-
-                let result_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(result_pointer, llvm_type.const_zero());
-                let operand_1_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(operand_1_pointer, arguments[0]);
-                let operand_2_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(operand_2_pointer, llvm_type.const_all_ones());
-                let index_pointer = context.build_alloca(context.field_type(), "");
-                context.build_store(index_pointer, context.field_const(0));
-                let shift_pointer = context.build_alloca(llvm_type, "");
-                context.build_store(shift_pointer, llvm_type.const_int(1, false));
-                context.build_unconditional_branch(condition_block);
-
-                context.set_basic_block(condition_block);
-                let index_value = context.build_load(index_pointer, "").into_int_value();
-                let condition = context.builder.build_int_compare(
-                    inkwell::IntPredicate::ULT,
-                    index_value,
-                    context.field_const(compiler_common::bitlength::FIELD as u64),
-                    "",
-                );
-                context.build_conditional_branch(condition, body_block, join_block);
-
-                context.set_basic_block(increment_block);
-                let index_value = context.build_load(index_pointer, "").into_int_value();
-                let incremented =
-                    context
-                        .builder
-                        .build_int_add(index_value, context.field_const(1), "");
-                context.build_store(index_pointer, incremented);
-                context.build_unconditional_branch(condition_block);
-
-                context.set_basic_block(body_block);
-                let operand_1 = context.build_load(operand_1_pointer, "").into_int_value();
-                let operand_2 = context.build_load(operand_2_pointer, "").into_int_value();
-                let bit_1 = context.builder.build_int_unsigned_rem(
-                    operand_1,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                let bit_2 = context.builder.build_int_unsigned_rem(
-                    operand_2,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                let operand_1 = context.builder.build_int_unsigned_div(
-                    operand_1,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                context.build_store(operand_1_pointer, operand_1);
-                let operand_2 = context.builder.build_int_unsigned_div(
-                    operand_2,
-                    llvm_type.const_int(2, false),
-                    "",
-                );
-                context.build_store(operand_2_pointer, operand_2);
-                let bit_result =
-                    context
-                        .builder
-                        .build_int_compare(inkwell::IntPredicate::NE, bit_1, bit_2, "");
-                let bit_result = context
-                    .builder
-                    .build_int_z_extend_or_bit_cast(bit_result, llvm_type, "");
-                let shift_value = context.build_load(shift_pointer, "").into_int_value();
-                let bit_result = context.builder.build_int_mul(bit_result, shift_value, "");
-                let shift_value =
-                    context
-                        .builder
-                        .build_int_mul(shift_value, llvm_type.const_int(2, false), "");
-                context.build_store(shift_pointer, shift_value);
-                let result = context.build_load(result_pointer, "").into_int_value();
-                let result = context.builder.build_int_add(result, bit_result, "");
-                context.build_store(result_pointer, result);
-                context.build_unconditional_branch(increment_block);
-
-                context.set_basic_block(join_block);
-                let result = context.build_load(result_pointer, "");
-
-                Some(result)
+                bitwise::xor(
+                    context,
+                    [
+                        arguments[0],
+                        context.field_type().const_all_ones().as_basic_value_enum(),
+                    ],
+                )
+            }
+            Name::And => {
+                let arguments = self.pop_arguments::<2>(context);
+                bitwise::and(context, arguments)
             }
             Name::Shl => {
                 let arguments = self.pop_arguments::<2>(context);
-
-                if matches!(context.target, Target::x86) || arguments[0].into_int_value().is_const()
-                {
-                    return Some(
-                        context
-                            .builder
-                            .build_left_shift(
-                                arguments[1].into_int_value(),
-                                arguments[0].into_int_value(),
-                                "",
-                            )
-                            .as_basic_value_enum(),
-                    );
-                }
-
-                let result_pointer = context.build_alloca(context.field_type(), "");
-                context.build_store(result_pointer, arguments[1]);
-
-                let condition_block = context.append_basic_block("condition");
-                let body_block = context.append_basic_block("body");
-                let increment_block = context.append_basic_block("increment");
-                let join_block = context.append_basic_block("join");
-
-                let index_pointer = context.build_alloca(context.field_type(), "");
-                let index_value = context.field_const(0).as_basic_value_enum();
-                context.build_store(index_pointer, index_value);
-                context.build_unconditional_branch(condition_block);
-
-                context.set_basic_block(condition_block);
-                let index_value = context.build_load(index_pointer, "").into_int_value();
-                let condition = context.builder.build_int_compare(
-                    inkwell::IntPredicate::ULT,
-                    index_value,
-                    arguments[0].into_int_value(),
-                    "",
-                );
-                context.build_conditional_branch(condition, body_block, join_block);
-
-                context.set_basic_block(increment_block);
-                let index_value = context.build_load(index_pointer, "").into_int_value();
-                let incremented =
-                    context
-                        .builder
-                        .build_int_add(index_value, context.field_const(1), "");
-                context.build_store(index_pointer, incremented);
-                context.build_unconditional_branch(condition_block);
-
-                context.set_basic_block(body_block);
-                let intermediate = context.build_load(result_pointer, "").into_int_value();
-                let multiplier = context.field_const(2);
-                let result = context.builder.build_int_mul(intermediate, multiplier, "");
-                context.build_store(result_pointer, result);
-                context.build_unconditional_branch(increment_block);
-
-                context.set_basic_block(join_block);
-                let result = context.build_load(result_pointer, "");
-
-                Some(result)
+                bitwise::shift_left(context, arguments)
             }
             Name::Shr => {
                 let arguments = self.pop_arguments::<2>(context);
-
-                if matches!(context.target, Target::x86) || arguments[0].into_int_value().is_const()
-                {
-                    return Some(
-                        context
-                            .builder
-                            .build_right_shift(
-                                arguments[1].into_int_value(),
-                                arguments[0].into_int_value(),
-                                false,
-                                "",
-                            )
-                            .as_basic_value_enum(),
-                    );
-                }
-
-                let result_pointer = context.build_alloca(context.field_type(), "");
-                context.build_store(result_pointer, arguments[1]);
-
-                let condition_block = context.append_basic_block("condition");
-                let body_block = context.append_basic_block("body");
-                let increment_block = context.append_basic_block("increment");
-                let join_block = context.append_basic_block("join");
-
-                let index_pointer = context.build_alloca(context.field_type(), "");
-                let index_value = context.field_const(0).as_basic_value_enum();
-                context.build_store(index_pointer, index_value);
-                context.build_unconditional_branch(condition_block);
-
-                context.set_basic_block(condition_block);
-                let index_value = context.build_load(index_pointer, "").into_int_value();
-                let condition = context.builder.build_int_compare(
-                    inkwell::IntPredicate::ULT,
-                    index_value,
-                    arguments[0].into_int_value(),
-                    "",
-                );
-                context.build_conditional_branch(condition, body_block, join_block);
-
-                context.set_basic_block(increment_block);
-                let index_value = context.build_load(index_pointer, "").into_int_value();
-                let incremented =
-                    context
-                        .builder
-                        .build_int_add(index_value, context.field_const(1), "");
-                context.build_store(index_pointer, incremented);
-                context.build_unconditional_branch(condition_block);
-
-                context.set_basic_block(body_block);
-                let intermediate = context.build_load(result_pointer, "").into_int_value();
-                let divider = context.field_const(2);
-                let result = context
-                    .builder
-                    .build_int_unsigned_div(intermediate, divider, "");
-                context.build_store(result_pointer, result);
-                context.build_unconditional_branch(increment_block);
-
-                context.set_basic_block(join_block);
-                let result = context.build_load(result_pointer, "");
-
-                Some(result)
+                bitwise::shift_right(context, arguments)
             }
 
             Name::AddMod => {
@@ -937,138 +426,59 @@ impl FunctionCall {
 
                 let function = context.function().to_owned();
 
-                match context.target {
-                    Target::x86 => {
-                        let heap_type = match context.target {
-                            Target::x86 => {
-                                Some(context.integer_type(compiler_common::bitlength::BYTE))
-                            }
-                            Target::zkEVM => None,
-                        };
-
-                        let source = context.access_heap(arguments[0].into_int_value(), heap_type);
-
-                        if let Some(return_pointer) = function.return_pointer() {
-                            context
-                                .builder
-                                .build_memcpy(
-                                    return_pointer,
-                                    (compiler_common::size::BYTE) as u32,
-                                    source,
-                                    (compiler_common::size::BYTE) as u32,
-                                    arguments[1].into_int_value(),
-                                )
-                                .expect("Return memory copy failed");
-                        }
-                    }
-                    Target::zkEVM => {
-                        let intrinsic =
-                            context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
-
-                        let source = context.builder.build_int_to_ptr(
-                            arguments[0].into_int_value(),
-                            context
-                                .field_type()
-                                .ptr_type(compiler_common::AddressSpace::Heap.into()),
-                            "",
-                        );
-
-                        if context.test_entry_hash.is_some() {
-                            if let Some(return_pointer) = function.return_pointer() {
-                                let result = context.build_load(source, "");
-                                context.build_store(return_pointer, result);
-                            }
-                        } else {
-                            let destination = context.builder.build_int_to_ptr(
-                                context.field_const(
-                                    (compiler_common::contract::ABI_OFFSET_CALL_RETURN_DATA
-                                        * compiler_common::size::FIELD)
-                                        as u64,
-                                ),
-                                context
-                                    .field_type()
-                                    .ptr_type(compiler_common::AddressSpace::Parent.into()),
-                                "",
-                            );
-
-                            let size = arguments[1].into_int_value();
-
-                            context.build_call(
-                                intrinsic,
-                                &[
-                                    destination.as_basic_value_enum(),
-                                    source.as_basic_value_enum(),
-                                    size.as_basic_value_enum(),
-                                    context
-                                        .integer_type(compiler_common::bitlength::BOOLEAN)
-                                        .const_zero()
-                                        .as_basic_value_enum(),
-                                ],
-                                "",
-                            );
-                        }
-                    }
-                }
-
-                context.build_unconditional_branch(function.return_block);
-                None
-            }
-            Name::ReturnDataSize => match context.target {
-                Target::x86 => Some(context.field_const(0).as_basic_value_enum()),
-                Target::zkEVM => {
-                    let pointer = context.builder.build_int_to_ptr(
-                        context.field_const(
-                            (compiler_common::contract::ABI_OFFSET_RETURN_DATA_SIZE
-                                * compiler_common::size::FIELD) as u64,
-                        ),
+                if let Target::x86 = context.target {
+                    let source = context.access_heap(
+                        arguments[0].into_int_value(),
+                        Some(context.integer_type(compiler_common::bitlength::BYTE)),
+                    );
+                    if let Some(return_pointer) = function.return_pointer() {
                         context
-                            .field_type()
-                            .ptr_type(compiler_common::AddressSpace::Child.into()),
-                        "",
-                    );
-                    let value = context.build_load(pointer, "");
-                    let value = context.builder.build_int_mul(
-                        value.into_int_value(),
-                        context.field_const(compiler_common::size::FIELD as u64),
-                        "",
-                    );
-                    Some(value.as_basic_value_enum())
-                }
-            },
-            Name::ReturnDataCopy => {
-                let arguments = self.pop_arguments::<3>(context);
-
-                if !matches!(context.target, Target::zkEVM) {
+                            .builder
+                            .build_memcpy(
+                                return_pointer,
+                                (compiler_common::size::BYTE) as u32,
+                                source,
+                                (compiler_common::size::BYTE) as u32,
+                                arguments[1].into_int_value(),
+                            )
+                            .expect("Return memory copy failed");
+                    }
+                    context.build_unconditional_branch(function.return_block);
                     return None;
                 }
 
-                let destination = context.builder.build_int_to_ptr(
+                let source = context.builder.build_int_to_ptr(
                     arguments[0].into_int_value(),
                     context
                         .field_type()
                         .ptr_type(compiler_common::AddressSpace::Heap.into()),
-                    "",
+                    "return_source_pointer",
                 );
 
-                let source_offset_shift = compiler_common::contract::ABI_OFFSET_CALL_RETURN_DATA
-                    * compiler_common::size::FIELD
-                    - 4;
-                let source_offset = context.builder.build_int_add(
-                    arguments[1].into_int_value(),
-                    context.field_const(source_offset_shift as u64),
-                    "",
-                );
-                let source = context.builder.build_int_to_ptr(
-                    source_offset,
+                if context.test_entry_hash.is_some() {
+                    if let Some(return_pointer) = function.return_pointer() {
+                        let result = context.build_load(source, "return_result");
+                        context.build_store(return_pointer, result);
+                    }
+                    context.build_unconditional_branch(function.return_block);
+                    return None;
+                }
+
+                let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
+
+                let destination = context.builder.build_int_to_ptr(
+                    context.field_const(
+                        (compiler_common::contract::ABI_OFFSET_CALL_RETURN_DATA
+                            * compiler_common::size::FIELD) as u64,
+                    ),
                     context
                         .field_type()
-                        .ptr_type(compiler_common::AddressSpace::Child.into()),
-                    "",
+                        .ptr_type(compiler_common::AddressSpace::Parent.into()),
+                    "return_destination_pointer",
                 );
 
-                let size = arguments[2].into_int_value();
+                let size = arguments[1].into_int_value();
 
-                let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyFromChild);
                 context.build_call(
                     intrinsic,
                     &[
@@ -1080,10 +490,16 @@ impl FunctionCall {
                             .const_zero()
                             .as_basic_value_enum(),
                     ],
-                    "",
+                    "return_memcpy_to_parent",
                 );
 
+                context.build_unconditional_branch(function.return_block);
                 None
+            }
+            Name::ReturnDataSize => return_data::size(context),
+            Name::ReturnDataCopy => {
+                let arguments = self.pop_arguments::<3>(context);
+                return_data::copy(context, arguments)
             }
 
             Name::Revert => {
