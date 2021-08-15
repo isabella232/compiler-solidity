@@ -6,6 +6,7 @@ use inkwell::values::BasicValue;
 
 use crate::error::Error;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
+use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
@@ -182,7 +183,10 @@ impl Block {
         context.set_function(compiler_common::identifier::FUNCTION_SELECTOR);
         context.set_basic_block(function.entry_block);
         let zero_slot_pointer = context.access_heap(
-            context.field_const((3 * compiler_common::size::FIELD) as u64),
+            context.field_const(
+                (compiler_common::abi::OFFSET_SOLIDITY_ZERO_SLOT * compiler_common::size::FIELD)
+                    as u64,
+            ),
             None,
         );
         context.build_store(zero_slot_pointer, context.field_const(0));
@@ -277,6 +281,28 @@ impl Block {
         let call_block = context.append_basic_block("constructor_call");
         let join_block = context.append_basic_block("constructor_join");
 
+        let is_entry_hash_zero = Self::is_entry_hash_zero(context);
+        let is_executed_flag_unset = Self::is_executed_flag_unset(context);
+        let constructor_call_condition = context.builder.build_and(
+            is_entry_hash_zero,
+            is_executed_flag_unset,
+            "constructor_call_condition",
+        );
+        context.build_conditional_branch(constructor_call_condition, call_block, join_block);
+
+        context.set_basic_block(call_block);
+        context.build_invoke(constructor.value, &[], "constructor_call");
+        context.build_unconditional_branch(context.function().return_block);
+
+        context.set_basic_block(join_block);
+    }
+
+    ///
+    /// Return the condition whether the entry hash is zero.
+    ///
+    fn is_entry_hash_zero<'ctx>(
+        context: &mut LLVMContext<'ctx>,
+    ) -> inkwell::values::IntValue<'ctx> {
         let hash_pointer = context.builder.build_int_to_ptr(
             context.field_const(
                 (compiler_common::abi::OFFSET_ENTRY_HASH * compiler_common::size::FIELD) as u64,
@@ -287,19 +313,48 @@ impl Block {
             "entry_hash_pointer",
         );
         let hash = context.build_load(hash_pointer, "entry_hash_value");
-        let is_zero = context.builder.build_int_compare(
+        context.builder.build_int_compare(
             inkwell::IntPredicate::EQ,
             hash.into_int_value(),
-            context.field_const(0),
+            context.field_const(compiler_common::abi::CONSTRUCTOR_ENTRY_HASH as u64),
             "entry_hash_is_zero_condition",
+        )
+    }
+
+    ///
+    /// Return the condition whether the executed flag is unset.
+    ///
+    fn is_executed_flag_unset<'ctx>(
+        context: &mut LLVMContext<'ctx>,
+    ) -> inkwell::values::IntValue<'ctx> {
+        let storage_key_string = compiler_common::hashes::keccak256(
+            compiler_common::abi::CONSTRUCTOR_EXECUTED_FLAG_KEY_PREIMAGE,
         );
-        context.build_conditional_branch(is_zero, call_block, join_block);
+        let storage_key_value = context
+            .field_type()
+            .const_int_from_string(
+                storage_key_string.as_str(),
+                inkwell::types::StringRadix::Hexadecimal,
+            )
+            .expect("Always valid");
 
-        context.set_basic_block(call_block);
-        context.build_invoke(constructor.value, &[], "constructor_call");
-        context.build_unconditional_branch(context.function().return_block);
-
-        context.set_basic_block(join_block);
+        let intrinsic = context.get_intrinsic_function(Intrinsic::StorageLoad);
+        let is_executed_flag = context
+            .build_call(
+                intrinsic,
+                &[
+                    storage_key_value.as_basic_value_enum(),
+                    context.field_const(0).as_basic_value_enum(),
+                ],
+                "is_executed_flag",
+            )
+            .expect("Contract storage always returns a value");
+        context.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            is_executed_flag.into_int_value(),
+            context.field_const(0),
+            "is_executed_flag_is_zero_condition",
+        )
     }
 }
 

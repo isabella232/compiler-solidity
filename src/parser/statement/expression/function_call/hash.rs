@@ -75,7 +75,7 @@ pub fn keccak256<'ctx>(
 
     context.set_basic_block(body_block);
     let index_value = context
-        .build_load(index_pointer, "keccak256_index_value")
+        .build_load(index_pointer, "keccak256_body_index_value")
         .into_int_value();
     let pointer = context.access_heap(index_value, None);
     let value = context.build_load(pointer, "keccak256_next_value");

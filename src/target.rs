@@ -22,7 +22,6 @@ impl TryFrom<&str> for Target {
 
     fn try_from(input: &str) -> Result<Self, Self::Error> {
         Ok(match input {
-            "llvm" => Self::x86,
             "x86" => Self::x86,
             "zkevm" => Self::zkEVM,
 
