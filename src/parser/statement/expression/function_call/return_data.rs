@@ -20,8 +20,7 @@ pub fn size<'ctx>(
 
     let pointer = context.builder.build_int_to_ptr(
         context.field_const(
-            (compiler_common::contract::ABI_OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD)
-                as u64,
+            (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD) as u64,
         ),
         context
             .field_type()
@@ -57,7 +56,7 @@ pub fn copy<'ctx>(
     );
 
     let source_offset_shift =
-        compiler_common::contract::ABI_OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD - 4;
+        compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD - 4;
     let source_offset = context.builder.build_int_add(
         arguments[1].into_int_value(),
         context.field_const(source_offset_shift as u64),

@@ -84,7 +84,7 @@ impl<'ctx> Context<'ctx> {
         machine: Option<&inkwell::targets::TargetMachine>,
         optimization_level: inkwell::OptimizationLevel,
     ) -> Self {
-        let module = llvm.create_module(compiler_common::identifier::FUNCTION_MAIN);
+        let module = llvm.create_module(compiler_common::identifier::FUNCTION_SELECTOR);
         if let Some(machine) = machine {
             module.set_triple(&machine.get_triple());
             module.set_data_layout(&machine.get_target_data().get_data_layout());
@@ -213,18 +213,14 @@ impl<'ctx> Context<'ctx> {
     /// Returns the current function.
     ///
     pub fn function(&self) -> &Function<'ctx> {
-        self.function
-            .as_ref()
-            .expect(compiler_common::panic::VALIDATED_DURING_CODE_GENERATION)
+        self.function.as_ref().expect("Must be declared before use")
     }
 
     ///
     /// Returns the current function as a mutable reference.
     ///
     pub fn function_mut(&mut self) -> &mut Function<'ctx> {
-        self.function
-            .as_mut()
-            .expect(compiler_common::panic::VALIDATED_DURING_CODE_GENERATION)
+        self.function.as_mut().expect("Must be declared before use")
     }
 
     ///
@@ -238,7 +234,7 @@ impl<'ctx> Context<'ctx> {
             self.functions
                 .get(name)
                 .cloned()
-                .expect(compiler_common::panic::VALIDATED_DURING_CODE_GENERATION),
+                .expect("Must be declared before use"),
         );
     }
 
@@ -269,7 +265,7 @@ impl<'ctx> Context<'ctx> {
     ) -> inkwell::values::FunctionValue<'ctx> {
         self.module()
             .get_intrinsic_function(intrinsic.name(), intrinsic.argument_types(self).as_slice())
-            .expect(compiler_common::panic::VALIDATED_DURING_CODE_GENERATION)
+            .unwrap_or_else(|| panic!("Intrinsic function `{}` does not exist", intrinsic.name()))
     }
 
     ///
@@ -319,7 +315,7 @@ impl<'ctx> Context<'ctx> {
     pub fn r#loop(&self) -> &Loop<'ctx> {
         self.loop_stack
             .last()
-            .expect(compiler_common::panic::VALIDATED_DURING_CODE_GENERATION)
+            .expect("The current context is not in a loop")
     }
 
     ///

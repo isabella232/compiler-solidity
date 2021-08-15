@@ -279,8 +279,7 @@ impl Block {
 
         let hash_pointer = context.builder.build_int_to_ptr(
             context.field_const(
-                (compiler_common::contract::ABI_OFFSET_ENTRY_HASH * compiler_common::size::FIELD)
-                    as u64,
+                (compiler_common::abi::OFFSET_ENTRY_HASH * compiler_common::size::FIELD) as u64,
             ),
             context
                 .field_type()

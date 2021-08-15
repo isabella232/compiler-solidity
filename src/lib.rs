@@ -45,32 +45,11 @@ pub fn compile(
     let target_machine = match target {
         Target::x86 => None,
         Target::zkEVM => {
-            inkwell::targets::Target::initialize_syncvm(
-                &inkwell::targets::InitializationConfig::default(),
-            );
-            let target =
-                inkwell::targets::Target::from_name(compiler_common::virtual_machine::TARGET_NAME)
-                    .ok_or_else(|| {
-                        Error::LLVM(format!(
-                            "Target `{}` not found",
-                            compiler_common::virtual_machine::TARGET_NAME
-                        ))
-                    })?;
-            let target_machine = target
-                .create_target_machine(
-                    &inkwell::targets::TargetTriple::create(
-                        compiler_common::virtual_machine::TARGET_NAME,
-                    ),
-                    "",
-                    "",
-                    optimization_level,
-                    inkwell::targets::RelocMode::Default,
-                    inkwell::targets::CodeModel::Default,
-                )
+            let target_machine = compiler_common::vm::target_machine(optimization_level)
                 .ok_or_else(|| {
                     Error::LLVM(format!(
                         "Target machine `{}` creation error",
-                        compiler_common::virtual_machine::TARGET_NAME
+                        compiler_common::vm::TARGET_NAME
                     ))
                 })?;
             Some(target_machine)

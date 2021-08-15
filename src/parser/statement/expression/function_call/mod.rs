@@ -468,7 +468,7 @@ impl FunctionCall {
 
                 let destination = context.builder.build_int_to_ptr(
                     context.field_const(
-                        (compiler_common::contract::ABI_OFFSET_CALL_RETURN_DATA
+                        (compiler_common::abi::OFFSET_CALL_RETURN_DATA
                             * compiler_common::size::FIELD) as u64,
                     ),
                     context

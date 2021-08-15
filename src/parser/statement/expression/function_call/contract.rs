@@ -47,8 +47,7 @@ pub fn call<'ctx>(
 
     let child_pointer_input = context.builder.build_int_to_ptr(
         context.field_const(
-            (compiler_common::contract::ABI_OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD)
-                as u64,
+            (compiler_common::abi::OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD) as u64,
         ),
         context
             .field_type()
@@ -58,8 +57,7 @@ pub fn call<'ctx>(
     context.build_store(child_pointer_input, input_size);
     let child_pointer_output = context.builder.build_int_to_ptr(
         context.field_const(
-            (compiler_common::contract::ABI_OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD)
-                as u64,
+            (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD) as u64,
         ),
         context
             .field_type()
@@ -70,8 +68,7 @@ pub fn call<'ctx>(
 
     let destination = context.builder.build_int_to_ptr(
         context.field_const(
-            (compiler_common::contract::ABI_OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD)
-                as u64,
+            (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
         ),
         context
             .field_type()
