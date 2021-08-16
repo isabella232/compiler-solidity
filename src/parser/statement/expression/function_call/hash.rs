@@ -19,32 +19,32 @@ pub fn keccak256<'ctx>(
         return Some(context.field_const(0).as_basic_value_enum());
     }
 
+    let range_start = arguments[0].into_int_value();
+    let length = arguments[1].into_int_value();
+
     let condition_block = context.append_basic_block("keccak256_condition");
     let body_block = context.append_basic_block("keccak256_body");
     let increment_block = context.append_basic_block("keccak256_increment");
     let join_block = context.append_basic_block("keccak256_join");
 
-    let index_pointer = context.build_alloca(context.field_type(), "keccak256_index_pointer");
-    let index_value = context
-        .build_load(index_pointer, "keccak256_index_value")
-        .into_int_value();
-    let pointer = context.access_heap(index_value, None);
+    let pointer = context.access_heap(range_start, None);
     let value = context.build_load(pointer, "keccak256_first_value");
     let intrinsic = context.get_intrinsic_function(Intrinsic::HashAbsorbReset);
     context.build_call(intrinsic, &[value], "keccak256_call_hash_absorb_reset");
     let range_start = context.builder.build_int_add(
-        arguments[0].into_int_value(),
+        range_start,
         context.field_const(compiler_common::size::FIELD as u64),
         "keccak256_range_start",
     );
     let length = context.builder.build_int_sub(
-        arguments[1].into_int_value(),
+        length,
         context.field_const(compiler_common::size::FIELD as u64),
         "keccak256_range_length",
     );
     let range_end = context
         .builder
         .build_int_add(range_start, length, "keccak256_range_end");
+    let index_pointer = context.build_alloca(context.field_type(), "keccak256_index_pointer");
     context.build_store(index_pointer, range_start);
 
     context.build_unconditional_branch(condition_block);
