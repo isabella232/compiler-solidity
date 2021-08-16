@@ -292,6 +292,7 @@ impl Block {
 
         context.set_basic_block(call_block);
         context.build_invoke(constructor.value, &[], "constructor_call");
+        Self::set_is_executed_flag(context);
         context.build_unconditional_branch(context.function().return_block);
 
         context.set_basic_block(join_block);
@@ -346,7 +347,7 @@ impl Block {
                     storage_key_value.as_basic_value_enum(),
                     context.field_const(0).as_basic_value_enum(),
                 ],
-                "is_executed_flag",
+                "is_executed_flag_load",
             )
             .expect("Contract storage always returns a value");
         context.builder.build_int_compare(
@@ -355,6 +356,33 @@ impl Block {
             context.field_const(0),
             "is_executed_flag_is_zero_condition",
         )
+    }
+
+    ///
+    /// Sets the contract constructor executed flag.
+    ///
+    fn set_is_executed_flag(context: &mut LLVMContext) {
+        let storage_key_string = compiler_common::hashes::keccak256(
+            compiler_common::abi::CONSTRUCTOR_EXECUTED_FLAG_KEY_PREIMAGE,
+        );
+        let storage_key_value = context
+            .field_type()
+            .const_int_from_string(
+                storage_key_string.as_str(),
+                inkwell::types::StringRadix::Hexadecimal,
+            )
+            .expect("Always valid");
+
+        let intrinsic = context.get_intrinsic_function(Intrinsic::StorageStore);
+        context.build_call(
+            intrinsic,
+            &[
+                context.field_const(1).as_basic_value_enum(),
+                storage_key_value.as_basic_value_enum(),
+                context.field_const(0).as_basic_value_enum(),
+            ],
+            "is_executed_flag_store",
+        );
     }
 }
 
