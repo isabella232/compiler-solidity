@@ -83,9 +83,7 @@ pub fn shift_left<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if matches!(context.target, Target::zkEVM)
-        && !(context.bitwise_supported && arguments[0].into_int_value().is_const())
-    {
+    if matches!(context.target, Target::zkEVM) && !context.bitwise_supported {
         return shift_left_loop(context, arguments);
     }
 
@@ -108,9 +106,7 @@ pub fn shift_right<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if matches!(context.target, Target::zkEVM)
-        && !(context.bitwise_supported && arguments[0].into_int_value().is_const())
-    {
+    if matches!(context.target, Target::zkEVM) && !context.bitwise_supported {
         return shift_right_loop(context, arguments);
     }
 
