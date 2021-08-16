@@ -182,14 +182,18 @@ impl Block {
 
         context.set_function(compiler_common::identifier::FUNCTION_SELECTOR);
         context.set_basic_block(function.entry_block);
-        let zero_slot_pointer = context.access_heap(
-            context.field_const(
-                (compiler_common::abi::OFFSET_SOLIDITY_ZERO_SLOT * compiler_common::size::FIELD)
-                    as u64,
-            ),
-            None,
-        );
-        context.build_store(zero_slot_pointer, context.field_const(0));
+        let slots_to_zero = vec![
+            compiler_common::abi::OFFSET_SOLIDITY_HASH_SLOT_FIRST,
+            compiler_common::abi::OFFSET_SOLIDITY_HASH_SLOT_SECOND,
+            compiler_common::abi::OFFSET_SOLIDITY_ZERO_SLOT,
+        ];
+        for slot_offset in slots_to_zero.into_iter() {
+            let slot_pointer = context.access_heap(
+                context.field_const((slot_offset * compiler_common::size::FIELD) as u64),
+                None,
+            );
+            context.build_store(slot_pointer, context.field_const(0));
+        }
 
         let return_pointer = context.build_alloca(context.field_type(), "result");
         let r#return = FunctionReturn::primitive(return_pointer);
