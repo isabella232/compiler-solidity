@@ -37,7 +37,7 @@ pub fn store<'ctx>(
         "heap_offset",
     );
     if let Some(value) = offset.get_zero_extended_constant() {
-        if value == 0 || value % (compiler_common::size::FIELD as u64) != 0 {
+        if value % (compiler_common::size::FIELD as u64) != 0 {
             return None;
         }
     }
