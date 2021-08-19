@@ -60,15 +60,21 @@ impl ILLVMWritable for ForLoop {
 
         context.build_unconditional_branch(condition_block);
         context.set_basic_block(condition_block);
-        let condition_expression = self
+        let condition = self
             .condition
             .into_llvm(context)
             .expect("Always exists")
             .into_int_value();
-        let condition = context.builder.build_int_truncate_or_bit_cast(
-            condition_expression,
-            context.integer_type(compiler_common::bitlength::BOOLEAN),
-            "for_condition",
+        let condition = context.builder.build_int_z_extend_or_bit_cast(
+            condition,
+            context.field_type(),
+            "for_condition_extended",
+        );
+        let condition = context.builder.build_int_compare(
+            inkwell::IntPredicate::NE,
+            condition,
+            context.field_const(0),
+            "for_condition_compared",
         );
         context.build_conditional_branch(condition, body_block, join_block);
 

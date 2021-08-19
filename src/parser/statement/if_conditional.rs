@@ -43,10 +43,16 @@ impl ILLVMWritable for IfConditional {
             .into_llvm(context)
             .expect("Always exists")
             .into_int_value();
-        let condition = context.builder.build_int_truncate_or_bit_cast(
+        let condition = context.builder.build_int_z_extend_or_bit_cast(
             condition,
-            context.integer_type(compiler_common::bitlength::BOOLEAN),
-            "if_condition",
+            context.field_type(),
+            "if_condition_extended",
+        );
+        let condition = context.builder.build_int_compare(
+            inkwell::IntPredicate::NE,
+            condition,
+            context.field_const(0),
+            "if_condition_compared",
         );
         let main_block = context.append_basic_block("if_main");
         let join_block = context.append_basic_block("if_join");
