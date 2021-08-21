@@ -212,6 +212,10 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<2>(context);
                 bitwise::shift_right(context, arguments)
             }
+            Name::Sar => {
+                let arguments = self.pop_arguments::<2>(context);
+                bitwise::shift_right_arithmetic(context, arguments)
+            }
 
             Name::AddMod => {
                 let arguments = self.pop_arguments::<3>(context);
@@ -233,10 +237,6 @@ impl FunctionCall {
             Name::Smod => {
                 let _arguments = self.pop_arguments::<2>(context);
                 Some(context.field_const(0).as_basic_value_enum())
-            }
-            Name::Sar => {
-                let arguments = self.pop_arguments::<2>(context);
-                Some(arguments[1])
             }
             Name::SignExtend => {
                 let arguments = self.pop_arguments::<2>(context);

@@ -124,6 +124,30 @@ pub fn shift_right<'ctx>(
 }
 
 ///
+/// Translates the arithmetic bitwise shift right.
+///
+pub fn shift_right_arithmetic<'ctx>(
+    context: &mut LLVMContext<'ctx>,
+    arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
+) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+    if matches!(context.target, Target::zkEVM) && !context.bitwise_supported {
+        return Some(arguments[1]);
+    }
+
+    Some(
+        context
+            .builder
+            .build_right_shift(
+                arguments[1].into_int_value(),
+                arguments[0].into_int_value(),
+                true,
+                "shift_right_arithmetic_result",
+            )
+            .as_basic_value_enum(),
+    )
+}
+
+///
 /// Translates the bitwise OR with loop, when the native operation is not supported.
 ///
 pub fn or_loop<'ctx>(
