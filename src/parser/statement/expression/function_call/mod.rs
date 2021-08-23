@@ -152,6 +152,14 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<2>(context);
                 arithmetic::remainder(context, arguments)
             }
+            Name::Sdiv => {
+                let arguments = self.pop_arguments::<2>(context);
+                arithmetic::division_signed(context, arguments)
+            }
+            Name::Smod => {
+                let arguments = self.pop_arguments::<2>(context);
+                arithmetic::remainder_signed(context, arguments)
+            }
 
             Name::Lt => {
                 let arguments = self.pop_arguments::<2>(context);
@@ -230,14 +238,6 @@ impl FunctionCall {
                 mathematic::exponent(context, arguments)
             }
 
-            Name::Sdiv => {
-                let _arguments = self.pop_arguments::<2>(context);
-                Some(context.field_const(0).as_basic_value_enum())
-            }
-            Name::Smod => {
-                let _arguments = self.pop_arguments::<2>(context);
-                Some(context.field_const(0).as_basic_value_enum())
-            }
             Name::SignExtend => {
                 let arguments = self.pop_arguments::<2>(context);
                 Some(arguments[1])
