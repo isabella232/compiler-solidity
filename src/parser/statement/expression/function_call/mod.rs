@@ -183,11 +183,11 @@ impl FunctionCall {
             }
             Name::Slt => {
                 let arguments = self.pop_arguments::<2>(context);
-                comparison::compare(context, arguments, inkwell::IntPredicate::ULT)
+                comparison::compare(context, arguments, inkwell::IntPredicate::SLT)
             }
             Name::Sgt => {
                 let arguments = self.pop_arguments::<2>(context);
-                comparison::compare(context, arguments, inkwell::IntPredicate::UGT)
+                comparison::compare(context, arguments, inkwell::IntPredicate::SGT)
             }
 
             Name::Or => {
