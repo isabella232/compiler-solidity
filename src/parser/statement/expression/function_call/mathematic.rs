@@ -166,6 +166,67 @@ pub fn exponent<'ctx>(
 }
 
 ///
+/// Translates the sign extension operation.
+///
+pub fn sign_extend<'ctx>(
+    context: &mut LLVMContext<'ctx>,
+    arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
+) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+    let bitlength = context.builder.build_int_mul(
+        arguments[0].into_int_value(),
+        context.field_const(compiler_common::bitlength::BYTE as u64),
+        "sign_extend_bitlength_multiplied",
+    );
+    let bitlength = context.builder.build_int_add(
+        bitlength,
+        context.field_const((compiler_common::bitlength::BYTE - 1) as u64),
+        "sign_extend_bitlength",
+    );
+    let sign_mask = context.builder.build_left_shift(
+        context.field_const(1),
+        bitlength,
+        "sign_extend_sign_mask",
+    );
+    let sign_bit = context.builder.build_and(
+        arguments[1].into_int_value(),
+        sign_mask,
+        "sign_extend_sign_bit",
+    );
+    let sign_bit = context.builder.build_int_compare(
+        inkwell::IntPredicate::NE,
+        sign_bit,
+        context.field_const(0),
+        "sign_extend_sign_bit_compared",
+    );
+    let sign_bit = context.builder.build_int_z_extend_or_bit_cast(
+        sign_bit,
+        context.field_type(),
+        "sign_extend_sign_bit_extended",
+    );
+    let sign_bit = context.builder.build_left_shift(
+        sign_bit,
+        context.field_const((compiler_common::bitlength::FIELD - 1) as u64),
+        "sign_extend_sign_bit_shifted",
+    );
+
+    let value_mask =
+        context
+            .builder
+            .build_int_sub(sign_mask, context.field_const(1), "sign_extend_value_mask");
+    let value = context.builder.build_and(
+        arguments[1].into_int_value(),
+        value_mask,
+        "sign_extend_value",
+    );
+
+    let result = context
+        .builder
+        .build_int_add(value, sign_bit, "sign_extend_result");
+
+    Some(result.as_basic_value_enum())
+}
+
+///
 /// Translates the modular addition operation on the `x86` target.
 ///
 pub fn add_mod_x86<'ctx>(

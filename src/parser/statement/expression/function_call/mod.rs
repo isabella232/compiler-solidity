@@ -237,10 +237,9 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<2>(context);
                 mathematic::exponent(context, arguments)
             }
-
             Name::SignExtend => {
                 let arguments = self.pop_arguments::<2>(context);
-                Some(arguments[1])
+                mathematic::sign_extend(context, arguments)
             }
 
             Name::Keccak256 => {
