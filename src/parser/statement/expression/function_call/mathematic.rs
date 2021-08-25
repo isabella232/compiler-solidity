@@ -192,21 +192,11 @@ pub fn sign_extend<'ctx>(
         sign_mask,
         "sign_extend_sign_bit",
     );
-    let sign_bit = context.builder.build_int_compare(
-        inkwell::IntPredicate::NE,
+    let sign_bit_truncated = context.builder.build_right_shift(
         sign_bit,
-        context.field_const(0),
-        "sign_extend_sign_bit_compared",
-    );
-    let sign_bit = context.builder.build_int_z_extend_or_bit_cast(
-        sign_bit,
-        context.field_type(),
-        "sign_extend_sign_bit_extended",
-    );
-    let sign_bit = context.builder.build_left_shift(
-        sign_bit,
-        context.field_const((compiler_common::bitlength::FIELD - 1) as u64),
-        "sign_extend_sign_bit_shifted",
+        bitlength,
+        false,
+        "sign_extend_sign_bit_truncated",
     );
 
     let value_mask =
@@ -219,9 +209,18 @@ pub fn sign_extend<'ctx>(
         "sign_extend_value",
     );
 
+    let sign_fill_bits = context.builder.build_xor(
+        value_mask,
+        context.field_type().const_all_ones(),
+        "sign_fill_bits",
+    );
+    let sign_fill_bits_checked =
+        context
+            .builder
+            .build_int_mul(sign_fill_bits, sign_bit_truncated, "sign_fill_bits_checked");
     let result = context
         .builder
-        .build_int_add(value, sign_bit, "sign_extend_result");
+        .build_int_add(value, sign_fill_bits_checked, "sign_extend_result");
 
     Some(result.as_basic_value_enum())
 }
