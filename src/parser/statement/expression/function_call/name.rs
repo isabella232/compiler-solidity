@@ -152,6 +152,8 @@ pub enum Name {
     DelegateCall,
     /// identical to `call(g, a, 0, in, insize, out, outsize)` but do not allows state modifications
     StaticCall,
+    /// `setimmutable` is called in library constructors
+    SetImmutable,
 
     /// size of the code of the current contract / execution context
     CodeSize,
@@ -262,6 +264,7 @@ impl From<&str> for Name {
             "callcode" => Self::CallCode,
             "delegatecall" => Self::DelegateCall,
             "staticcall" => Self::StaticCall,
+            "setimmutable" => Self::SetImmutable,
 
             "codesize" => Self::CodeSize,
             "codecopy" => Self::CodeCopy,

@@ -14,6 +14,7 @@ use self::error::Error;
 use self::lexeme::keyword::Keyword;
 use self::lexeme::literal::boolean::Boolean as BooleanLiteral;
 use self::lexeme::literal::integer::Integer as IntegerLiteral;
+use self::lexeme::literal::string::String as StringLiteral;
 use self::lexeme::literal::Literal;
 use self::lexeme::symbol::Symbol;
 use self::lexeme::Lexeme;
@@ -59,8 +60,15 @@ impl Lexer {
         }
 
         loop {
-            if self.input[self.index..].starts_with('"') {
-                self.index += 1;
+            let is_string = self.input[self.index..].starts_with('"');
+            let is_hex_string = self.input[self.index..].starts_with(r#"hex""#);
+            if is_string || is_hex_string {
+                if is_string {
+                    self.index += 1;
+                }
+                if is_hex_string {
+                    self.index += r#"hex""#.len();
+                }
                 let mut string = String::new();
                 while !self.input[self.index..].starts_with('"') {
                     string.push(self.input.chars().nth(self.index).expect("Always exists"));
@@ -72,7 +80,10 @@ impl Lexer {
                     .and_then(|string| string.strip_suffix('"'))
                     .unwrap_or_else(|| string.as_str())
                     .to_owned();
-                return Ok(Lexeme::Literal(Literal::String(string.into())));
+                return Ok(Lexeme::Literal(Literal::String(StringLiteral::new(
+                    string,
+                    is_hex_string,
+                ))));
             }
 
             let r#match = match self.regexp.find(&self.input[self.index..]) {
@@ -91,7 +102,7 @@ impl Lexer {
                     Err(string) => {
                         let decimal = regex::Regex::new("^[0-9]+$").expect("Regexp is valid");
                         let hexadecimal =
-                            regex::Regex::new("^0x[0-9a-fA-F]+$").expect("Regexp is valid");
+                            regex::Regex::new(r#"^0x[0-9a-fA-F]+$"#).expect("Regexp is valid");
 
                         if decimal.is_match(string.as_str()) {
                             Lexeme::Literal(Literal::Integer(IntegerLiteral::new_decimal(string)))

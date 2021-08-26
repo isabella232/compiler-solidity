@@ -11,7 +11,10 @@ pub mod target;
 pub use self::error::Error;
 pub use self::generator::llvm::Context as LLVMContext;
 pub use self::generator::ILLVMWritable;
+pub use self::lexer::lexeme::keyword::Keyword;
+pub use self::lexer::lexeme::Lexeme;
 pub use self::lexer::Lexer;
+pub use self::parser::error::Error as ParserError;
 pub use self::parser::statement::object::Object;
 pub use self::target::Target;
 
@@ -20,7 +23,12 @@ pub use self::target::Target;
 ///
 pub fn parse(input: &str) -> Result<Object, Error> {
     let mut lexer = Lexer::new(input.to_owned());
-    Object::parse(&mut lexer, None)
+
+    let mut objects = Vec::with_capacity(1);
+    while let Lexeme::Keyword(Keyword::Object) = lexer.peek()? {
+        objects.push(Object::parse(&mut lexer, None)?);
+    }
+    Ok(objects.pop().expect("No objects found in the input"))
 }
 
 ///

@@ -46,7 +46,7 @@ pub fn load<'ctx>(
 
     context.set_basic_block(if_zero_block);
     let offset = context.field_const(
-        (compiler_common::abi::OFFSET_ENTRY_HASH * compiler_common::size::FIELD) as u64,
+        (compiler_common::abi::OFFSET_ENTRY_DATA * compiler_common::size::FIELD) as u64,
     );
     let pointer = context.access_calldata(offset);
     let value = context.build_load(pointer, "calldata_entry_hash_value");
@@ -264,5 +264,50 @@ pub fn copy<'ctx>(
     context.build_unconditional_branch(increment_block);
 
     context.set_basic_block(join_block);
+    None
+}
+
+///
+/// Translates the calldata copy from the `codecopy` instruction.
+///
+pub fn codecopy<'ctx>(
+    context: &mut LLVMContext<'ctx>,
+    arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
+) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+    let destination = context.builder.build_int_to_ptr(
+        arguments[0].into_int_value(),
+        context
+            .field_type()
+            .ptr_type(compiler_common::AddressSpace::Heap.into()),
+        "calldata_codecopy_destination_pointer",
+    );
+
+    let source = context.builder.build_int_to_ptr(
+        context.field_const(
+            (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
+        ),
+        context
+            .field_type()
+            .ptr_type(compiler_common::AddressSpace::Parent.into()),
+        "calldata_codecopy_source_pointer",
+    );
+
+    let size = arguments[2].into_int_value();
+
+    let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyFromParent);
+    context.build_call(
+        intrinsic,
+        &[
+            destination.as_basic_value_enum(),
+            source.as_basic_value_enum(),
+            size.as_basic_value_enum(),
+            context
+                .integer_type(compiler_common::bitlength::BOOLEAN)
+                .const_zero()
+                .as_basic_value_enum(),
+        ],
+        "calldata_codecopy_memcpy_from_parent",
+    );
+
     None
 }

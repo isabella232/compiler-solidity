@@ -11,20 +11,19 @@ use std::fmt;
 pub struct String {
     /// The inner string contents.
     pub inner: std::string::String,
+    /// Whether the string is hexadecimal.
+    pub is_hexadecimal: bool,
 }
 
 impl String {
     ///
     /// Creates a string literal value.
     ///
-    pub fn new(inner: ::std::string::String) -> Self {
-        Self { inner }
-    }
-}
-
-impl From<std::string::String> for String {
-    fn from(value: std::string::String) -> Self {
-        Self { inner: value }
+    pub fn new(inner: ::std::string::String, is_hexadecimal: bool) -> Self {
+        Self {
+            inner,
+            is_hexadecimal,
+        }
     }
 }
 

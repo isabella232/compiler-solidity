@@ -285,11 +285,11 @@ impl Block {
         let call_block = context.append_basic_block("constructor_call");
         let join_block = context.append_basic_block("constructor_join");
 
-        let is_entry_hash_zero = Self::is_entry_hash_zero(context);
-        let is_executed_flag_unset = Self::is_executed_flag_unset(context);
+        let is_constructor_bit_set = Self::is_constructor_bit_set(context);
+        let is_executed_flag_zero = Self::is_executed_flag_unset(context);
         let constructor_call_condition = context.builder.build_and(
-            is_entry_hash_zero,
-            is_executed_flag_unset,
+            is_constructor_bit_set,
+            is_executed_flag_zero,
             "constructor_call_condition",
         );
         context.build_conditional_branch(constructor_call_condition, call_block, join_block);
@@ -303,26 +303,31 @@ impl Block {
     }
 
     ///
-    /// Return the condition whether the entry hash is zero.
+    /// Return the condition whether the constructor bit is zero.
     ///
-    fn is_entry_hash_zero<'ctx>(
+    fn is_constructor_bit_set<'ctx>(
         context: &mut LLVMContext<'ctx>,
     ) -> inkwell::values::IntValue<'ctx> {
-        let hash_pointer = context.builder.build_int_to_ptr(
+        let entry_pointer = context.builder.build_int_to_ptr(
             context.field_const(
-                (compiler_common::abi::OFFSET_ENTRY_HASH * compiler_common::size::FIELD) as u64,
+                (compiler_common::abi::OFFSET_ENTRY_DATA * compiler_common::size::FIELD) as u64,
             ),
             context
                 .field_type()
                 .ptr_type(compiler_common::AddressSpace::Parent.into()),
-            "entry_hash_pointer",
+            "entry_pointer",
         );
-        let hash = context.build_load(hash_pointer, "entry_hash_value");
+        let entry_value = context.build_load(entry_pointer, "entry_value");
+        let entry_constructor_bit = context.builder.build_and(
+            entry_value.into_int_value(),
+            context.field_const(compiler_common::abi::CONSTRUCTOR_ENTRY_MASK as u64),
+            "entry_constructor_bit",
+        );
         context.builder.build_int_compare(
             inkwell::IntPredicate::EQ,
-            hash.into_int_value(),
-            context.field_const(compiler_common::abi::CONSTRUCTOR_ENTRY_HASH as u64),
-            "entry_hash_is_zero_condition",
+            entry_constructor_bit,
+            context.field_const(compiler_common::abi::CONSTRUCTOR_ENTRY_MASK as u64),
+            "entry_constructor_bit_is_set",
         )
     }
 

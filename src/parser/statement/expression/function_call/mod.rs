@@ -278,6 +278,11 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<3>(context);
                 calldata::copy(context, arguments)
             }
+            Name::CodeSize => calldata::size(context),
+            Name::CodeCopy => {
+                let arguments = self.pop_arguments::<3>(context);
+                calldata::codecopy(context, arguments)
+            }
 
             Name::Address => context::get(context, compiler_common::ContextValue::Address),
             Name::Caller => context::get(context, compiler_common::ContextValue::MessageSender),
@@ -419,6 +424,10 @@ impl FunctionCall {
                     output_size,
                 )
             }
+            Name::SetImmutable => {
+                let _arguments = self.pop_arguments::<3>(context);
+                None
+            }
 
             Name::Return => {
                 let arguments = self.pop_arguments::<2>(context);
@@ -550,11 +559,6 @@ impl FunctionCall {
             Name::CoinBase => Some(context.field_const(0).as_basic_value_enum()),
             Name::Difficulty => Some(context.field_const(0).as_basic_value_enum()),
             Name::GasLimit => Some(context.field_const(0).as_basic_value_enum()),
-            Name::CodeSize => Some(context.field_const(0).as_basic_value_enum()),
-            Name::CodeCopy => {
-                let _arguments = self.pop_arguments::<3>(context);
-                None
-            }
             Name::ExtCodeSize => {
                 let _arguments = self.pop_arguments::<1>(context);
                 Some(context.field_const(0).as_basic_value_enum())

@@ -58,6 +58,19 @@ impl Object {
             _ => None,
         };
 
+        if let Lexeme::Identifier(identifier) = lexer.peek()? {
+            if identifier.as_str() == "data" {
+                let _data = lexer.next()?;
+                let _identifier = lexer.next()?;
+                let _metadata = lexer.next()?;
+            }
+        };
+
+        match lexer.next()? {
+            Lexeme::Symbol(Symbol::BracketCurlyRight) => {}
+            lexeme => return Err(ParserError::expected_one_of(vec!["}"], lexeme, None).into()),
+        }
+
         Ok(Self {
             identifier,
             code,
