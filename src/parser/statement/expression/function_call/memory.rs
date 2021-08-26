@@ -11,16 +11,84 @@ pub fn load<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if let Some(value) = arguments[0].into_int_value().get_zero_extended_constant() {
-        if value % (compiler_common::size::FIELD as u64) != 0 {
-            return None;
-        }
-    }
+    let aligned_block = context.append_basic_block("memory_load_aligned");
+    let unaligned_block = context.append_basic_block("memory_load_unaligned");
+    let join_block = context.append_basic_block("memory_load_join");
 
+    let result_pointer = context.build_alloca(context.field_type(), "memory_load_result_pointer");
+
+    let second_value_bytes = context.builder.build_int_unsigned_rem(
+        arguments[0].into_int_value(),
+        context.field_const(compiler_common::size::FIELD as u64),
+        "memory_load_second_value_bytes",
+    );
+    let is_aligned = context.builder.build_int_compare(
+        inkwell::IntPredicate::EQ,
+        second_value_bytes,
+        context.field_const(0),
+        "memory_load_is_aligned",
+    );
+    context.build_conditional_branch(is_aligned, aligned_block, unaligned_block);
+
+    context.set_basic_block(aligned_block);
     let pointer = context.access_heap(arguments[0].into_int_value(), None);
+    let value = context.build_load(pointer, "memory_load_value_aligned");
+    context.build_store(result_pointer, value);
+    context.build_unconditional_branch(join_block);
 
-    let value = context.build_load(pointer, "heap_value");
+    context.set_basic_block(unaligned_block);
+    let second_value_bits = context.builder.build_int_mul(
+        second_value_bytes,
+        context.field_const(compiler_common::bitlength::BYTE as u64),
+        "memory_load_second_value_bits",
+    );
+    let first_value_bits = context.builder.build_int_sub(
+        context.field_const(compiler_common::bitlength::FIELD as u64),
+        second_value_bits,
+        "memory_load_first_value_bits",
+    );
 
+    let first_value_offset = context.builder.build_int_sub(
+        arguments[0].into_int_value(),
+        second_value_bytes,
+        "memory_load_first_value_offset",
+    );
+    let first_value_pointer = context.access_heap(first_value_offset, None);
+    let first_value = context
+        .build_load(first_value_pointer, "memory_load_first_value")
+        .into_int_value();
+    let first_value_shifted = context.builder.build_right_shift(
+        first_value,
+        second_value_bits,
+        false,
+        "memory_load_first_value_shifted",
+    );
+
+    let second_value_offset = context.builder.build_int_add(
+        first_value_offset,
+        context.field_const(compiler_common::size::FIELD as u64),
+        "memory_load_second_value_offset",
+    );
+    let second_value_pointer = context.access_heap(second_value_offset, None);
+    let second_value = context
+        .build_load(second_value_pointer, "memory_load_second_value")
+        .into_int_value();
+    let second_value_shifted = context.builder.build_left_shift(
+        second_value,
+        first_value_bits,
+        "memory_load_second_value_shifted",
+    );
+
+    let value = context.builder.build_int_add(
+        first_value_shifted,
+        second_value_shifted,
+        "memory_load_value_unaligned",
+    );
+    context.build_store(result_pointer, value);
+    context.build_unconditional_branch(join_block);
+
+    context.set_basic_block(join_block);
+    let value = context.build_load(result_pointer, "memory_load_result");
     Some(value)
 }
 
@@ -31,21 +99,70 @@ pub fn store<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let offset = context.builder.build_int_truncate_or_bit_cast(
+    let aligned_block = context.append_basic_block("memory_store_aligned");
+    let unaligned_block = context.append_basic_block("memory_store_unaligned");
+    let join_block = context.append_basic_block("memory_store_join");
+
+    let second_value_bytes = context.builder.build_int_unsigned_rem(
         arguments[0].into_int_value(),
-        context.integer_type(compiler_common::bitlength::WORD),
-        "heap_offset",
+        context.field_const(compiler_common::size::FIELD as u64),
+        "memory_store_second_value_bytes",
     );
-    if let Some(value) = offset.get_zero_extended_constant() {
-        if value % (compiler_common::size::FIELD as u64) != 0 {
-            return None;
-        }
-    }
+    let is_aligned = context.builder.build_int_compare(
+        inkwell::IntPredicate::EQ,
+        second_value_bytes,
+        context.field_const(0),
+        "memory_store_is_aligned",
+    );
+    context.build_conditional_branch(is_aligned, aligned_block, unaligned_block);
 
-    let pointer = context.access_heap(offset, None);
-
+    context.set_basic_block(aligned_block);
+    let pointer = context.access_heap(arguments[0].into_int_value(), None);
     context.build_store(pointer, arguments[1]);
+    context.build_unconditional_branch(join_block);
 
+    context.set_basic_block(unaligned_block);
+    let second_value_bits = context.builder.build_int_mul(
+        second_value_bytes,
+        context.field_const(compiler_common::bitlength::BYTE as u64),
+        "memory_store_second_value_bits",
+    );
+    let first_value_bits = context.builder.build_int_sub(
+        context.field_const(compiler_common::bitlength::FIELD as u64),
+        second_value_bits,
+        "memory_store_first_value_bits",
+    );
+
+    let first_value = context.builder.build_left_shift(
+        arguments[1].into_int_value(),
+        second_value_bits,
+        "memory_store_first_value",
+    );
+    let first_value_offset = context.builder.build_int_sub(
+        arguments[0].into_int_value(),
+        second_value_bytes,
+        "memory_store_first_value_offset",
+    );
+    let first_value_pointer = context.access_heap(first_value_offset, None);
+    context.build_store(first_value_pointer, first_value);
+
+    let second_value = context.builder.build_right_shift(
+        arguments[1].into_int_value(),
+        first_value_bits,
+        false,
+        "memory_store_second_value",
+    );
+    let second_value_offset = context.builder.build_int_add(
+        first_value_offset,
+        context.field_const(compiler_common::size::FIELD as u64),
+        "memory_store_second_value_offset",
+    );
+    let second_value_pointer = context.access_heap(second_value_offset, None);
+    context.build_store(second_value_pointer, second_value);
+
+    context.build_unconditional_branch(join_block);
+
+    context.set_basic_block(join_block);
     None
 }
 

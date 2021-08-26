@@ -13,6 +13,7 @@ pub mod hash;
 pub mod mathematic;
 pub mod memory;
 pub mod name;
+pub mod r#return;
 pub mod return_data;
 pub mod storage;
 
@@ -23,14 +24,12 @@ use inkwell::values::BasicValue;
 
 use crate::error::Error;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
-use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
 use crate::parser::statement::expression::Expression;
-use crate::target::Target;
 
 use self::name::Name;
 
@@ -255,10 +254,6 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<2>(context);
                 memory::store(context, arguments)
             }
-            Name::MStore8 => {
-                let arguments = self.pop_arguments::<2>(context);
-                memory::store_byte(context, arguments)
-            }
 
             Name::SLoad => {
                 let arguments = self.pop_arguments::<1>(context);
@@ -287,12 +282,20 @@ impl FunctionCall {
                 let _arguments = self.pop_arguments::<1>(context);
                 Some(context.field_const(0xffff).as_basic_value_enum())
             }
+            Name::ReturnDataSize => return_data::size(context),
+            Name::ReturnDataCopy => {
+                let arguments = self.pop_arguments::<3>(context);
+                return_data::copy(context, arguments)
+            }
 
-            Name::Address => context::get(context, compiler_common::ContextValue::Address),
-            Name::Caller => context::get(context, compiler_common::ContextValue::MessageSender),
-            Name::Timestamp => context::get(context, compiler_common::ContextValue::BlockTimestamp),
-            Name::Number => context::get(context, compiler_common::ContextValue::BlockNumber),
-            Name::Gas => context::get(context, compiler_common::ContextValue::GasLeft),
+            Name::Return => {
+                let arguments = self.pop_arguments::<2>(context);
+                r#return::r#return(context, arguments)
+            }
+            Name::Revert => {
+                let arguments = self.pop_arguments::<2>(context);
+                r#return::revert(context, arguments)
+            }
 
             Name::Log0 => {
                 let arguments = self.pop_arguments::<2>(context);
@@ -355,6 +358,12 @@ impl FunctionCall {
                 );
                 None
             }
+
+            Name::Address => context::get(context, compiler_common::ContextValue::Address),
+            Name::Caller => context::get(context, compiler_common::ContextValue::MessageSender),
+            Name::Timestamp => context::get(context, compiler_common::ContextValue::BlockTimestamp),
+            Name::Number => context::get(context, compiler_common::ContextValue::BlockNumber),
+            Name::Gas => context::get(context, compiler_common::ContextValue::GasLeft),
 
             Name::Call => {
                 let arguments = self.pop_arguments::<7>(context);
@@ -433,95 +442,6 @@ impl FunctionCall {
                 None
             }
 
-            Name::Return => {
-                let arguments = self.pop_arguments::<2>(context);
-
-                let function = context.function().to_owned();
-
-                if let Target::x86 = context.target {
-                    let source = context.access_heap(
-                        arguments[0].into_int_value(),
-                        Some(context.integer_type(compiler_common::bitlength::BYTE)),
-                    );
-                    if let Some(return_pointer) = function.return_pointer() {
-                        context
-                            .builder
-                            .build_memcpy(
-                                return_pointer,
-                                (compiler_common::size::BYTE) as u32,
-                                source,
-                                (compiler_common::size::BYTE) as u32,
-                                arguments[1].into_int_value(),
-                            )
-                            .expect("Return memory copy failed");
-                    }
-                    context.build_unconditional_branch(function.return_block);
-                    return None;
-                }
-
-                let source = context.builder.build_int_to_ptr(
-                    arguments[0].into_int_value(),
-                    context
-                        .field_type()
-                        .ptr_type(compiler_common::AddressSpace::Heap.into()),
-                    "return_source_pointer",
-                );
-
-                if context.test_entry_hash.is_some() {
-                    if let Some(return_pointer) = function.return_pointer() {
-                        let result = context.build_load(source, "return_result");
-                        context.build_store(return_pointer, result);
-                    }
-                    context.build_unconditional_branch(function.return_block);
-                    return None;
-                }
-
-                let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
-
-                let destination = context.builder.build_int_to_ptr(
-                    context.field_const(
-                        (compiler_common::abi::OFFSET_CALL_RETURN_DATA
-                            * compiler_common::size::FIELD) as u64,
-                    ),
-                    context
-                        .field_type()
-                        .ptr_type(compiler_common::AddressSpace::Parent.into()),
-                    "return_destination_pointer",
-                );
-
-                let size = arguments[1].into_int_value();
-
-                context.build_call(
-                    intrinsic,
-                    &[
-                        destination.as_basic_value_enum(),
-                        source.as_basic_value_enum(),
-                        size.as_basic_value_enum(),
-                        context
-                            .integer_type(compiler_common::bitlength::BOOLEAN)
-                            .const_zero()
-                            .as_basic_value_enum(),
-                    ],
-                    "return_memcpy_to_parent",
-                );
-
-                context.build_unconditional_branch(function.return_block);
-                None
-            }
-            Name::ReturnDataSize => return_data::size(context),
-            Name::ReturnDataCopy => {
-                let arguments = self.pop_arguments::<3>(context);
-                return_data::copy(context, arguments)
-            }
-
-            Name::Revert => {
-                let _arguments = self.pop_arguments::<2>(context);
-
-                let function = context.function().to_owned();
-
-                context.build_unconditional_branch(function.throw_block);
-                None
-            }
             Name::Stop => {
                 let function = context.function().to_owned();
 
@@ -543,6 +463,10 @@ impl FunctionCall {
                 None
             }
 
+            Name::MStore8 => {
+                let arguments = self.pop_arguments::<2>(context);
+                memory::store_byte(context, arguments)
+            }
             Name::Byte => {
                 let _arguments = self.pop_arguments::<2>(context);
                 Some(context.field_const(0).as_basic_value_enum())
