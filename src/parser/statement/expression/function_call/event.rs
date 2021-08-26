@@ -13,8 +13,8 @@ use crate::target::Target;
 ///
 pub fn log<'ctx>(
     context: &mut LLVMContext<'ctx>,
-    mut range_start: inkwell::values::IntValue<'ctx>,
-    mut length: inkwell::values::IntValue<'ctx>,
+    range_start: inkwell::values::IntValue<'ctx>,
+    length: inkwell::values::IntValue<'ctx>,
     mut topics: Vec<inkwell::values::IntValue<'ctx>>,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     if let Target::x86 = context.target {
@@ -35,9 +35,14 @@ pub fn log<'ctx>(
             .build_int_add(topics_length, data_length_shifted, "event_initializer");
     let is_topics_length_odd = topics.len() % 2 == 0;
 
+    let range_start_pointer =
+        context.build_alloca(context.field_type(), "event_range_start_pointer");
+    let length_pointer = context.build_alloca(context.field_type(), "event_length_pointer");
     if is_topics_length_odd {
         let data_not_empty_block = context.append_basic_block("event_data_not_empty");
-        let data_empty_block = context.append_basic_block("event_data_join");
+        let data_empty_block = context.append_basic_block("event_data_empty");
+        let join_block = context.append_basic_block("event_data_join");
+
         let data_not_empty_condition = context.builder.build_int_compare(
             inkwell::IntPredicate::NE,
             length,
@@ -94,19 +99,31 @@ pub fn log<'ctx>(
                 "event_call_init_with_topic_and_value",
             );
         }
-        range_start = context.builder.build_int_add(
-            range_start,
-            context.field_const(compiler_common::size::FIELD as u64),
-            "event_range_start_after_first",
+
+        context.build_store(
+            range_start_pointer,
+            context.builder.build_int_add(
+                range_start,
+                context.field_const(compiler_common::size::FIELD as u64),
+                "event_range_start_after_first",
+            ),
         );
-        length = context.builder.build_int_sub(
-            length,
-            context.field_const(compiler_common::size::FIELD as u64),
-            "event_length_without_first",
+        context.build_store(
+            length_pointer,
+            context.builder.build_int_sub(
+                length,
+                context.field_const(compiler_common::size::FIELD as u64),
+                "event_length_without_first",
+            ),
         );
-        context.build_unconditional_branch(data_empty_block);
+        context.build_unconditional_branch(join_block);
 
         context.set_basic_block(data_empty_block);
+        context.build_store(range_start_pointer, range_start);
+        context.build_store(length_pointer, length);
+        context.build_unconditional_branch(join_block);
+
+        context.set_basic_block(join_block);
     } else {
         context.build_call(
             intrinsic,
@@ -129,6 +146,13 @@ pub fn log<'ctx>(
             );
         }
     }
+
+    let range_start = context
+        .build_load(range_start_pointer, "event_range_start_joined")
+        .into_int_value();
+    let length = context
+        .build_load(length_pointer, "event_length_joined")
+        .into_int_value();
 
     let condition_block = context.append_basic_block("event_loop_condition");
     let body_block = context.append_basic_block("event_loop_body");

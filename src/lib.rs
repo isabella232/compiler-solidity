@@ -67,6 +67,9 @@ pub fn compile(
         LLVMContext::new_with_optimizer(&llvm, target_machine.as_ref(), optimization_level);
 
     object.into_llvm(&mut context);
+    context
+        .verify()
+        .map_err(|error| Error::LLVM(error.to_string()))?;
     context.optimize();
     context
         .verify()

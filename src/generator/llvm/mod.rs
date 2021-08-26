@@ -578,6 +578,31 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
+    /// Performs the lesser-than flag checking and exception throwing if it is set.
+    ///
+    /// The sequence must appear after each external contract call.
+    ///
+    pub fn check_exception(&self) {
+        if !matches!(self.target, Target::zkEVM) {
+            return;
+        }
+
+        let join_block = self.append_basic_block("join");
+        let intrinsic = self.get_intrinsic_function(Intrinsic::LesserFlag);
+        let overflow_flag = self
+            .build_call(intrinsic, &[], "")
+            .expect("Intrinsic always returns a flag")
+            .into_int_value();
+        let overflow_flag = self.builder.build_int_truncate_or_bit_cast(
+            overflow_flag,
+            self.integer_type(compiler_common::bitlength::BOOLEAN),
+            "",
+        );
+        self.build_conditional_branch(overflow_flag, self.function().throw_block, join_block);
+        self.set_basic_block(join_block);
+    }
+
+    ///
     /// Returns a field type constants.
     ///
     pub fn field_const(&self, value: u64) -> inkwell::values::IntValue<'ctx> {

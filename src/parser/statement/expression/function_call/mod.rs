@@ -283,6 +283,10 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<3>(context);
                 calldata::codecopy(context, arguments)
             }
+            Name::ExtCodeSize => {
+                let _arguments = self.pop_arguments::<1>(context);
+                Some(context.field_const(0xffff).as_basic_value_enum())
+            }
 
             Name::Address => context::get(context, compiler_common::ContextValue::Address),
             Name::Caller => context::get(context, compiler_common::ContextValue::MessageSender),
@@ -559,10 +563,6 @@ impl FunctionCall {
             Name::CoinBase => Some(context.field_const(0).as_basic_value_enum()),
             Name::Difficulty => Some(context.field_const(0).as_basic_value_enum()),
             Name::GasLimit => Some(context.field_const(0).as_basic_value_enum()),
-            Name::ExtCodeSize => {
-                let _arguments = self.pop_arguments::<1>(context);
-                Some(context.field_const(0).as_basic_value_enum())
-            }
             Name::ExtCodeCopy => {
                 let _arguments = self.pop_arguments::<4>(context);
                 None
