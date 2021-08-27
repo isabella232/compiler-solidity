@@ -36,10 +36,13 @@ pub struct Context<'ctx> {
     module: inkwell::module::Module<'ctx>,
     /// The current function.
     function: Option<Function<'ctx>>,
-    /// The personality function, used for exception handling.
-    personality: inkwell::values::FunctionValue<'ctx>,
     /// The loop context stack.
     loop_stack: Vec<Loop<'ctx>>,
+
+    /// The personality function, used for exception handling.
+    personality: inkwell::values::FunctionValue<'ctx>,
+    /// The personality function, used for exception throwing.
+    cxa_throw: inkwell::values::FunctionValue<'ctx>,
 
     /// The optimization level.
     optimization_level: inkwell::OptimizationLevel,
@@ -100,8 +103,30 @@ impl<'ctx> Context<'ctx> {
         let pass_manager_function = inkwell::passes::PassManager::create(&module);
         pass_manager_builder.populate_function_pass_manager(&pass_manager_function);
 
-        let personality =
-            module.add_function("__personality", llvm.i32_type().fn_type(&[], false), None);
+        let personality = module.add_function(
+            compiler_common::identifier::FUNCTION_PERSONALITY,
+            llvm.i32_type().fn_type(&[], false),
+            None,
+        );
+
+        let cxa_throw = module.add_function(
+            compiler_common::identifier::FUNCTION_CXA_THROW,
+            llvm.void_type().fn_type(
+                vec![
+                    llvm.i8_type()
+                        .ptr_type(compiler_common::AddressSpace::Stack.into())
+                        .as_basic_type_enum();
+                    3
+                ]
+                .as_slice(),
+                false,
+            ),
+            Some(inkwell::module::Linkage::External),
+        );
+        cxa_throw.add_attribute(
+            inkwell::attributes::AttributeLoc::Function,
+            llvm.create_enum_attribute(27, 0),
+        );
 
         Self {
             target: machine.into(),
@@ -111,8 +136,10 @@ impl<'ctx> Context<'ctx> {
             llvm,
             module,
             function: None,
-            personality,
             loop_stack: Vec::with_capacity(Self::LOOP_STACK_INITIAL_CAPACITY),
+
+            personality,
+            cxa_throw,
 
             optimization_level,
             pass_manager_module,
@@ -425,31 +452,39 @@ impl<'ctx> Context<'ctx> {
         name: &str,
     ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
         let call_site_value = self.builder.build_call(function, args, name);
-        if let Target::zkEVM = self.target {
-            for index in 0..function.count_params() {
-                if function
-                    .get_nth_param(index)
-                    .map(|argument| argument.get_type().is_pointer_type())
-                    .unwrap_or_default()
-                {
-                    call_site_value.set_alignment_attribute(
-                        inkwell::attributes::AttributeLoc::Param(index),
-                        compiler_common::size::FIELD as u32,
-                    );
-                }
-            }
 
-            if call_site_value
-                .try_as_basic_value()
-                .map_left(|value| value.is_pointer_value())
-                .left_or_default()
+        if let Target::x86 = self.target {
+            return call_site_value.try_as_basic_value().left();
+        }
+
+        if name == compiler_common::identifier::FUNCTION_CXA_THROW {
+            return call_site_value.try_as_basic_value().left();
+        }
+
+        for index in 0..function.count_params() {
+            if function
+                .get_nth_param(index)
+                .map(|argument| argument.get_type().is_pointer_type())
+                .unwrap_or_default()
             {
                 call_site_value.set_alignment_attribute(
-                    inkwell::attributes::AttributeLoc::Return,
+                    inkwell::attributes::AttributeLoc::Param(index),
                     compiler_common::size::FIELD as u32,
                 );
             }
         }
+
+        if call_site_value
+            .try_as_basic_value()
+            .map_left(|value| value.is_pointer_value())
+            .left_or_default()
+        {
+            call_site_value.set_alignment_attribute(
+                inkwell::attributes::AttributeLoc::Return,
+                compiler_common::size::FIELD as u32,
+            );
+        }
+
         call_site_value.try_as_basic_value().left()
     }
 
@@ -559,8 +594,18 @@ impl<'ctx> Context<'ctx> {
             "landing",
         );
 
-        let intrinsic = self.get_intrinsic_function(Intrinsic::Throw);
-        self.build_call(intrinsic, &[], "throw");
+        self.build_call(
+            self.cxa_throw,
+            vec![
+                self.integer_type(compiler_common::bitlength::BYTE)
+                    .ptr_type(compiler_common::AddressSpace::Stack.into())
+                    .const_null()
+                    .as_basic_value_enum();
+                3
+            ]
+            .as_slice(),
+            compiler_common::identifier::FUNCTION_CXA_THROW,
+        );
 
         Some(landing_pad)
     }
@@ -573,8 +618,18 @@ impl<'ctx> Context<'ctx> {
             return;
         }
 
-        let intrinsic = self.get_intrinsic_function(Intrinsic::Throw);
-        self.build_call(intrinsic, &[], "throw");
+        self.build_call(
+            self.cxa_throw,
+            vec![
+                self.integer_type(compiler_common::bitlength::BYTE)
+                    .ptr_type(compiler_common::AddressSpace::Stack.into())
+                    .const_null()
+                    .as_basic_value_enum();
+                3
+            ]
+            .as_slice(),
+            compiler_common::identifier::FUNCTION_CXA_THROW,
+        );
     }
 
     ///

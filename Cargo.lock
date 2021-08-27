@@ -81,7 +81,7 @@ dependencies = [
 [[package]]
 name = "compiler-common"
 version = "0.3.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=main#211382f43f231cfa51add5218167c6a1cb402202"
+source = "git+ssh://git@github.com/matter-labs/compiler-common#09511c316967c23726c27fff53913ddd871e4928"
 dependencies = [
  "inkwell",
  "sha3",
@@ -611,7 +611,7 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 [[package]]
 name = "zkevm-assembly"
 version = "0.1.0"
-source = "git+ssh://git@github.com/matter-labs/zkEVM-assembly?branch=main#4e97ccf66910a5f9c7eec2fce3c4e175cdb340ee"
+source = "git+ssh://git@github.com/matter-labs/zkEVM-assembly#4e97ccf66910a5f9c7eec2fce3c4e175cdb340ee"
 dependencies = [
  "env_logger",
  "log",

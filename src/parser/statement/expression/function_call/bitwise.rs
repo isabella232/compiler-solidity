@@ -148,6 +148,36 @@ pub fn shift_right_arithmetic<'ctx>(
 }
 
 ///
+/// Translates the byte extraction.
+///
+pub fn byte<'ctx>(
+    context: &mut LLVMContext<'ctx>,
+    arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
+) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+    let byte_index = context.builder.build_int_sub(
+        context.field_const((compiler_common::size::FIELD - 1) as u64),
+        arguments[0].into_int_value(),
+        "byte_index",
+    );
+    let byte_bits_offset = context.builder.build_int_mul(
+        byte_index,
+        context.field_const(compiler_common::bitlength::BYTE as u64),
+        "byte_bits_offset",
+    );
+    let value_shifted = context.builder.build_right_shift(
+        arguments[1].into_int_value(),
+        byte_bits_offset,
+        false,
+        "value_shifted",
+    );
+    let byte_result =
+        context
+            .builder
+            .build_and(value_shifted, context.field_const(0xff), "byte_result");
+    Some(byte_result.as_basic_value_enum())
+}
+
+///
 /// Translates the bitwise OR with loop, when the native operation is not supported.
 ///
 pub fn or_loop<'ctx>(

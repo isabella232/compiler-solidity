@@ -170,8 +170,33 @@ pub fn store<'ctx>(
 /// Translates the heap memory byte store.
 ///
 pub fn store_byte<'ctx>(
-    _context: &mut LLVMContext<'ctx>,
-    _arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
+    context: &mut LLVMContext<'ctx>,
+    arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+    let offset_remainder_bytes = context.builder.build_int_unsigned_rem(
+        arguments[0].into_int_value(),
+        context.field_const(compiler_common::size::FIELD as u64),
+        "memory_store_byte_offset_remainder_bytes",
+    );
+    let offset_remainder_bits = context.builder.build_int_mul(
+        offset_remainder_bytes,
+        context.field_const(compiler_common::bitlength::BYTE as u64),
+        "memory_store_byte_offset_remainder_bits",
+    );
+    let offset = context.builder.build_int_sub(
+        arguments[0].into_int_value(),
+        offset_remainder_bytes,
+        "memory_store_byte_offset",
+    );
+
+    let value = context.builder.build_left_shift(
+        arguments[1].into_int_value(),
+        offset_remainder_bits,
+        "memory_store_byte_value_shifted",
+    );
+
+    let pointer = context.access_heap(offset, None);
+    context.build_store(pointer, value);
+
     None
 }

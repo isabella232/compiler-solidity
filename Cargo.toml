@@ -20,16 +20,11 @@ colored = "2.0"
 rand = "0.8"
 regex = "1.5"
 
+zkevm-assembly = { git = "ssh://git@github.com/matter-labs/zkEVM-assembly" }
+compiler-common = { git = "ssh://git@github.com/matter-labs/compiler-common" }
+
 [dependencies.inkwell]
 git = "ssh://git@github.com/matter-labs-forks/inkwell"
 branch = "master"
 default-features = false
 features = ["llvm11-0", "target-syncvm"]
-
-[dependencies.compiler-common]
-git = "ssh://git@github.com/matter-labs/compiler-common"
-branch = "main"
-
-[dependencies.zkevm-assembly]
-git = "ssh://git@github.com/matter-labs/zkEVM-assembly"
-branch = "main"

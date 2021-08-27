@@ -223,6 +223,10 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<2>(context);
                 bitwise::shift_right_arithmetic(context, arguments)
             }
+            Name::Byte => {
+                let arguments = self.pop_arguments::<2>(context);
+                bitwise::byte(context, arguments)
+            }
 
             Name::AddMod => {
                 let arguments = self.pop_arguments::<3>(context);
@@ -253,6 +257,10 @@ impl FunctionCall {
             Name::MStore => {
                 let arguments = self.pop_arguments::<2>(context);
                 memory::store(context, arguments)
+            }
+            Name::MStore8 => {
+                let arguments = self.pop_arguments::<2>(context);
+                memory::store_byte(context, arguments)
             }
 
             Name::SLoad => {
@@ -463,14 +471,6 @@ impl FunctionCall {
                 None
             }
 
-            Name::MStore8 => {
-                let arguments = self.pop_arguments::<2>(context);
-                memory::store_byte(context, arguments)
-            }
-            Name::Byte => {
-                let _arguments = self.pop_arguments::<2>(context);
-                Some(context.field_const(0).as_basic_value_enum())
-            }
             Name::Pc => Some(context.field_const(0).as_basic_value_enum()),
             Name::Pop => {
                 let _arguments = self.pop_arguments::<1>(context);
