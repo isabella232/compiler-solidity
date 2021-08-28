@@ -100,7 +100,7 @@ impl Block {
         context.add_function(
             compiler_common::identifier::FUNCTION_CONSTRUCTOR,
             function_type,
-            Some(inkwell::module::Linkage::External),
+            Some(inkwell::module::Linkage::Private),
             true,
         );
 

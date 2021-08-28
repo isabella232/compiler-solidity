@@ -12,7 +12,7 @@ pub fn load<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if matches!(context.target, Target::x86) || context.unaligned_memory_access_supported {
+    if matches!(context.target, Target::x86) || context.is_unaligned_memory_access_supported {
         let pointer = context.access_heap(arguments[0].into_int_value(), None);
         let result = context.build_load(pointer, "memory_load_result");
         return Some(result);
@@ -106,7 +106,7 @@ pub fn store<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if matches!(context.target, Target::x86) || context.unaligned_memory_access_supported {
+    if matches!(context.target, Target::x86) || context.is_unaligned_memory_access_supported {
         let pointer = context.access_heap(arguments[0].into_int_value(), None);
         context.build_store(pointer, arguments[1]);
         return None;

@@ -51,10 +51,10 @@ pub struct Context<'ctx> {
     /// The function optimization pass manager.
     pass_manager_function: inkwell::passes::PassManager<inkwell::values::FunctionValue<'ctx>>,
 
-    /// Whether the bitwise operations are supported by the back-end.
-    pub bitwise_supported: bool,
+    /// Whether the native bitwise operations are supported by the back-end.
+    pub is_native_bitwise_supported: bool,
     /// Whether the unaligned memory access is supported by the back-end.
-    pub unaligned_memory_access_supported: bool,
+    pub is_unaligned_memory_access_supported: bool,
 
     /// The test heap representation.
     pub heap: Option<inkwell::values::GlobalValue<'ctx>>,
@@ -101,6 +101,11 @@ impl<'ctx> Context<'ctx> {
 
         let pass_manager_builder = inkwell::passes::PassManagerBuilder::create();
         pass_manager_builder.set_optimization_level(optimization_level);
+        pass_manager_builder.set_inliner_with_threshold(0);
+        pass_manager_builder.set_disable_unroll_loops(matches!(
+            optimization_level,
+            inkwell::OptimizationLevel::Aggressive
+        ));
 
         let pass_manager_module = inkwell::passes::PassManager::create(());
         pass_manager_builder.populate_lto_pass_manager(
@@ -155,8 +160,8 @@ impl<'ctx> Context<'ctx> {
             pass_manager_module,
             pass_manager_function,
 
-            bitwise_supported: true,
-            unaligned_memory_access_supported: false,
+            is_native_bitwise_supported: true,
+            is_unaligned_memory_access_supported: false,
 
             heap: None,
             storage: None,

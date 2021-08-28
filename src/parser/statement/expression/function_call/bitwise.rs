@@ -14,7 +14,7 @@ pub fn or<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if matches!(context.target, Target::zkEVM) && !context.bitwise_supported {
+    if matches!(context.target, Target::zkEVM) && !context.is_native_bitwise_supported {
         return or_loop(context, arguments);
     }
 
@@ -37,7 +37,7 @@ pub fn xor<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if matches!(context.target, Target::zkEVM) && !context.bitwise_supported {
+    if matches!(context.target, Target::zkEVM) && !context.is_native_bitwise_supported {
         return xor_loop(context, arguments);
     }
 
@@ -60,7 +60,7 @@ pub fn and<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if matches!(context.target, Target::zkEVM) && !context.bitwise_supported {
+    if matches!(context.target, Target::zkEVM) && !context.is_native_bitwise_supported {
         return and_loop(context, arguments);
     }
 
@@ -83,7 +83,7 @@ pub fn shift_left<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if matches!(context.target, Target::zkEVM) && !context.bitwise_supported {
+    if matches!(context.target, Target::zkEVM) && !context.is_native_bitwise_supported {
         return shift_left_loop(context, arguments);
     }
 
@@ -106,7 +106,7 @@ pub fn shift_right<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if matches!(context.target, Target::zkEVM) && !context.bitwise_supported {
+    if matches!(context.target, Target::zkEVM) && !context.is_native_bitwise_supported {
         return shift_right_loop(context, arguments);
     }
 
@@ -130,7 +130,7 @@ pub fn shift_right_arithmetic<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if matches!(context.target, Target::zkEVM) && !context.bitwise_supported {
+    if matches!(context.target, Target::zkEVM) && !context.is_native_bitwise_supported {
         return Some(arguments[1]);
     }
 

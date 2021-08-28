@@ -26,8 +26,6 @@ pub enum Intrinsic {
     GetFromContext,
     /// The another contract function call.
     FarCall,
-    /// The error throwing.
-    Throw,
 
     /// The hash absorbing.
     HashAbsorb,
@@ -73,7 +71,6 @@ impl Intrinsic {
             Intrinsic::SwitchContext => "llvm.syncvm.switchcontext",
             Intrinsic::GetFromContext => "llvm.syncvm.getfromcontext",
             Intrinsic::FarCall => "llvm.syncvm.farcall",
-            Intrinsic::Throw => "llvm.syncvm.throw",
 
             Intrinsic::HashAbsorb => "llvm.syncvm.habs",
             Intrinsic::HashAbsorbReset => "llvm.syncvm.habsr",
@@ -109,7 +106,6 @@ impl Intrinsic {
             Self::SwitchContext => vec![],
             Self::GetFromContext => vec![],
             Self::FarCall => vec![],
-            Self::Throw => vec![],
 
             Self::HashAbsorb => vec![],
             Self::HashAbsorbReset => vec![],
