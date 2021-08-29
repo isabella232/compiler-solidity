@@ -61,6 +61,19 @@ pub fn call<'ctx>(
         ),
     );
 
+    let entry_data_pointer = context.access_heap(input_offset, None);
+    let entry_data = context.build_load(entry_data_pointer, "contract_call_entry_data");
+    let child_pointer_entry_data = context.builder.build_int_to_ptr(
+        context.field_const(
+            (compiler_common::abi::OFFSET_ENTRY_DATA * compiler_common::size::FIELD) as u64,
+        ),
+        context
+            .field_type()
+            .ptr_type(compiler_common::AddressSpace::Child.into()),
+        "contract_call_child_pointer_entry_data",
+    );
+    context.build_store(child_pointer_entry_data, entry_data.as_basic_value_enum());
+
     let destination = context.builder.build_int_to_ptr(
         context.field_const(
             (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
@@ -70,12 +83,22 @@ pub fn call<'ctx>(
             .ptr_type(compiler_common::AddressSpace::Child.into()),
         "contract_call_child_input_destination",
     );
-    let source = context.builder.build_int_to_ptr(
+    let input_offset_adjusted = context.builder.build_int_add(
         input_offset,
+        context.field_const((compiler_common::size::FIELD) as u64),
+        "contract_call_input_offset_adjusted",
+    );
+    let source = context.builder.build_int_to_ptr(
+        input_offset_adjusted,
         context
             .field_type()
             .ptr_type(compiler_common::AddressSpace::Heap.into()),
         "contract_call_child_input_source",
+    );
+    let input_size_adjusted = context.builder.build_int_sub(
+        input_size,
+        context.field_const(4),
+        "contract_call_input_size_adjusted",
     );
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToChild);
@@ -84,7 +107,7 @@ pub fn call<'ctx>(
         &[
             destination.as_basic_value_enum(),
             source.as_basic_value_enum(),
-            input_size.as_basic_value_enum(),
+            input_size_adjusted.as_basic_value_enum(),
             context
                 .integer_type(compiler_common::bitlength::BOOLEAN)
                 .const_zero()
@@ -102,7 +125,7 @@ pub fn call<'ctx>(
     context.build_call(
         intrinsic,
         &[address.as_basic_value_enum()],
-        "contract_call_farcall",
+        "contract_call_far",
     );
     context.check_exception();
 

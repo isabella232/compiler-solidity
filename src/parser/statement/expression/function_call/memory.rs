@@ -135,43 +135,56 @@ pub fn store<'ctx>(
     context.build_unconditional_branch(join_block);
 
     context.set_basic_block(unaligned_block);
-    let second_value_bits = context.builder.build_int_mul(
-        second_value_bytes,
-        context.field_const(compiler_common::bitlength::BYTE as u64),
-        "memory_store_second_value_bits",
-    );
-    let first_value_bits = context.builder.build_int_sub(
-        context.field_const(compiler_common::bitlength::FIELD as u64),
-        second_value_bits,
-        "memory_store_first_value_bits",
-    );
+    // let second_value_bits = context.builder.build_int_mul(
+    //     second_value_bytes,
+    //     context.field_const(compiler_common::bitlength::BYTE as u64),
+    //     "memory_store_second_value_bits",
+    // );
+    // let first_value_bits = context.builder.build_int_sub(
+    //     context.field_const(compiler_common::bitlength::FIELD as u64),
+    //     second_value_bits,
+    //     "memory_store_first_value_bits",
+    // );
+    //
+    // let first_value = context.builder.build_left_shift(
+    //     arguments[1].into_int_value(),
+    //     second_value_bits,
+    //     "memory_store_first_value",
+    // );
+    // let first_value_offset = context.builder.build_int_sub(
+    //     arguments[0].into_int_value(),
+    //     second_value_bytes,
+    //     "memory_store_first_value_offset",
+    // );
+    // let first_value_pointer = context.access_heap(first_value_offset, None);
+    // context.build_store(first_value_pointer, first_value);
+    //
+    // let second_value = context.builder.build_right_shift(
+    //     arguments[1].into_int_value(),
+    //     first_value_bits,
+    //     false,
+    //     "memory_store_second_value",
+    // );
+    // let second_value_offset = context.builder.build_int_add(
+    //     first_value_offset,
+    //     context.field_const(compiler_common::size::FIELD as u64),
+    //     "memory_store_second_value_offset",
+    // );
+    // let second_value_pointer = context.access_heap(second_value_offset, None);
+    // context.build_store(second_value_pointer, second_value);
 
-    let first_value = context.builder.build_left_shift(
-        arguments[1].into_int_value(),
-        second_value_bits,
-        "memory_store_first_value",
-    );
-    let first_value_offset = context.builder.build_int_sub(
-        arguments[0].into_int_value(),
-        second_value_bytes,
-        "memory_store_first_value_offset",
-    );
-    let first_value_pointer = context.access_heap(first_value_offset, None);
-    context.build_store(first_value_pointer, first_value);
-
-    let second_value = context.builder.build_right_shift(
-        arguments[1].into_int_value(),
-        first_value_bits,
-        false,
-        "memory_store_second_value",
-    );
-    let second_value_offset = context.builder.build_int_add(
-        first_value_offset,
+    let offset_adjustment = context.builder.build_int_sub(
         context.field_const(compiler_common::size::FIELD as u64),
-        "memory_store_second_value_offset",
+        second_value_bytes,
+        "memory_store_offset_adjustment",
     );
-    let second_value_pointer = context.access_heap(second_value_offset, None);
-    context.build_store(second_value_pointer, second_value);
+    let offset_adjusted = context.builder.build_int_add(
+        arguments[0].into_int_value(),
+        offset_adjustment,
+        "memory_store_offset_adjusted",
+    );
+    let pointer = context.access_heap(offset_adjusted, None);
+    context.build_store(pointer, arguments[1]);
 
     context.build_unconditional_branch(join_block);
 
