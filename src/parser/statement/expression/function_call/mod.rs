@@ -227,6 +227,10 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<2>(context);
                 bitwise::byte(context, arguments)
             }
+            Name::Pop => {
+                let _arguments = self.pop_arguments::<1>(context);
+                None
+            }
 
             Name::AddMod => {
                 let arguments = self.pop_arguments::<3>(context);
@@ -391,42 +395,6 @@ impl FunctionCall {
                     output_size,
                 )
             }
-            Name::CallCode => {
-                let arguments = self.pop_arguments::<7>(context);
-
-                let address = arguments[1].into_int_value();
-                let input_offset = arguments[3].into_int_value();
-                let input_size = arguments[4].into_int_value();
-                let output_offset = arguments[5].into_int_value();
-                let output_size = arguments[6].into_int_value();
-
-                contract::call(
-                    context,
-                    address,
-                    input_offset,
-                    input_size,
-                    output_offset,
-                    output_size,
-                )
-            }
-            Name::DelegateCall => {
-                let arguments = self.pop_arguments::<6>(context);
-
-                let address = arguments[1].into_int_value();
-                let input_offset = arguments[2].into_int_value();
-                let input_size = arguments[3].into_int_value();
-                let output_offset = arguments[4].into_int_value();
-                let output_size = arguments[5].into_int_value();
-
-                contract::call(
-                    context,
-                    address,
-                    input_offset,
-                    input_size,
-                    output_offset,
-                    output_size,
-                )
-            }
             Name::StaticCall => {
                 let arguments = self.pop_arguments::<6>(context);
 
@@ -445,6 +413,8 @@ impl FunctionCall {
                     output_size,
                 )
             }
+            Name::CallCode => panic!("Code calls are not supported"),
+            Name::DelegateCall => panic!("Delegate calls are not supported"),
             Name::SetImmutable => {
                 let _arguments = self.pop_arguments::<3>(context);
                 None
@@ -472,10 +442,6 @@ impl FunctionCall {
             }
 
             Name::Pc => Some(context.field_const(0).as_basic_value_enum()),
-            Name::Pop => {
-                let _arguments = self.pop_arguments::<1>(context);
-                None
-            }
             Name::CallValue => Some(context.field_const(0).as_basic_value_enum()),
             Name::MSize => Some(context.field_const(0).as_basic_value_enum()),
             Name::Balance => Some(context.field_const(0).as_basic_value_enum()),
