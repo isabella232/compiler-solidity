@@ -44,6 +44,7 @@ fn main_inner() -> Result<(), compiler_yul::Error> {
 
     let representation = compiler_yul::compile(
         &code,
+        arguments.contract.as_deref(),
         target,
         arguments.optimization_level,
         arguments.dump_llvm,

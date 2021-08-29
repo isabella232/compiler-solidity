@@ -22,13 +22,36 @@ pub use self::target::Target;
 /// Parses the source code and returns the AST.
 ///
 pub fn parse(input: &str) -> Result<Object, Error> {
+    parse_contract(input, None)
+}
+
+///
+/// Parses the source code and returns the AST.
+///
+/// If `contract` is specified, the object of that contract is returned. Otherwise, the last object
+/// is returned.
+///
+pub fn parse_contract(input: &str, contract: Option<&str>) -> Result<Object, Error> {
     let mut lexer = Lexer::new(input.to_owned());
 
     let mut objects = Vec::with_capacity(1);
     while let Lexeme::Keyword(Keyword::Object) = lexer.peek()? {
-        objects.push(Object::parse(&mut lexer, None)?);
+        let object = Object::parse(&mut lexer, None)?;
+
+        if let Some(contract) = contract {
+            if let Some(position) = object.identifier.rfind('_') {
+                if &object.identifier[..position] == contract {
+                    return Ok(object);
+                }
+            }
+        } else {
+            objects.push(object);
+        }
     }
-    Ok(objects.pop().expect("No objects found in the input"))
+
+    objects
+        .pop()
+        .ok_or_else(|| ParserError::ObjectNotFound.into())
 }
 
 ///
@@ -36,11 +59,12 @@ pub fn parse(input: &str) -> Result<Object, Error> {
 ///
 pub fn compile(
     input: &str,
+    contract: Option<&str>,
     target: Target,
     optimization_level: usize,
     dump_llvm: bool,
 ) -> Result<String, Error> {
-    let object = parse(input)?;
+    let object = parse_contract(input, contract)?;
 
     let optimization_level = match optimization_level {
         0 => inkwell::OptimizationLevel::None,

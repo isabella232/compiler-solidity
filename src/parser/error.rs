@@ -18,6 +18,8 @@ pub enum Error {
         /// The optional error hint text.
         help: Option<&'static str>,
     },
+    /// No objects found in the input.
+    ObjectNotFound,
 }
 
 impl Error {

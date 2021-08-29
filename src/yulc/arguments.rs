@@ -26,6 +26,10 @@ pub struct Arguments {
     /// Whether to dump the LLVM code to the terminal.
     #[structopt(long = "dump-llvm")]
     pub dump_llvm: bool,
+
+    /// The main contract to choose from multiple contracts.
+    #[structopt(short = "c", long = "contract")]
+    pub contract: Option<String>,
 }
 
 impl Arguments {
