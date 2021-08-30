@@ -33,9 +33,14 @@ pub fn store<'ctx>(
         offset_remainder,
         "memory_store_offset_adjustment",
     );
+    let offset_adjustment_remainder = context.builder.build_int_unsigned_rem(
+        offset_adjustment,
+        context.field_const(compiler_common::size::FIELD as u64),
+        "memory_store_offset_adjustment_remainder",
+    );
     let offset_adjusted = context.builder.build_int_add(
         arguments[0].into_int_value(),
-        offset_adjustment,
+        offset_adjustment_remainder,
         "memory_store_offset_adjusted",
     );
     let pointer = context.access_heap(offset_adjusted, None);
