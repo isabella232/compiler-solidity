@@ -149,9 +149,15 @@ pub fn revert<'ctx>(
         size_remainder,
         "revert_size_padding",
     );
-    let size_padded = context
-        .builder
-        .build_int_add(size, size_padding, "revert_size_padded");
+    let size_padding_remainder = context.builder.build_int_unsigned_rem(
+        size_padding,
+        context.field_const(compiler_common::size::FIELD as u64),
+        "revert_size_padding_remainder",
+    );
+    let size_padded =
+        context
+            .builder
+            .build_int_add(size, size_padding_remainder, "revert_size_padded");
 
     let parent_pointer_return_data_size = context.builder.build_int_to_ptr(
         context.field_const(
