@@ -458,6 +458,10 @@ impl FunctionCall {
                 let _arguments = self.pop_arguments::<3>(context);
                 None
             }
+            Name::LoadImmutable => {
+                let _arguments = self.pop_arguments::<1>(context);
+                context::get(context, compiler_common::ContextValue::Address)
+            }
 
             Name::Stop => {
                 let function = context.function().to_owned();

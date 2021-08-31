@@ -152,8 +152,10 @@ pub enum Name {
     DelegateCall,
     /// identical to `call(g, a, 0, in, insize, out, outsize)` but do not allows state modifications
     StaticCall,
-    /// `setimmutable` is called in library constructors
+    /// `setimmutable` is called in libraries
     SetImmutable,
+    /// `loadimmutable` is called in libraries
+    LoadImmutable,
 
     /// size of the code of the current contract / execution context
     CodeSize,
