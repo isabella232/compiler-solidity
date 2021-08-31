@@ -24,6 +24,7 @@ use inkwell::values::BasicValue;
 
 use crate::error::Error;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
+use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
@@ -393,6 +394,26 @@ impl FunctionCall {
                     input_size,
                     output_offset,
                     output_size,
+                    Intrinsic::FarCall,
+                )
+            }
+            Name::CallCode => {
+                let arguments = self.pop_arguments::<7>(context);
+
+                let address = arguments[1].into_int_value();
+                let input_offset = arguments[3].into_int_value();
+                let input_size = arguments[4].into_int_value();
+                let output_offset = arguments[5].into_int_value();
+                let output_size = arguments[6].into_int_value();
+
+                contract::call(
+                    context,
+                    address,
+                    input_offset,
+                    input_size,
+                    output_offset,
+                    output_size,
+                    Intrinsic::CallCode,
                 )
             }
             Name::StaticCall => {
@@ -411,10 +432,28 @@ impl FunctionCall {
                     input_size,
                     output_offset,
                     output_size,
+                    Intrinsic::StaticCall,
                 )
             }
-            Name::CallCode => panic!("Code calls are not supported"),
-            Name::DelegateCall => panic!("Delegate calls are not supported"),
+            Name::DelegateCall => {
+                let arguments = self.pop_arguments::<6>(context);
+
+                let address = arguments[1].into_int_value();
+                let input_offset = arguments[2].into_int_value();
+                let input_size = arguments[3].into_int_value();
+                let output_offset = arguments[4].into_int_value();
+                let output_size = arguments[5].into_int_value();
+
+                contract::call(
+                    context,
+                    address,
+                    input_offset,
+                    input_size,
+                    output_offset,
+                    output_size,
+                    Intrinsic::DelegateCall,
+                )
+            }
             Name::SetImmutable => {
                 let _arguments = self.pop_arguments::<3>(context);
                 None

@@ -18,6 +18,7 @@ pub fn call<'ctx>(
     input_size: inkwell::values::IntValue<'ctx>,
     output_offset: inkwell::values::IntValue<'ctx>,
     output_size: inkwell::values::IntValue<'ctx>,
+    call_type: Intrinsic,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     if let Target::x86 = context.target {
         return Some(context.field_const(0).as_basic_value_enum());
@@ -116,7 +117,7 @@ pub fn call<'ctx>(
         "contract_call_memcpy_to_child",
     );
 
-    let intrinsic = context.get_intrinsic_function(Intrinsic::FarCall);
+    let intrinsic = context.get_intrinsic_function(call_type);
     let address = context.builder.build_left_shift(
         address,
         context.field_const((compiler_common::bitlength::BYTE * 4) as u64),
@@ -125,7 +126,7 @@ pub fn call<'ctx>(
     context.build_call(
         intrinsic,
         &[address.as_basic_value_enum()],
-        "contract_call_far",
+        "contract_call_external",
     );
     context.check_exception();
 

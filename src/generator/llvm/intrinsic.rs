@@ -24,8 +24,14 @@ pub enum Intrinsic {
     SwitchContext,
     /// The contract context getter.
     GetFromContext,
-    /// The another contract function call.
+    /// The external contract call.
     FarCall,
+    /// The external contract code call.
+    CallCode,
+    /// The external contract delegate call.
+    DelegateCall,
+    /// The external contract static call.
+    StaticCall,
 
     /// The hash absorbing.
     HashAbsorb,
@@ -71,6 +77,9 @@ impl Intrinsic {
             Intrinsic::SwitchContext => "llvm.syncvm.switchcontext",
             Intrinsic::GetFromContext => "llvm.syncvm.getfromcontext",
             Intrinsic::FarCall => "llvm.syncvm.farcall",
+            Intrinsic::CallCode => "llvm.syncvm.callcode",
+            Intrinsic::DelegateCall => "llvm.syncvm.delegatecall",
+            Intrinsic::StaticCall => "llvm.syncvm.staticcall",
 
             Intrinsic::HashAbsorb => "llvm.syncvm.habs",
             Intrinsic::HashAbsorbReset => "llvm.syncvm.habsr",
@@ -106,6 +115,9 @@ impl Intrinsic {
             Self::SwitchContext => vec![],
             Self::GetFromContext => vec![],
             Self::FarCall => vec![],
+            Self::CallCode => vec![],
+            Self::DelegateCall => vec![],
+            Self::StaticCall => vec![],
 
             Self::HashAbsorb => vec![],
             Self::HashAbsorbReset => vec![],
