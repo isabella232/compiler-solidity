@@ -49,9 +49,12 @@ pub fn parse_contract(input: &str, contract: Option<&str>) -> Result<Object, Err
         }
     }
 
-    objects
-        .pop()
-        .ok_or_else(|| ParserError::ObjectNotFound.into())
+    match (objects.len(), contract) {
+        (0, _) => Err(ParserError::ObjectNotFound.into()),
+        (1, None) => Ok(objects.pop().expect("Always exists")),
+        (_, None) => Err(ParserError::ObjectNotSpecified.into()),
+        (_, Some(_)) => Err(ParserError::ObjectNameMismatch.into()),
+    }
 }
 
 ///

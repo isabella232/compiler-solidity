@@ -43,12 +43,12 @@ pub fn store<'ctx>(
     }
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::StorageStore);
-    let value = arguments[0];
-    let position = arguments[1];
+    let position = arguments[0];
+    let value = arguments[1];
     let is_external_storage = context.field_const(0).as_basic_value_enum();
     context.build_call(
         intrinsic,
-        &[position, value, is_external_storage],
+        &[value, position, is_external_storage],
         "storage_store",
     );
     None

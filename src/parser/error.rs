@@ -20,6 +20,10 @@ pub enum Error {
     },
     /// No objects found in the input.
     ObjectNotFound,
+    /// If there is multiple objects, the contract name must be specified.
+    ObjectNotSpecified,
+    /// The contract is different from the specified one.
+    ObjectNameMismatch,
 }
 
 impl Error {
