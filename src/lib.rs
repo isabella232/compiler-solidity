@@ -44,16 +44,16 @@ pub fn parse_contract(input: &str, contract: Option<&str>) -> Result<Object, Err
                     return Ok(object);
                 }
             }
-        } else {
-            objects.push(object);
         }
+
+        objects.push(object);
     }
 
     match (objects.len(), contract) {
-        (0, _) => Err(ParserError::ObjectNotFound.into()),
-        (1, None) => Ok(objects.pop().expect("Always exists")),
-        (_, None) => Err(ParserError::ObjectNotSpecified.into()),
-        (_, Some(_)) => Err(ParserError::ObjectNameMismatch.into()),
+        (0, _) => Err(ParserError::ContractNotFound.into()),
+        (1, None) => Ok(objects.remove(0)),
+        (_, None) => Err(ParserError::ContractNotSpecified.into()),
+        (_, Some(_)) => Err(ParserError::ContractNotFound.into()),
     }
 }
 

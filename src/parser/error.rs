@@ -18,12 +18,10 @@ pub enum Error {
         /// The optional error hint text.
         help: Option<&'static str>,
     },
-    /// No objects found in the input.
-    ObjectNotFound,
-    /// If there is multiple objects, the contract name must be specified.
-    ObjectNotSpecified,
-    /// The contract is different from the specified one.
-    ObjectNameMismatch,
+    /// The contract cannot be found.
+    ContractNotFound,
+    /// If there is multiple contracts, the main contract name must be specified.
+    ContractNotSpecified,
 }
 
 impl Error {

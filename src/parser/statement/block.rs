@@ -283,29 +283,67 @@ impl Block {
         };
 
         let call_block = context.append_basic_block("constructor_call");
+        let check_block = context.append_basic_block("constructor_check");
         let join_block = context.append_basic_block("constructor_join");
 
-        let is_constructor_bit_set = Self::is_constructor_bit_set(context);
-        let is_executed_flag_zero = Self::is_executed_flag_unset(context);
+        let is_executed_flag = Self::is_executed_flag(context);
+        let is_executed_flag_zero = context.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            is_executed_flag,
+            context.field_const(0),
+            "is_executed_flag_zero",
+        );
+        let is_executed_flag_one = context.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            is_executed_flag,
+            context.field_const(1),
+            "is_executed_flag_one",
+        );
+        let is_constructor_call = Self::is_constructor_call(context);
+        let is_constructor_call_zero = context.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            is_constructor_call,
+            context.field_const(0),
+            "is_constructor_call_zero",
+        );
+        let is_constructor_call_one = context.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            is_constructor_call,
+            context.field_const(1),
+            "is_constructor_call_one",
+        );
+
         let constructor_call_condition = context.builder.build_and(
-            is_constructor_bit_set,
+            is_constructor_call_one,
             is_executed_flag_zero,
             "constructor_call_condition",
         );
-        context.build_conditional_branch(constructor_call_condition, call_block, join_block);
+        context.build_conditional_branch(constructor_call_condition, call_block, check_block);
 
         context.set_basic_block(call_block);
         context.build_invoke(constructor.value, &[], "constructor_call");
         Self::set_is_executed_flag(context);
         context.build_unconditional_branch(context.function().return_block);
 
+        context.set_basic_block(check_block);
+        let constructor_check_condition = context.builder.build_and(
+            is_constructor_call_zero,
+            is_executed_flag_one,
+            "constructor_check_condition",
+        );
+        context.build_conditional_branch(
+            constructor_check_condition,
+            join_block,
+            context.function().throw_block,
+        );
+
         context.set_basic_block(join_block);
     }
 
     ///
-    /// Return the condition whether the constructor bit is zero.
+    /// Returns the constructor call flag.
     ///
-    fn is_constructor_bit_set<'ctx>(
+    fn is_constructor_call<'ctx>(
         context: &mut LLVMContext<'ctx>,
     ) -> inkwell::values::IntValue<'ctx> {
         let entry_pointer = context.builder.build_int_to_ptr(
@@ -318,25 +356,17 @@ impl Block {
             "entry_pointer",
         );
         let entry_value = context.build_load(entry_pointer, "entry_value");
-        let entry_constructor_bit = context.builder.build_and(
+        context.builder.build_and(
             entry_value.into_int_value(),
             context.field_const(compiler_common::abi::CONSTRUCTOR_ENTRY_MASK as u64),
             "entry_constructor_bit",
-        );
-        context.builder.build_int_compare(
-            inkwell::IntPredicate::EQ,
-            entry_constructor_bit,
-            context.field_const(compiler_common::abi::CONSTRUCTOR_ENTRY_MASK as u64),
-            "entry_constructor_bit_is_set",
         )
     }
 
     ///
-    /// Return the condition whether the executed flag is unset.
+    /// Returns the constructor having executed flag.
     ///
-    fn is_executed_flag_unset<'ctx>(
-        context: &mut LLVMContext<'ctx>,
-    ) -> inkwell::values::IntValue<'ctx> {
+    fn is_executed_flag<'ctx>(context: &mut LLVMContext<'ctx>) -> inkwell::values::IntValue<'ctx> {
         let storage_key_string = compiler_common::hashes::keccak256(
             compiler_common::abi::CONSTRUCTOR_EXECUTED_FLAG_KEY_PREIMAGE,
         );
@@ -349,7 +379,7 @@ impl Block {
             .expect("Always valid");
 
         let intrinsic = context.get_intrinsic_function(Intrinsic::StorageLoad);
-        let is_executed_flag = context
+        context
             .build_call(
                 intrinsic,
                 &[
@@ -358,13 +388,8 @@ impl Block {
                 ],
                 "is_executed_flag_load",
             )
-            .expect("Contract storage always returns a value");
-        context.builder.build_int_compare(
-            inkwell::IntPredicate::EQ,
-            is_executed_flag.into_int_value(),
-            context.field_const(0),
-            "is_executed_flag_is_zero_condition",
-        )
+            .expect("Contract storage always returns a value")
+            .into_int_value()
     }
 
     ///
