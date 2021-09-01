@@ -652,14 +652,17 @@ impl<'ctx> Context<'ctx> {
     ///
     /// Performs the lesser-than flag checking and exception throwing if it is set.
     ///
-    /// The sequence must appear after each external contract call.
+    /// The sequence must appear after each external contract call. The exceptions from external
+    /// calls are copied from the child memory to the parent memory.
     ///
     pub fn check_exception(&self) {
         if !matches!(self.target, Target::zkEVM) {
             return;
         }
 
-        let join_block = self.append_basic_block("join");
+        let join_block = self.append_basic_block("exception_join_block");
+        let error_block = self.append_basic_block("exception_error_block");
+
         let intrinsic = self.get_intrinsic_function(Intrinsic::LesserFlag);
         let overflow_flag = self
             .build_call(intrinsic, &[], "")
@@ -670,8 +673,114 @@ impl<'ctx> Context<'ctx> {
             self.integer_type(compiler_common::bitlength::BOOLEAN),
             "",
         );
-        self.build_conditional_branch(overflow_flag, self.function().throw_block, join_block);
+        self.build_conditional_branch(overflow_flag, error_block, join_block);
+
+        self.set_basic_block(error_block);
+        let child_return_data_size_pointer = self.builder.build_int_to_ptr(
+            self.field_const(
+                (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD)
+                    as u64,
+            ),
+            self.field_type()
+                .ptr_type(compiler_common::AddressSpace::Child.into()),
+            "exception_child_return_data_size_pointer",
+        );
+        let parent_return_data_size_pointer = self.builder.build_int_to_ptr(
+            self.field_const(
+                (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD)
+                    as u64,
+            ),
+            self.field_type()
+                .ptr_type(compiler_common::AddressSpace::Parent.into()),
+            "exception_parent_return_data_size_pointer",
+        );
+        let child_return_data_pointer = self.builder.build_int_to_ptr(
+            self.field_const(
+                (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD)
+                    as u64,
+            ),
+            self.field_type()
+                .ptr_type(compiler_common::AddressSpace::Child.into()),
+            "exception_child_return_data_pointer",
+        );
+        let parent_return_data_pointer = self.builder.build_int_to_ptr(
+            self.field_const(
+                (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD)
+                    as u64,
+            ),
+            self.field_type()
+                .ptr_type(compiler_common::AddressSpace::Parent.into()),
+            "exception_parent_return_data_pointer",
+        );
+
+        let return_data_size =
+            self.build_load(child_return_data_size_pointer, "exception_return_data_size");
+        let return_data_size_bytes = self.builder.build_int_unsigned_div(
+            return_data_size.into_int_value(),
+            self.field_const(compiler_common::size::FIELD as u64),
+            "return_data_size_bytes",
+        );
+        self.build_store(parent_return_data_size_pointer, return_data_size);
+
+        let intrinsic = self.get_intrinsic_function(Intrinsic::MemoryCopyFromChildToParent);
+        self.build_call(
+            intrinsic,
+            &[
+                parent_return_data_pointer.as_basic_value_enum(),
+                child_return_data_pointer.as_basic_value_enum(),
+                return_data_size_bytes.as_basic_value_enum(),
+                self.integer_type(compiler_common::bitlength::BOOLEAN)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ],
+            "exception_memcpy_from_child_to_parent",
+        );
+
+        self.build_unconditional_branch(self.function().throw_block);
+
         self.set_basic_block(join_block);
+    }
+
+    ///
+    /// Writes the error data to the parent memory.
+    ///
+    pub fn write_error(&self, message: &'static str) {
+        let parent_return_data_size_pointer = self.builder.build_int_to_ptr(
+            self.field_const(
+                (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD)
+                    as u64,
+            ),
+            self.field_type()
+                .ptr_type(compiler_common::AddressSpace::Parent.into()),
+            "parent_return_data_size_pointer",
+        );
+        self.build_store(parent_return_data_size_pointer, self.field_const(1));
+
+        let error_hash = compiler_common::hashes::keccak256(message);
+        let error_code = self
+            .field_type()
+            .const_int_from_string(
+                error_hash.as_str(),
+                inkwell::types::StringRadix::Hexadecimal,
+            )
+            .expect("Always valid");
+        let error_code_shifted = self.builder.build_left_shift(
+            error_code,
+            self.field_const(
+                (compiler_common::bitlength::BYTE * (compiler_common::size::FIELD - 4)) as u64,
+            ),
+            "error_code_shifted",
+        );
+        let parent_error_code_pointer = self.builder.build_int_to_ptr(
+            self.field_const(
+                (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD)
+                    as u64,
+            ),
+            self.field_type()
+                .ptr_type(compiler_common::AddressSpace::Parent.into()),
+            "parent_error_code_pointer",
+        );
+        self.build_store(parent_error_code_pointer, error_code_shifted);
     }
 
     ///

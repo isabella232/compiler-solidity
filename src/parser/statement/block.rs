@@ -282,10 +282,6 @@ impl Block {
             None => return,
         };
 
-        let call_block = context.append_basic_block("constructor_call");
-        let check_block = context.append_basic_block("constructor_check");
-        let join_block = context.append_basic_block("constructor_join");
-
         let is_executed_flag = Self::is_executed_flag(context);
         let is_executed_flag_zero = context.builder.build_int_compare(
             inkwell::IntPredicate::EQ,
@@ -312,30 +308,61 @@ impl Block {
             context.field_const(1),
             "is_constructor_call_one",
         );
-
-        let constructor_call_condition = context.builder.build_and(
+        let is_error_double_constructor_call = context.builder.build_and(
+            is_constructor_call_one,
+            is_executed_flag_one,
+            "is_error_double_constructor_call",
+        );
+        let is_error_expected_constructor_call = context.builder.build_and(
+            is_constructor_call_zero,
+            is_executed_flag_zero,
+            "is_error_expected_constructor_call",
+        );
+        let is_constructor_call = context.builder.build_and(
             is_constructor_call_one,
             is_executed_flag_zero,
-            "constructor_call_condition",
+            "is_constructor_call",
         );
-        context.build_conditional_branch(constructor_call_condition, call_block, check_block);
 
-        context.set_basic_block(call_block);
+        let double_constructor_call_block =
+            context.append_basic_block("error_double_constructor_call_block");
+        let expected_constructor_call_check_block =
+            context.append_basic_block("expected_constructor_call_check_block");
+        let expected_constructor_call_block =
+            context.append_basic_block("error_expected_constructor_call_block");
+        let constructor_call_check_block =
+            context.append_basic_block("constructor_call_check_block");
+        let constructor_call_block = context.append_basic_block("constructor_call_block");
+        let join_block = context.append_basic_block("join_block");
+
+        context.build_conditional_branch(
+            is_error_double_constructor_call,
+            double_constructor_call_block,
+            expected_constructor_call_check_block,
+        );
+
+        context.set_basic_block(double_constructor_call_block);
+        context.write_error(compiler_common::abi::ERROR_DOUBLE_CONSTRUCTOR_CALL);
+        context.build_unconditional_branch(context.function().throw_block);
+
+        context.set_basic_block(expected_constructor_call_check_block);
+        context.build_conditional_branch(
+            is_error_expected_constructor_call,
+            expected_constructor_call_block,
+            constructor_call_check_block,
+        );
+
+        context.set_basic_block(expected_constructor_call_block);
+        context.write_error(compiler_common::abi::ERROR_EXPECTED_CONSTRUCTOR_CALL);
+        context.build_unconditional_branch(context.function().throw_block);
+
+        context.set_basic_block(constructor_call_check_block);
+        context.build_conditional_branch(is_constructor_call, constructor_call_block, join_block);
+
+        context.set_basic_block(constructor_call_block);
         context.build_invoke(constructor.value, &[], "constructor_call");
         Self::set_is_executed_flag(context);
         context.build_unconditional_branch(context.function().return_block);
-
-        context.set_basic_block(check_block);
-        let constructor_check_condition = context.builder.build_and(
-            is_constructor_call_zero,
-            is_executed_flag_one,
-            "constructor_check_condition",
-        );
-        context.build_conditional_branch(
-            constructor_check_condition,
-            join_block,
-            context.function().throw_block,
-        );
 
         context.set_basic_block(join_block);
     }

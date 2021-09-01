@@ -50,6 +50,8 @@ pub enum Intrinsic {
     MemoryCopyFromChild,
     /// The memory copy to child.
     MemoryCopyToChild,
+    /// The memory copy from child to parent.
+    MemoryCopyFromChildToParent,
     /// The memory move.
     MemoryMove,
     /// The memory set.
@@ -90,6 +92,7 @@ impl Intrinsic {
             Intrinsic::MemoryCopyToParent => "llvm.memcpy",
             Intrinsic::MemoryCopyFromChild => "llvm.memcpy",
             Intrinsic::MemoryCopyToChild => "llvm.memcpy",
+            Intrinsic::MemoryCopyFromChildToParent => "llvm.memcpy",
             Intrinsic::MemoryMove => "llvm.memmov",
             Intrinsic::MemorySet => "llvm.memset",
 
@@ -175,6 +178,17 @@ impl Intrinsic {
                 context
                     .field_type()
                     .ptr_type(compiler_common::AddressSpace::Heap.into())
+                    .as_basic_type_enum(),
+                context.field_type().as_basic_type_enum(),
+            ],
+            Self::MemoryCopyFromChildToParent => vec![
+                context
+                    .field_type()
+                    .ptr_type(compiler_common::AddressSpace::Parent.into())
+                    .as_basic_type_enum(),
+                context
+                    .field_type()
+                    .ptr_type(compiler_common::AddressSpace::Child.into())
                     .as_basic_type_enum(),
                 context.field_type().as_basic_type_enum(),
             ],

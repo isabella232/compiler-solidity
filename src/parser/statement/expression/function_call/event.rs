@@ -35,10 +35,11 @@ pub fn log<'ctx>(
             .build_int_add(topics_length, data_length_shifted, "event_initializer");
     let is_topics_length_odd = topics.len() % 2 == 0;
 
-    let range_start_pointer =
-        context.build_alloca(context.field_type(), "event_range_start_pointer");
-    let length_pointer = context.build_alloca(context.field_type(), "event_length_pointer");
-    if is_topics_length_odd {
+    let (range_start, length) = if is_topics_length_odd {
+        let range_start_pointer =
+            context.build_alloca(context.field_type(), "event_range_start_pointer");
+        let length_pointer = context.build_alloca(context.field_type(), "event_length_pointer");
+
         let data_not_empty_block = context.append_basic_block("event_data_not_empty");
         let data_empty_block = context.append_basic_block("event_data_empty");
         let join_block = context.append_basic_block("event_data_join");
@@ -124,6 +125,13 @@ pub fn log<'ctx>(
         context.build_unconditional_branch(join_block);
 
         context.set_basic_block(join_block);
+        let range_start = context
+            .build_load(range_start_pointer, "event_range_start_joined")
+            .into_int_value();
+        let length = context
+            .build_load(length_pointer, "event_length_joined")
+            .into_int_value();
+        (range_start, length)
     } else {
         context.build_call(
             intrinsic,
@@ -145,14 +153,8 @@ pub fn log<'ctx>(
                 "event_call_with_two_topics",
             );
         }
-    }
-
-    let range_start = context
-        .build_load(range_start_pointer, "event_range_start_joined")
-        .into_int_value();
-    let length = context
-        .build_load(length_pointer, "event_length_joined")
-        .into_int_value();
+        (range_start, length)
+    };
 
     let condition_block = context.append_basic_block("event_loop_condition");
     let body_block = context.append_basic_block("event_loop_body");
