@@ -80,8 +80,8 @@ dependencies = [
 
 [[package]]
 name = "compiler-common"
-version = "0.3.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-common#09511c316967c23726c27fff53913ddd871e4928"
+version = "1.0.0"
+source = "git+ssh://git@github.com/matter-labs/compiler-common#5500ff2c2a1a47b155f79a82516632bed2539d8e"
 dependencies = [
  "inkwell",
  "sha3",
@@ -537,9 +537,9 @@ dependencies = [
 
 [[package]]
 name = "typenum"
-version = "1.13.0"
+version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "879f6906492a7cd215bfa4cf595b600146ccfac0c79bcbd1f3000162af5e8b06"
+checksum = "b63708a265f51345575b27fe43f9500ad611579e764c79edbc2037b1121959ec"
 
 [[package]]
 name = "ucd-trie"

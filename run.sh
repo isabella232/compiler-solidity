@@ -2,7 +2,7 @@
 
 set -Cex
 
-# Logging level: 'error' | 'warn' | 'info' | 'debug' | 'trace'
+# Logging level: 'error' | 'warn' | 'info' | 'debug' | 'trace' (default is 'warn')
 case "${1}" in
     info)
         export CARGO_LOG_LEVEL="--verbose"
@@ -17,19 +17,16 @@ case "${1}" in
         ;;
 esac
 
-# Target build: 'debug' | 'release'
+# Target build: 'debug' | 'release' (default is 'release')
 case "${2}" in
-    release)
+    debug)
+        export LLVM_SYS_110_PREFIX="${HOME}/opt/llvm-debug/"
+        ;;
+    *)
         export RELEASE_FLAG="--release"
         export LLVM_SYS_110_PREFIX="${HOME}/opt/llvm-release/"
         ;;
-    *)
-        export LLVM_SYS_110_PREFIX="${HOME}/opt/llvm-debug/"
-        ;;
 esac
-
-# Prevents the stack overflow when running some unit tests
-export RUST_MIN_STACK=$(( 64 * 1024 * 1024 ))
 
 cargo fmt --all
 cargo clippy
