@@ -712,12 +712,12 @@ impl<'ctx> Context<'ctx> {
 
         let return_data_size =
             self.build_load(child_return_data_size_pointer, "exception_return_data_size");
-        let return_data_size_bytes = self.builder.build_int_unsigned_div(
+        self.build_store(parent_return_data_size_pointer, return_data_size);
+        let return_data_size_bytes = self.builder.build_int_mul(
             return_data_size.into_int_value(),
             self.field_const(compiler_common::size::FIELD as u64),
-            "return_data_size_bytes",
+            "exception_return_data_size_bytes",
         );
-        self.build_store(parent_return_data_size_pointer, return_data_size);
 
         let intrinsic = self.get_intrinsic_function(Intrinsic::MemoryCopyFromChildToParent);
         self.build_call(

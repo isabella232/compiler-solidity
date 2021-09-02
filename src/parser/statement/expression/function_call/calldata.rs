@@ -129,22 +129,22 @@ pub fn copy<'ctx>(
             let calldata_size = context
                 .build_load(pointer, "calldata_size_value_cells")
                 .into_int_value();
-            let calldata_size = context.builder.build_int_mul(
-                calldata_size,
-                context.field_const(compiler_common::size::FIELD as u64),
-                "calldata_size_value_bytes",
-            );
 
-            let range_end = context.builder.build_int_sub(
+            let range_end_bytes = context.builder.build_int_add(
                 arguments[1].into_int_value(),
-                context.field_const(4),
+                arguments[2].into_int_value(),
+                "calldata_range_end_bytes",
+            );
+            let range_end = context.builder.build_int_unsigned_div(
+                range_end_bytes,
+                context.field_const(compiler_common::size::FIELD as u64),
                 "calldata_range_end",
             );
 
             context.builder.build_int_compare(
-                inkwell::IntPredicate::UGT,
-                range_end,
+                inkwell::IntPredicate::UGE,
                 calldata_size,
+                range_end,
                 "calldata_is_available",
             )
         }
@@ -152,8 +152,28 @@ pub fn copy<'ctx>(
     context.build_conditional_branch(is_calldata_available, copy_block, zero_block);
 
     context.set_basic_block(copy_block);
-    let destination = context.builder.build_int_to_ptr(
+    let offset_remainder = context.builder.build_int_unsigned_rem(
         arguments[0].into_int_value(),
+        context.field_const(compiler_common::size::FIELD as u64),
+        "calldata_copy_destination_offset_remainder",
+    );
+    let offset_adjustment = context.builder.build_int_sub(
+        context.field_const(compiler_common::size::FIELD as u64),
+        offset_remainder,
+        "calldata_copy_destination_offset_adjustment",
+    );
+    let offset_adjustment_remainder = context.builder.build_int_unsigned_rem(
+        offset_adjustment,
+        context.field_const(compiler_common::size::FIELD as u64),
+        "calldata_copy_destination_adjustment_remainder",
+    );
+    let offset_adjusted = context.builder.build_int_add(
+        arguments[0].into_int_value(),
+        offset_adjustment_remainder,
+        "calldata_copy_destination_offset_adjusted",
+    );
+    let destination = context.builder.build_int_to_ptr(
+        offset_adjusted,
         context
             .field_type()
             .ptr_type(compiler_common::AddressSpace::Heap.into()),
