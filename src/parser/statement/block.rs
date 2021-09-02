@@ -226,10 +226,6 @@ impl Block {
                     .as_basic_value_enum();
                 context.build_return(Some(&return_value));
             }
-            Target::zkEVM if context.test_entry_hash.is_some() => {
-                let return_value = context.build_load(return_pointer, "return_value");
-                context.build_return(Some(&return_value));
-            }
             Target::zkEVM => {
                 context.build_return(None);
             }
@@ -241,7 +237,7 @@ impl Block {
     }
 
     ///
-    /// Translates a function or ordinar block into LLVM.
+    /// Translates a function or ordinary block into LLVM.
     ///
     pub fn into_llvm_local(self, context: &mut LLVMContext) {
         for statement in self.statements.into_iter() {

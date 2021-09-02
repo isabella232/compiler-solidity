@@ -15,21 +15,6 @@ pub fn load<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if let Some(ref test_entry_hash) = context.test_entry_hash {
-        let hash = context
-            .field_type()
-            .const_int_from_string(test_entry_hash, inkwell::types::StringRadix::Hexadecimal)
-            .expect("Always valid");
-        let hash = context.builder.build_left_shift(
-            hash,
-            context.field_const(
-                ((compiler_common::size::FIELD - 4) * compiler_common::bitlength::BYTE) as u64,
-            ),
-            "test_entry_hash_shifted",
-        );
-        return Some(hash.as_basic_value_enum());
-    }
-
     let if_zero_block = context.append_basic_block("calldata_if_zero");
     let if_non_zero_block = context.append_basic_block("calldata_if_not_zero");
     let join_block = context.append_basic_block("calldata_if_join");
@@ -80,13 +65,14 @@ pub fn load<'ctx>(
 ///
 pub fn size<'ctx>(
     context: &mut LLVMContext<'ctx>,
+    has_selector: bool,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     if let Target::x86 = context.target {
-        return Some(context.field_const(4).as_basic_value_enum());
-    }
-
-    if context.test_entry_hash.is_some() {
-        return Some(context.field_const(4).as_basic_value_enum());
+        return Some(
+            context
+                .field_const(if has_selector { 4 } else { 0 })
+                .as_basic_value_enum(),
+        );
     }
 
     let pointer = context.builder.build_int_to_ptr(
@@ -99,16 +85,18 @@ pub fn size<'ctx>(
         "calldata_size_pointer",
     );
     let value = context.build_load(pointer, "calldata_size_value_cells");
-    let value = context.builder.build_int_mul(
+    let mut value = context.builder.build_int_mul(
         value.into_int_value(),
         context.field_const(compiler_common::size::FIELD as u64),
         "calldata_size_value_bytes",
     );
-    let value = context.builder.build_int_add(
-        value,
-        context.field_const(4),
-        "calldata_size_value_bytes_with_selector",
-    );
+    if has_selector {
+        value = context.builder.build_int_add(
+            value,
+            context.field_const(4),
+            "calldata_size_value_bytes_with_selector",
+        );
+    }
     Some(value.as_basic_value_enum())
 }
 
@@ -125,9 +113,6 @@ pub fn copy<'ctx>(
 
     let is_calldata_available = match context.target {
         Target::x86 => context
-            .integer_type(compiler_common::bitlength::BOOLEAN)
-            .const_int(0, false),
-        Target::zkEVM if context.test_entry_hash.is_some() => context
             .integer_type(compiler_common::bitlength::BOOLEAN)
             .const_int(0, false),
         Target::zkEVM => {

@@ -93,9 +93,6 @@ impl ILLVMWritable for Object {
                 Target::x86 => context
                     .integer_type(compiler_common::bitlength::WORD)
                     .fn_type(&[], false),
-                Target::zkEVM if context.test_entry_hash.is_some() => {
-                    context.field_type().fn_type(&[], false)
-                }
                 Target::zkEVM => context.void_type().fn_type(&[], false),
             };
             context.add_function(
@@ -105,7 +102,7 @@ impl ILLVMWritable for Object {
                 false,
             );
 
-            if matches!(context.target, Target::zkEVM) && context.test_entry_hash.is_none() {
+            if matches!(context.target, Target::zkEVM) {
                 self.code.into_llvm_constructor(context);
             }
         } else if is_selector {

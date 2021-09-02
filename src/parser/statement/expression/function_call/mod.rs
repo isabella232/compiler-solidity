@@ -281,12 +281,12 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<1>(context);
                 calldata::load(context, arguments)
             }
-            Name::CallDataSize => calldata::size(context),
+            Name::CallDataSize => calldata::size(context, true),
             Name::CallDataCopy => {
                 let arguments = self.pop_arguments::<3>(context);
                 calldata::copy(context, arguments)
             }
-            Name::CodeSize => calldata::size(context),
+            Name::CodeSize => calldata::size(context, false),
             Name::CodeCopy => {
                 let arguments = self.pop_arguments::<3>(context);
                 calldata::codecopy(context, arguments)

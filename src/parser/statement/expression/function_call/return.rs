@@ -38,6 +38,8 @@ pub fn r#return<'ctx>(
         return None;
     }
 
+    let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
+
     let source = context.builder.build_int_to_ptr(
         arguments[0].into_int_value(),
         context
@@ -45,17 +47,6 @@ pub fn r#return<'ctx>(
             .ptr_type(compiler_common::AddressSpace::Heap.into()),
         "return_source_pointer",
     );
-
-    if context.test_entry_hash.is_some() {
-        if let Some(return_pointer) = function.return_pointer() {
-            let result = context.build_load(source, "return_result");
-            context.build_store(return_pointer, result);
-        }
-        context.build_unconditional_branch(function.return_block);
-        return None;
-    }
-
-    let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
 
     let destination = context.builder.build_int_to_ptr(
         context.field_const(

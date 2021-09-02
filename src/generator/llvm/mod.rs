@@ -57,13 +57,11 @@ pub struct Context<'ctx> {
     pub is_unaligned_memory_access_supported: bool,
 
     /// The test heap representation.
-    pub heap: Option<inkwell::values::GlobalValue<'ctx>>,
+    heap: Option<inkwell::values::GlobalValue<'ctx>>,
     /// The test contract storage representation.
-    pub storage: Option<inkwell::values::GlobalValue<'ctx>>,
+    storage: Option<inkwell::values::GlobalValue<'ctx>>,
     /// The test calldata representation.
-    pub calldata: Option<inkwell::values::GlobalValue<'ctx>>,
-    /// The test entry hash.
-    pub test_entry_hash: Option<String>,
+    calldata: Option<inkwell::values::GlobalValue<'ctx>>,
 }
 
 impl<'ctx> Context<'ctx> {
@@ -166,7 +164,6 @@ impl<'ctx> Context<'ctx> {
             heap: None,
             storage: None,
             calldata: None,
-            test_entry_hash: None,
         }
     }
 
@@ -860,13 +857,6 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
-    /// The inner context reference. Only for testing.
-    ///
-    pub fn inner(&self) -> &'ctx inkwell::context::Context {
-        self.llvm
-    }
-
-    ///
     /// Returns the heap pointer with the `offset` bytes offset, optionally casted to `r#type`.
     ///
     /// Mostly for testing.
@@ -999,31 +989,5 @@ impl<'ctx> Context<'ctx> {
         let global = self.module().add_global(r#type, None, "calldata");
         global.set_initializer(&r#type.const_zero());
         self.calldata = Some(global);
-    }
-
-    ///
-    /// Sets the test entry hash, extracted using the `solc` compiler.
-    ///
-    /// Only for testing.
-    ///
-    pub fn set_test_entry_hash(&mut self, hash: String) {
-        self.test_entry_hash = Some(hash);
-    }
-
-    ///
-    /// Marks all functions except the specified `entry` with private linkage.
-    ///
-    /// Only for testing.
-    ///
-    pub fn set_test_linkage(&mut self, entry: &str) {
-        for (_type_id, function) in self.functions.iter_mut() {
-            function
-                .value
-                .set_linkage(if function.name.as_str() == entry {
-                    inkwell::module::Linkage::External
-                } else {
-                    inkwell::module::Linkage::Private
-                });
-        }
     }
 }
