@@ -62,7 +62,7 @@ pub fn call<'ctx>(
         ),
     );
 
-    let entry_data_pointer = context.access_heap(input_offset, None);
+    let entry_data_pointer = context.access_heap(input_offset, "contract_call_entry_data_pointer");
     let entry_data = context.build_load(entry_data_pointer, "contract_call_entry_data");
     let child_pointer_entry_data = context.builder.build_int_to_ptr(
         context.field_const(
@@ -89,13 +89,7 @@ pub fn call<'ctx>(
         context.field_const((compiler_common::size::FIELD) as u64),
         "contract_call_input_offset_adjusted",
     );
-    let source = context.builder.build_int_to_ptr(
-        input_offset_adjusted,
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Heap.into()),
-        "contract_call_child_input_source",
-    );
+    let source = context.access_heap(input_offset_adjusted, "contract_call_child_input_source");
     let input_size_adjusted = context.builder.build_int_sub(
         input_size,
         context.field_const(4),
@@ -139,13 +133,7 @@ pub fn call<'ctx>(
             .ptr_type(compiler_common::AddressSpace::Child.into()),
         "contract_call_output_source",
     );
-    let destination = context.builder.build_int_to_ptr(
-        output_offset,
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Heap.into()),
-        "contract_call_output_pointer",
-    );
+    let destination = context.access_heap(output_offset, "contract_call_output_pointer");
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyFromChild);
     context.build_call(

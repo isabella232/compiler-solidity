@@ -190,12 +190,12 @@ impl Block {
         for slot_offset in slots_to_zero.into_iter() {
             let slot_pointer = context.access_heap(
                 context.field_const((slot_offset * compiler_common::size::FIELD) as u64),
-                None,
+                format!("slot_to_zero_{}_pointer", slot_offset).as_str(),
             );
             context.build_store(slot_pointer, context.field_const(0));
         }
 
-        let return_pointer = context.build_alloca(context.field_type(), "result");
+        let return_pointer = context.build_alloca(context.field_type(), "return_pointer");
         let r#return = FunctionReturn::primitive(return_pointer);
         let function = context.update_function(r#return);
 
@@ -369,13 +369,10 @@ impl Block {
     fn is_constructor_call<'ctx>(
         context: &mut LLVMContext<'ctx>,
     ) -> inkwell::values::IntValue<'ctx> {
-        let entry_pointer = context.builder.build_int_to_ptr(
+        let entry_pointer = context.access_calldata(
             context.field_const(
                 (compiler_common::abi::OFFSET_ENTRY_DATA * compiler_common::size::FIELD) as u64,
             ),
-            context
-                .field_type()
-                .ptr_type(compiler_common::AddressSpace::Parent.into()),
             "entry_pointer",
         );
         let entry_value = context.build_load(entry_pointer, "entry_value");

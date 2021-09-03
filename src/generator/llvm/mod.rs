@@ -682,13 +682,11 @@ impl<'ctx> Context<'ctx> {
                 .ptr_type(compiler_common::AddressSpace::Child.into()),
             "exception_child_return_data_size_pointer",
         );
-        let parent_return_data_size_pointer = self.builder.build_int_to_ptr(
+        let parent_return_data_size_pointer = self.access_calldata(
             self.field_const(
                 (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD)
                     as u64,
             ),
-            self.field_type()
-                .ptr_type(compiler_common::AddressSpace::Parent.into()),
             "exception_parent_return_data_size_pointer",
         );
         let child_return_data_pointer = self.builder.build_int_to_ptr(
@@ -700,13 +698,11 @@ impl<'ctx> Context<'ctx> {
                 .ptr_type(compiler_common::AddressSpace::Child.into()),
             "exception_child_return_data_pointer",
         );
-        let parent_return_data_pointer = self.builder.build_int_to_ptr(
+        let parent_return_data_pointer = self.access_calldata(
             self.field_const(
                 (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD)
                     as u64,
             ),
-            self.field_type()
-                .ptr_type(compiler_common::AddressSpace::Parent.into()),
             "exception_parent_return_data_pointer",
         );
 
@@ -742,13 +738,11 @@ impl<'ctx> Context<'ctx> {
     /// Writes the error data to the parent memory.
     ///
     pub fn write_error(&self, message: &'static str) {
-        let parent_return_data_size_pointer = self.builder.build_int_to_ptr(
+        let parent_return_data_size_pointer = self.access_calldata(
             self.field_const(
                 (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD)
                     as u64,
             ),
-            self.field_type()
-                .ptr_type(compiler_common::AddressSpace::Parent.into()),
             "parent_return_data_size_pointer",
         );
         self.build_store(parent_return_data_size_pointer, self.field_const(1));
@@ -768,13 +762,11 @@ impl<'ctx> Context<'ctx> {
             ),
             "error_code_shifted",
         );
-        let parent_error_code_pointer = self.builder.build_int_to_ptr(
+        let parent_error_code_pointer = self.access_calldata(
             self.field_const(
                 (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD)
                     as u64,
             ),
-            self.field_type()
-                .ptr_type(compiler_common::AddressSpace::Parent.into()),
             "parent_error_code_pointer",
         );
         self.build_store(parent_error_code_pointer, error_code_shifted);
@@ -857,6 +849,37 @@ impl<'ctx> Context<'ctx> {
     }
 
     ///
+    /// Adjusts the specified offset to the beginning of the next 32-byte cell.
+    ///
+    pub fn adjust_offset(
+        &self,
+        initial: inkwell::values::IntValue<'ctx>,
+        name: &str,
+    ) -> inkwell::values::IntValue<'ctx> {
+        let remainder = self.builder.build_int_unsigned_rem(
+            initial,
+            self.field_const(compiler_common::size::FIELD as u64),
+            format!("{}_remainder", name).as_str(),
+        );
+        let adjustment = self.builder.build_int_sub(
+            self.field_const(compiler_common::size::FIELD as u64),
+            remainder,
+            format!("{}_adjustment", name).as_str(),
+        );
+        let adjustment_remainder = self.builder.build_int_unsigned_rem(
+            adjustment,
+            self.field_const(compiler_common::size::FIELD as u64),
+            format!("{}_adjustment_remainder", name).as_str(),
+        );
+        let adjusted = self.builder.build_int_add(
+            initial,
+            adjustment_remainder,
+            format!("{}_adjusted", name).as_str(),
+        );
+        adjusted
+    }
+
+    ///
     /// Returns the heap pointer with the `offset` bytes offset, optionally casted to `r#type`.
     ///
     /// Mostly for testing.
@@ -864,29 +887,31 @@ impl<'ctx> Context<'ctx> {
     pub fn access_heap(
         &self,
         offset: inkwell::values::IntValue<'ctx>,
-        r#type: Option<inkwell::types::IntType<'ctx>>,
+        name: &str,
     ) -> inkwell::values::PointerValue<'ctx> {
         match self.target {
             Target::x86 => {
                 let pointer = self.heap.expect("Always exists").as_pointer_value();
-                let indexes = vec![self.field_const(0), offset];
-                let pointer = unsafe {
-                    self.builder
-                        .build_gep(pointer, indexes.as_slice(), "heap_array")
-                };
-                let r#type = r#type.unwrap_or_else(|| self.field_type());
                 let pointer = self.builder.build_pointer_cast(
                     pointer,
-                    r#type.ptr_type(compiler_common::AddressSpace::Stack.into()),
-                    "heap_pointer",
+                    self.field_type()
+                        .ptr_type(compiler_common::AddressSpace::Heap.into()),
+                    format!("{}_casted", name).as_str(),
                 );
+                let pointer = unsafe {
+                    self.builder.build_gep(
+                        pointer,
+                        &[self.field_const(0), offset],
+                        format!("{}_shifted", name).as_str(),
+                    )
+                };
                 pointer
             }
             Target::zkEVM => self.builder.build_int_to_ptr(
                 offset,
                 self.field_type()
                     .ptr_type(compiler_common::AddressSpace::Heap.into()),
-                "heap_pointer",
+                name,
             ),
         }
     }
@@ -899,12 +924,16 @@ impl<'ctx> Context<'ctx> {
     pub fn access_storage(
         &self,
         offset: inkwell::values::IntValue<'ctx>,
+        name: &str,
     ) -> inkwell::values::PointerValue<'ctx> {
         let pointer = self.storage.expect("Always exists").as_pointer_value();
         let indexes = vec![self.field_const(0), offset];
         let pointer = unsafe {
-            self.builder
-                .build_gep(pointer, indexes.as_slice(), "storage_pointer")
+            self.builder.build_gep(
+                pointer,
+                indexes.as_slice(),
+                format!("{}_shifted", name).as_str(),
+            )
         };
         pointer
     }
@@ -915,14 +944,17 @@ impl<'ctx> Context<'ctx> {
     pub fn access_calldata(
         &self,
         offset: inkwell::values::IntValue<'ctx>,
+        name: &str,
     ) -> inkwell::values::PointerValue<'ctx> {
         match self.target {
             Target::x86 => {
                 let pointer = self.calldata.expect("Always exists").as_pointer_value();
-                let indexes = vec![self.field_const(0), offset];
                 let pointer = unsafe {
-                    self.builder
-                        .build_gep(pointer, indexes.as_slice(), "calldata")
+                    self.builder.build_gep(
+                        pointer,
+                        &[self.field_const(0), offset],
+                        format!("{}_shifted", name).as_str(),
+                    )
                 };
                 pointer
             }
@@ -930,7 +962,7 @@ impl<'ctx> Context<'ctx> {
                 offset,
                 self.field_type()
                     .ptr_type(compiler_common::AddressSpace::Parent.into()),
-                "calldata",
+                name,
             ),
         }
     }

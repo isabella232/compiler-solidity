@@ -57,7 +57,7 @@ pub fn log<'ctx>(
         );
 
         context.set_basic_block(data_not_empty_block);
-        let pointer = context.access_heap(range_start, None);
+        let pointer = context.access_heap(range_start, "event_first_value_pointer");
         let value = context.build_load(pointer, "event_first_value");
         if topics.is_empty() {
             context.build_call(
@@ -169,7 +169,9 @@ pub fn log<'ctx>(
     context.build_unconditional_branch(condition_block);
 
     context.set_basic_block(condition_block);
-    let index_value = context.build_load(index_pointer, "").into_int_value();
+    let index_value = context
+        .build_load(index_pointer, "event_loop_index_value")
+        .into_int_value();
     let condition = context.builder.build_int_compare(
         inkwell::IntPredicate::ULT,
         index_value,
@@ -209,14 +211,14 @@ pub fn log<'ctx>(
     context.build_conditional_branch(has_two_values, two_values_block, one_value_block);
 
     context.set_basic_block(two_values_block);
-    let value_1_pointer = context.access_heap(index_value, None);
+    let value_1_pointer = context.access_heap(index_value, "event_loop_value_1_pointer");
     let value_1 = context.build_load(value_1_pointer, "event_loop_value_1");
     let index_value_next = context.builder.build_int_add(
         index_value,
         context.field_const(compiler_common::size::FIELD as u64),
         "event_loop_index_value_next",
     );
-    let value_2_pointer = context.access_heap(index_value_next, None);
+    let value_2_pointer = context.access_heap(index_value_next, "event_loop_value_2_pointer");
     let value_2 = context.build_load(value_2_pointer, "event_loop_value_2");
     context.build_call(
         intrinsic,
@@ -230,7 +232,7 @@ pub fn log<'ctx>(
     context.build_unconditional_branch(increment_block);
 
     context.set_basic_block(one_value_block);
-    let value_1_pointer = context.access_heap(index_value, None);
+    let value_1_pointer = context.access_heap(index_value, "event_loop_value_1_pointer");
     let value_1 = context.build_load(value_1_pointer, "event_loop_value_1");
     context.build_call(
         intrinsic,

@@ -16,7 +16,7 @@ pub fn load<'ctx>(
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     if let Target::x86 = context.target {
-        let pointer = context.access_storage(arguments[0].into_int_value());
+        let pointer = context.access_storage(arguments[0].into_int_value(), "storage_pointer");
         return Some(context.build_load(pointer, "storage_value"));
     }
 
@@ -37,7 +37,7 @@ pub fn store<'ctx>(
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     if let Target::x86 = context.target {
-        let pointer = context.access_storage(arguments[0].into_int_value());
+        let pointer = context.access_storage(arguments[0].into_int_value(), "storage_store");
         context.build_store(pointer, arguments[1]);
         return None;
     }

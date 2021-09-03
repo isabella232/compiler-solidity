@@ -47,11 +47,8 @@ pub fn copy<'ctx>(
         return None;
     }
 
-    let destination = context.builder.build_int_to_ptr(
+    let destination = context.access_heap(
         arguments[0].into_int_value(),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Heap.into()),
         "return_data_copy_destination_pointer",
     );
 

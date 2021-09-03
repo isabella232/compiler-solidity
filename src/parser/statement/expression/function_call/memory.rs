@@ -11,7 +11,7 @@ pub fn load<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let pointer = context.access_heap(arguments[0].into_int_value(), None);
+    let pointer = context.access_heap(arguments[0].into_int_value(), "memory_load_pointer");
     let result = context.build_load(pointer, "memory_load_result");
     Some(result)
 }
@@ -23,27 +23,8 @@ pub fn store<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let offset_remainder = context.builder.build_int_unsigned_rem(
-        arguments[0].into_int_value(),
-        context.field_const(compiler_common::size::FIELD as u64),
-        "memory_store_offset_remainder",
-    );
-    let offset_adjustment = context.builder.build_int_sub(
-        context.field_const(compiler_common::size::FIELD as u64),
-        offset_remainder,
-        "memory_store_offset_adjustment",
-    );
-    let offset_adjustment_remainder = context.builder.build_int_unsigned_rem(
-        offset_adjustment,
-        context.field_const(compiler_common::size::FIELD as u64),
-        "memory_store_offset_adjustment_remainder",
-    );
-    let offset_adjusted = context.builder.build_int_add(
-        arguments[0].into_int_value(),
-        offset_adjustment_remainder,
-        "memory_store_offset_adjusted",
-    );
-    let pointer = context.access_heap(offset_adjusted, None);
+    let offset = context.adjust_offset(arguments[0].into_int_value(), "memory_store_offset");
+    let pointer = context.access_heap(offset, "memory_store_pointer");
     context.build_store(pointer, arguments[1]);
 
     None
@@ -72,7 +53,7 @@ pub fn store_byte<'ctx>(
         "memory_store_byte_offset",
     );
 
-    let pointer = context.access_heap(offset, None);
+    let pointer = context.access_heap(offset, "original_value_pointer");
 
     let original_value = context
         .build_load(pointer, "original_value")

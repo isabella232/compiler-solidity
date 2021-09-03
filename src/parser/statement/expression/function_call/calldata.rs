@@ -33,7 +33,7 @@ pub fn load<'ctx>(
     let offset = context.field_const(
         (compiler_common::abi::OFFSET_ENTRY_DATA * compiler_common::size::FIELD) as u64,
     );
-    let pointer = context.access_calldata(offset);
+    let pointer = context.access_calldata(offset, "hash_pointer");
     let value = context.build_load(pointer, "calldata_entry_hash_value");
     context.build_store(value_pointer, value);
     context.build_unconditional_branch(join_block);
@@ -50,7 +50,7 @@ pub fn load<'ctx>(
             "calldata_value_offset",
         ),
     };
-    let pointer = context.access_calldata(offset);
+    let pointer = context.access_calldata(offset, "pointer_non_zero");
     let value = context.build_load(pointer, "calldata_value_non_zero");
     context.build_store(value_pointer, value);
     context.build_unconditional_branch(join_block);
@@ -75,13 +75,10 @@ pub fn size<'ctx>(
         );
     }
 
-    let pointer = context.builder.build_int_to_ptr(
+    let pointer = context.access_calldata(
         context.field_const(
             (compiler_common::abi::OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD) as u64,
         ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Parent.into()),
         "calldata_size_pointer",
     );
     let value = context.build_load(pointer, "calldata_size_value_cells");
@@ -116,14 +113,11 @@ pub fn copy<'ctx>(
             .integer_type(compiler_common::bitlength::BOOLEAN)
             .const_int(0, false),
         Target::zkEVM => {
-            let pointer = context.builder.build_int_to_ptr(
+            let pointer = context.access_calldata(
                 context.field_const(
                     (compiler_common::abi::OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD)
                         as u64,
                 ),
-                context
-                    .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Parent.into()),
                 "calldata_size_pointer",
             );
             let calldata_size = context
@@ -152,33 +146,11 @@ pub fn copy<'ctx>(
     context.build_conditional_branch(is_calldata_available, copy_block, zero_block);
 
     context.set_basic_block(copy_block);
-    let offset_remainder = context.builder.build_int_unsigned_rem(
+    let destination_offset = context.adjust_offset(
         arguments[0].into_int_value(),
-        context.field_const(compiler_common::size::FIELD as u64),
-        "calldata_copy_destination_offset_remainder",
+        "calldata_copy_destination_offset",
     );
-    let offset_adjustment = context.builder.build_int_sub(
-        context.field_const(compiler_common::size::FIELD as u64),
-        offset_remainder,
-        "calldata_copy_destination_offset_adjustment",
-    );
-    let offset_adjustment_remainder = context.builder.build_int_unsigned_rem(
-        offset_adjustment,
-        context.field_const(compiler_common::size::FIELD as u64),
-        "calldata_copy_destination_adjustment_remainder",
-    );
-    let offset_adjusted = context.builder.build_int_add(
-        arguments[0].into_int_value(),
-        offset_adjustment_remainder,
-        "calldata_copy_destination_offset_adjusted",
-    );
-    let destination = context.builder.build_int_to_ptr(
-        offset_adjusted,
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Heap.into()),
-        "calldata_copy_destination_pointer",
-    );
+    let destination = context.access_heap(destination_offset, "calldata_copy_destination_pointer");
 
     let source_offset_shift =
         compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD - 4;
@@ -187,13 +159,7 @@ pub fn copy<'ctx>(
         context.field_const(source_offset_shift as u64),
         "calldata_copy_source_offset",
     );
-    let source = context.builder.build_int_to_ptr(
-        source_offset,
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Parent.into()),
-        "calldata_copy_source_pointer",
-    );
+    let source = context.access_calldata(source_offset, "calldata_copy_source_pointer");
 
     let size = arguments[2].into_int_value();
 
@@ -264,7 +230,7 @@ pub fn copy<'ctx>(
     let index_value = context
         .build_load(index_pointer, "calldata_copy_zero_loop_index_value_body")
         .into_int_value();
-    let pointer = context.access_heap(index_value, None);
+    let pointer = context.access_heap(index_value, "calldata_copy_zero_pointer_body");
     context.build_store(pointer, context.field_const(0));
     context.build_unconditional_branch(increment_block);
 
@@ -279,21 +245,15 @@ pub fn codecopy<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let destination = context.builder.build_int_to_ptr(
+    let destination = context.access_heap(
         arguments[0].into_int_value(),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Heap.into()),
         "calldata_codecopy_destination_pointer",
     );
 
-    let source = context.builder.build_int_to_ptr(
+    let source = context.access_calldata(
         context.field_const(
             (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
         ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Parent.into()),
         "calldata_codecopy_source_pointer",
     );
 

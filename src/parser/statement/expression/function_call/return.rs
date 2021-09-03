@@ -20,7 +20,8 @@ pub fn r#return<'ctx>(
     if let Target::x86 = context.target {
         let source = context.access_heap(
             arguments[0].into_int_value(),
-            Some(context.integer_type(compiler_common::bitlength::BYTE)),
+            "return_source_pointer",
+            //Some(context.integer_type(compiler_common::bitlength::BYTE)),
         );
         if let Some(return_pointer) = function.return_pointer() {
             context
@@ -40,33 +41,21 @@ pub fn r#return<'ctx>(
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
 
-    let source = context.builder.build_int_to_ptr(
-        arguments[0].into_int_value(),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Heap.into()),
-        "return_source_pointer",
-    );
+    let source = context.access_heap(arguments[0].into_int_value(), "return_source_pointer");
 
-    let destination = context.builder.build_int_to_ptr(
+    let destination = context.access_calldata(
         context.field_const(
             (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
         ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Parent.into()),
         "return_destination_pointer",
     );
 
     let size = arguments[1].into_int_value();
 
-    let parent_pointer_return_data_size = context.builder.build_int_to_ptr(
+    let parent_pointer_return_data_size = context.access_calldata(
         context.field_const(
             (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD) as u64,
         ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Parent.into()),
         "return_destination_size_pointer",
     );
     context.build_store(
@@ -111,58 +100,27 @@ pub fn revert<'ctx>(
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
 
-    let source = context.builder.build_int_to_ptr(
-        arguments[0].into_int_value(),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Heap.into()),
-        "revert_source_pointer",
-    );
+    let source = context.access_heap(arguments[0].into_int_value(), "revert_source_pointer");
 
-    let destination = context.builder.build_int_to_ptr(
+    let destination = context.access_calldata(
         context.field_const(
             (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
         ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Parent.into()),
         "revert_destination_pointer",
     );
 
-    let size = arguments[1].into_int_value();
-    let size_remainder = context.builder.build_int_unsigned_rem(
-        size,
-        context.field_const(compiler_common::size::FIELD as u64),
-        "revert_size_remainder",
-    );
-    let size_padding = context.builder.build_int_sub(
-        context.field_const(compiler_common::size::FIELD as u64),
-        size_remainder,
-        "revert_size_padding",
-    );
-    let size_padding_remainder = context.builder.build_int_unsigned_rem(
-        size_padding,
-        context.field_const(compiler_common::size::FIELD as u64),
-        "revert_size_padding_remainder",
-    );
-    let size_padded =
-        context
-            .builder
-            .build_int_add(size, size_padding_remainder, "revert_size_padded");
+    let size = context.adjust_offset(arguments[1].into_int_value(), "revert_size");
 
-    let parent_pointer_return_data_size = context.builder.build_int_to_ptr(
+    let parent_pointer_return_data_size = context.access_calldata(
         context.field_const(
             (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD) as u64,
         ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Parent.into()),
         "revert_parent_pointer_return_data_size",
     );
     context.build_store(
         parent_pointer_return_data_size,
         context.builder.build_int_unsigned_div(
-            size_padded,
+            size,
             context.field_const(compiler_common::size::FIELD as u64),
             "revert_parent_return_data_size_cells",
         ),
@@ -173,7 +131,7 @@ pub fn revert<'ctx>(
         &[
             destination.as_basic_value_enum(),
             source.as_basic_value_enum(),
-            size_padded.as_basic_value_enum(),
+            size.as_basic_value_enum(),
             context
                 .integer_type(compiler_common::bitlength::BOOLEAN)
                 .const_zero()
