@@ -267,6 +267,7 @@ impl From<&str> for Name {
             "delegatecall" => Self::DelegateCall,
             "staticcall" => Self::StaticCall,
             "setimmutable" => Self::SetImmutable,
+            "loadimmutable" => Self::LoadImmutable,
 
             "codesize" => Self::CodeSize,
             "codecopy" => Self::CodeCopy,
