@@ -2,6 +2,10 @@
 
 The compiler from YUL intermediate language to zkEVM bytecode.
 
+## Warning 
+
+**This project cannot be built. It is read-only and published only to demonstrate the workflow of LLVM IR generation.**
+
 ## Usage
 
 ```
