@@ -454,14 +454,6 @@ impl FunctionCall {
                     Intrinsic::DelegateCall,
                 )
             }
-            Name::SetImmutable => {
-                let _arguments = self.pop_arguments::<3>(context);
-                None
-            }
-            Name::LoadImmutable => {
-                let _arguments = self.pop_arguments::<1>(context);
-                context::get(context, compiler_common::ContextValue::Address)
-            }
 
             Name::Stop => {
                 let function = context.function().to_owned();
@@ -523,6 +515,19 @@ impl FunctionCall {
             Name::Create2 => {
                 let _arguments = self.pop_arguments::<4>(context);
                 None
+            }
+
+            Name::SetImmutable => {
+                let _arguments = self.pop_arguments::<3>(context);
+                None
+            }
+            Name::LoadImmutable => {
+                let _arguments = self.pop_arguments::<1>(context);
+                context::get(context, compiler_common::ContextValue::Address)
+            }
+            Name::LinkerSymbol => {
+                let _arguments = self.pop_arguments::<1>(context);
+                Some(context.field_const(0).as_basic_value_enum())
             }
         }
     }
