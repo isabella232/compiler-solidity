@@ -145,6 +145,21 @@ pub enum Name {
     /// end execution with invalid instruction
     Invalid,
 
+    /// create new contract with code `mem[p…(p+n))` and send `v` wei and return the new address
+    Create,
+    /// create new contract with code `mem[p…(p+n))` at address
+    /// `keccak256(0xff . this . s . keccak256(mem[p…(p+n)))` and send `v` wei and return the
+    /// new address, where `0xff` is a 1-byte value, this is the current contract’s address as a
+    /// 20-byte value and `s` is a big-endian 256-bit value
+    Create2,
+
+    /// `setimmutable` is called in library constructors
+    SetImmutable,
+    /// `loadimmutable` is called in library constructors
+    LoadImmutable,
+    /// `linkersymbol` is a metadata call
+    LinkerSymbol,
+
     /// current position in code
     Pc,
     /// wei sent together with the current call
@@ -179,20 +194,6 @@ pub enum Name {
     DataOffset,
     ///  is equivalent to `CodeCopy`
     DataCopy,
-    /// create new contract with code `mem[p…(p+n))` and send `v` wei and return the new address
-    Create,
-    /// create new contract with code `mem[p…(p+n))` at address
-    /// `keccak256(0xff . this . s . keccak256(mem[p…(p+n)))` and send `v` wei and return the
-    /// new address, where `0xff` is a 1-byte value, this is the current contract’s address as a
-    /// 20-byte value and `s` is a big-endian 256-bit value
-    Create2,
-
-    /// `setimmutable` is called in library constructors
-    SetImmutable,
-    /// `loadimmutable` is called in library constructors
-    LoadImmutable,
-    /// `linkersymbol` is a metadata call
-    LinkerSymbol,
 }
 
 impl From<&str> for Name {
@@ -203,31 +204,33 @@ impl From<&str> for Name {
             "mul" => Self::Mul,
             "div" => Self::Div,
             "mod" => Self::Mod,
-            "not" => Self::Not,
+            "sdiv" => Self::Sdiv,
+            "smod" => Self::Smod,
+
             "lt" => Self::Lt,
             "gt" => Self::Gt,
             "eq" => Self::Eq,
             "iszero" => Self::IsZero,
-            "and" => Self::And,
-            "or" => Self::Or,
-            "xor" => Self::Xor,
-            "addmod" => Self::AddMod,
-            "mulmod" => Self::MulMod,
-
-            "sdiv" => Self::Sdiv,
-            "smod" => Self::Smod,
-            "exp" => Self::Exp,
             "slt" => Self::Slt,
             "sgt" => Self::Sgt,
-            "byte" => Self::Byte,
+
+            "or" => Self::Or,
+            "xor" => Self::Xor,
+            "not" => Self::Not,
+            "and" => Self::And,
             "shl" => Self::Shl,
             "shr" => Self::Shr,
             "sar" => Self::Sar,
-            "signextend" => Self::SignExtend,
-            "keccak256" => Self::Keccak256,
-            "pc" => Self::Pc,
-
+            "byte" => Self::Byte,
             "pop" => Self::Pop,
+
+            "addmod" => Self::AddMod,
+            "mulmod" => Self::MulMod,
+            "exp" => Self::Exp,
+            "signextend" => Self::SignExtend,
+
+            "keccak256" => Self::Keccak256,
+
             "mload" => Self::MLoad,
             "mstore" => Self::MStore,
             "mstore8" => Self::MStore8,
@@ -235,30 +238,17 @@ impl From<&str> for Name {
             "sload" => Self::SLoad,
             "sstore" => Self::SStore,
 
-            "caller" => Self::Caller,
-            "callvalue" => Self::CallValue,
             "calldataload" => Self::CallDataLoad,
             "calldatasize" => Self::CallDataSize,
             "calldatacopy" => Self::CallDataCopy,
+            "codesize" => Self::CodeSize,
+            "codecopy" => Self::CodeCopy,
+            "extcodesize" => Self::ExtCodeSize,
+            "returndatasize" => Self::ReturnDataSize,
+            "returndatacopy" => Self::ReturnDataCopy,
 
-            "msize" => Self::MSize,
-            "gas" => Self::Gas,
-            "address" => Self::Address,
-            "balance" => Self::Balance,
-            "selfbalance" => Self::SelfBalance,
-
-            "chainid" => Self::ChainId,
-            "origin" => Self::Origin,
-            "gasprice" => Self::GasPrice,
-            "blockhash" => Self::BlockHash,
-            "coinbase" => Self::CoinBase,
-            "timestamp" => Self::Timestamp,
-            "number" => Self::Number,
-            "difficulty" => Self::Difficulty,
-            "gaslimit" => Self::GasLimit,
-
-            "create" => Self::Create,
-            "create2" => Self::Create2,
+            "return" => Self::Return,
+            "revert" => Self::Revert,
 
             "log0" => Self::Log0,
             "log1" => Self::Log1,
@@ -266,32 +256,45 @@ impl From<&str> for Name {
             "log3" => Self::Log3,
             "log4" => Self::Log4,
 
+            "address" => Self::Address,
+            "caller" => Self::Caller,
+            "timestamp" => Self::Timestamp,
+            "number" => Self::Number,
+            "gas" => Self::Gas,
+
             "call" => Self::Call,
             "callcode" => Self::CallCode,
             "delegatecall" => Self::DelegateCall,
             "staticcall" => Self::StaticCall,
 
-            "codesize" => Self::CodeSize,
-            "codecopy" => Self::CodeCopy,
-            "extcodesize" => Self::ExtCodeSize,
-            "extcodecopy" => Self::ExtCodeCopy,
-            "returndatasize" => Self::ReturnDataSize,
-            "returndatacopy" => Self::ReturnDataCopy,
-            "extcodehash" => Self::ExtCodeHash,
-
-            "datasize" => Self::DataSize,
-            "dataoffset" => Self::DataOffset,
-            "datacopy" => Self::DataCopy,
-
-            "return" => Self::Return,
-            "revert" => Self::Revert,
             "stop" => Self::Stop,
             "selfdestruct" => Self::SelfDestruct,
             "invalid" => Self::Invalid,
 
+            "create" => Self::Create,
+            "create2" => Self::Create2,
+
             "setimmutable" => Self::SetImmutable,
             "loadimmutable" => Self::LoadImmutable,
             "linkersymbol" => Self::LinkerSymbol,
+
+            "pc" => Self::Pc,
+            "callvalue" => Self::CallValue,
+            "msize" => Self::MSize,
+            "balance" => Self::Balance,
+            "selfbalance" => Self::SelfBalance,
+            "chainid" => Self::ChainId,
+            "origin" => Self::Origin,
+            "gasprice" => Self::GasPrice,
+            "blockhash" => Self::BlockHash,
+            "coinbase" => Self::CoinBase,
+            "difficulty" => Self::Difficulty,
+            "gaslimit" => Self::GasLimit,
+            "extcodecopy" => Self::ExtCodeCopy,
+            "extcodehash" => Self::ExtCodeHash,
+            "datasize" => Self::DataSize,
+            "dataoffset" => Self::DataOffset,
+            "datacopy" => Self::DataCopy,
 
             input => Self::UserDefined(input.to_owned()),
         }

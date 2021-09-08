@@ -81,7 +81,7 @@ impl Intrinsic {
             Intrinsic::FarCall => "llvm.syncvm.farcall",
             Intrinsic::CallCode => "llvm.syncvm.callcode",
             Intrinsic::DelegateCall => "llvm.syncvm.delegatecall",
-            Intrinsic::StaticCall => "llvm.syncvm.farcall", // TODO: change to static call
+            Intrinsic::StaticCall => "llvm.syncvm.staticcall",
 
             Intrinsic::HashAbsorb => "llvm.syncvm.habs",
             Intrinsic::HashAbsorbReset => "llvm.syncvm.habsr",
