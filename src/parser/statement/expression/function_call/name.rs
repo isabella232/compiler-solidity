@@ -80,6 +80,10 @@ pub enum Name {
     SLoad,
     /// `storage[p] := v`
     SStore,
+    /// `loadimmutable` storage read
+    LoadImmutable,
+    /// `setimmutable` storage write
+    SetImmutable,
 
     /// call data starting from position `p` (32 bytes)
     CallDataLoad,
@@ -153,10 +157,6 @@ pub enum Name {
     /// 20-byte value and `s` is a big-endian 256-bit value
     Create2,
 
-    /// `setimmutable` is called in library constructors
-    SetImmutable,
-    /// `loadimmutable` is called in library constructors
-    LoadImmutable,
     /// `linkersymbol` is a metadata call
     LinkerSymbol,
 
@@ -237,6 +237,8 @@ impl From<&str> for Name {
 
             "sload" => Self::SLoad,
             "sstore" => Self::SStore,
+            "loadimmutable" => Self::LoadImmutable,
+            "setimmutable" => Self::SetImmutable,
 
             "calldataload" => Self::CallDataLoad,
             "calldatasize" => Self::CallDataSize,
@@ -274,8 +276,6 @@ impl From<&str> for Name {
             "create" => Self::Create,
             "create2" => Self::Create2,
 
-            "setimmutable" => Self::SetImmutable,
-            "loadimmutable" => Self::LoadImmutable,
             "linkersymbol" => Self::LinkerSymbol,
 
             "pc" => Self::Pc,

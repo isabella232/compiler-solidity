@@ -276,6 +276,14 @@ impl FunctionCall {
                 let arguments = self.pop_arguments::<2>(context);
                 storage::store(context, arguments)
             }
+            Name::LoadImmutable => {
+                let arguments = self.pop_arguments::<1>(context);
+                storage::load_immutable(context, arguments)
+            }
+            Name::SetImmutable => {
+                let arguments = self.pop_arguments::<3>(context);
+                storage::set_immutable(context, arguments)
+            }
 
             Name::CallDataLoad => {
                 let arguments = self.pop_arguments::<1>(context);
@@ -485,14 +493,6 @@ impl FunctionCall {
                 None
             }
 
-            Name::SetImmutable => {
-                let _arguments = self.pop_arguments::<3>(context);
-                None
-            }
-            Name::LoadImmutable => {
-                let _arguments = self.pop_arguments::<1>(context);
-                context::get(context, compiler_common::ContextValue::Address)
-            }
             Name::LinkerSymbol => {
                 let _arguments = self.pop_arguments::<1>(context);
                 Some(context.field_const(0).as_basic_value_enum())
