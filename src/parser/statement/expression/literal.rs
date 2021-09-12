@@ -5,6 +5,7 @@
 use inkwell::values::BasicValue;
 
 use crate::error::Error;
+use crate::generator::llvm::argument::Argument;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::literal::boolean::Boolean as BooleanLiteral;
 use crate::lexer::lexeme::literal::integer::Integer as IntegerLiteral;
@@ -57,26 +58,26 @@ impl Literal {
     ///
     /// Converts the literal into its LLVM representation.
     ///
-    pub fn into_llvm<'ctx>(
-        self,
-        context: &LLVMContext<'ctx>,
-    ) -> inkwell::values::BasicValueEnum<'ctx> {
+    pub fn into_llvm<'ctx>(self, context: &LLVMContext<'ctx>) -> Argument<'ctx> {
         match self.inner {
-            LexicalLiteral::Boolean(inner) => self
-                .yul_type
-                .unwrap_or(Type::Bool)
-                .into_llvm(context)
-                .const_int(
-                    match inner {
-                        BooleanLiteral::False => 0,
-                        BooleanLiteral::True => 1,
-                    },
-                    false,
-                )
-                .as_basic_value_enum(),
+            LexicalLiteral::Boolean(inner) => {
+                let value = self
+                    .yul_type
+                    .unwrap_or(Type::Bool)
+                    .into_llvm(context)
+                    .const_int(
+                        match inner {
+                            BooleanLiteral::False => 0,
+                            BooleanLiteral::True => 1,
+                        },
+                        false,
+                    )
+                    .as_basic_value_enum();
+                Argument::new(value)
+            }
             LexicalLiteral::Integer(inner) => {
                 let r#type = self.yul_type.unwrap_or_default().into_llvm(context);
-                match inner {
+                let value = match inner {
                     IntegerLiteral::Decimal { inner } => r#type.const_int_from_string(
                         inner.as_str(),
                         inkwell::types::StringRadix::Decimal,
@@ -87,7 +88,8 @@ impl Literal {
                     ),
                 }
                 .expect("The value is valid")
-                .as_basic_value_enum()
+                .as_basic_value_enum();
+                Argument::new(value)
             }
             LexicalLiteral::String(inner) => {
                 let string = inner.to_string();
@@ -98,20 +100,24 @@ impl Literal {
                     hex_string.push_str(format!("{:02x}", byte).as_str());
                 }
                 if hex_string.len() > compiler_common::size::FIELD * 2 {
-                    return r#type.const_zero().as_basic_value_enum();
+                    return Argument::new_with_original(
+                        r#type.const_zero().as_basic_value_enum(),
+                        string,
+                    );
                 }
                 hex_string.push_str(
                     "00".repeat(compiler_common::size::FIELD - string.len())
                         .as_str(),
                 );
 
-                r#type
+                let value = r#type
                     .const_int_from_string(
                         hex_string.as_str(),
                         inkwell::types::StringRadix::Hexadecimal,
                     )
                     .expect("The value is valid")
-                    .as_basic_value_enum()
+                    .as_basic_value_enum();
+                Argument::new_with_original(value, string)
             }
         }
     }

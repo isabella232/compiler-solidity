@@ -6,6 +6,7 @@ pub mod function_call;
 pub mod literal;
 
 use crate::error::Error;
+use crate::generator::llvm::argument::Argument;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
@@ -63,16 +64,15 @@ impl Expression {
     ///
     /// Converts the expression into an LLVM value.
     ///
-    pub fn into_llvm<'ctx>(
-        self,
-        context: &mut LLVMContext<'ctx>,
-    ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+    pub fn into_llvm<'ctx>(self, context: &mut LLVMContext<'ctx>) -> Option<Argument<'ctx>> {
         match self {
             Self::Literal(inner) => Some(inner.into_llvm(context)),
-            Self::Identifier(inner) => {
-                Some(context.build_load(context.function().stack[inner.as_str()], inner.as_str()))
-            }
-            Self::FunctionCall(inner) => inner.into_llvm(context),
+            Self::Identifier(inner) => Some(
+                context
+                    .build_load(context.function().stack[inner.as_str()], inner.as_str())
+                    .into(),
+            ),
+            Self::FunctionCall(inner) => inner.into_llvm(context).map(Argument::new),
         }
     }
 }

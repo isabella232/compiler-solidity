@@ -112,14 +112,14 @@ pub fn call<'ctx>(
     );
 
     let intrinsic = context.get_intrinsic_function(call_type);
-    let address = context.builder.build_left_shift(
+    let call_definition = context.builder.build_left_shift(
         address,
         context.field_const((compiler_common::bitlength::BYTE * 4) as u64),
         "",
     );
     context.build_call(
         intrinsic,
-        &[address.as_basic_value_enum()],
+        &[call_definition.as_basic_value_enum()],
         "contract_call_external",
     );
     context.check_exception();

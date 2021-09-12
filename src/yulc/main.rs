@@ -42,9 +42,11 @@ fn main_inner() -> Result<(), compiler_yul::Error> {
         std::fs::read_to_string(&arguments.input)?
     };
 
+    let (object, dependencies) =
+        compiler_yul::parse_contract(code.as_str(), arguments.contract.as_deref())?;
     let representation = compiler_yul::compile(
-        &code,
-        arguments.contract.as_deref(),
+        object,
+        dependencies,
         target,
         arguments.optimization_level,
         arguments.dump_llvm,

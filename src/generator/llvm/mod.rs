@@ -2,6 +2,8 @@
 //! The LLVM generator context.
 //!
 
+pub mod argument;
+pub mod dependency;
 pub mod function;
 pub mod intrinsic;
 pub mod r#loop;
@@ -12,8 +14,10 @@ use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
 
 use crate::parser::identifier::Identifier;
+use crate::parser::statement::object::Object;
 use crate::target::Target;
 
+use self::dependency::Dependency;
 use self::function::r#return::Return as FunctionReturn;
 use self::function::Function;
 use self::intrinsic::Intrinsic;
@@ -38,10 +42,12 @@ pub struct Context<'ctx> {
     function: Option<Function<'ctx>>,
     /// The loop context stack.
     loop_stack: Vec<Loop<'ctx>>,
+    /// The main contract dependencies.
+    dependencies: HashMap<String, Dependency>,
 
     /// The personality function, used for exception handling.
     personality: inkwell::values::FunctionValue<'ctx>,
-    /// The personality function, used for exception throwing.
+    /// The exception throwing function.
     cxa_throw: inkwell::values::FunctionValue<'ctx>,
 
     /// The optimization level.
@@ -76,8 +82,16 @@ impl<'ctx> Context<'ctx> {
     pub fn new(
         llvm: &'ctx inkwell::context::Context,
         machine: Option<&inkwell::targets::TargetMachine>,
+        identifier: &str,
+        dependencies: HashMap<String, Object>,
     ) -> Self {
-        Self::new_with_optimizer(llvm, machine, inkwell::OptimizationLevel::None)
+        Self::new_with_optimizer(
+            llvm,
+            machine,
+            inkwell::OptimizationLevel::None,
+            identifier,
+            dependencies,
+        )
     }
 
     ///
@@ -87,12 +101,19 @@ impl<'ctx> Context<'ctx> {
         llvm: &'ctx inkwell::context::Context,
         machine: Option<&inkwell::targets::TargetMachine>,
         optimization_level: inkwell::OptimizationLevel,
+        identifier: &str,
+        dependencies: HashMap<String, Object>,
     ) -> Self {
-        let module = llvm.create_module(compiler_common::identifier::FUNCTION_SELECTOR);
+        let module = llvm.create_module(identifier);
         if let Some(machine) = machine {
             module.set_triple(&machine.get_triple());
             module.set_data_layout(&machine.get_target_data().get_data_layout());
         }
+
+        let dependencies = dependencies
+            .into_iter()
+            .map(|(identifier, object)| (identifier, Dependency::new_object(object)))
+            .collect();
 
         let internalize = matches!(optimization_level, inkwell::OptimizationLevel::Aggressive);
         let run_inliner = matches!(optimization_level, inkwell::OptimizationLevel::Aggressive);
@@ -150,6 +171,7 @@ impl<'ctx> Context<'ctx> {
             module,
             function: None,
             loop_stack: Vec::with_capacity(Self::LOOP_STACK_INITIAL_CAPACITY),
+            dependencies,
 
             personality,
             cxa_throw,
@@ -357,6 +379,23 @@ impl<'ctx> Context<'ctx> {
         self.loop_stack
             .last()
             .expect("The current context is not in a loop")
+    }
+
+    ///
+    /// Compiles the dependency object.
+    ///
+    pub fn compile_dependency(&mut self, identifier: &str) -> &[u8] {
+        let dependency = self
+            .dependencies
+            .remove(identifier)
+            .unwrap_or_else(|| panic!("Dependency `{}` not found", identifier));
+        let bytecode = dependency.compile(self.target, self.optimization_level);
+        self.dependencies
+            .insert(identifier.to_owned(), Dependency::new_bytecode(bytecode));
+        match self.dependencies.get(identifier).expect("Always exists") {
+            Dependency::Parsed(_object) => panic!("Dependency is always compiled at this point"),
+            Dependency::Compiled(bytecode) => bytecode.as_slice(),
+        }
     }
 
     ///
@@ -747,7 +786,7 @@ impl<'ctx> Context<'ctx> {
         );
         self.build_store(parent_return_data_size_pointer, self.field_const(1));
 
-        let error_hash = compiler_common::hashes::keccak256(message);
+        let error_hash = compiler_common::hashes::keccak256(message.as_bytes());
         let error_code = self
             .field_type()
             .const_int_from_string(

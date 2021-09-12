@@ -18,10 +18,12 @@ pub use self::parser::error::Error as ParserError;
 pub use self::parser::statement::object::Object;
 pub use self::target::Target;
 
+use std::collections::HashMap;
+
 ///
 /// Parses the source code and returns the AST.
 ///
-pub fn parse(input: &str) -> Result<Object, Error> {
+pub fn parse(input: &str) -> Result<(Object, HashMap<String, Object>), Error> {
     parse_contract(input, None)
 }
 
@@ -31,29 +33,44 @@ pub fn parse(input: &str) -> Result<Object, Error> {
 /// If `contract` is specified, the object of that contract is returned. Otherwise, the last object
 /// is returned.
 ///
-pub fn parse_contract(input: &str, contract: Option<&str>) -> Result<Object, Error> {
+pub fn parse_contract(
+    input: &str,
+    contract: Option<&str>,
+) -> Result<(Object, HashMap<String, Object>), Error> {
     let mut lexer = Lexer::new(input.to_owned());
 
-    let mut objects = Vec::with_capacity(1);
+    let mut main = None;
+    let mut dependencies = HashMap::new();
     while let Lexeme::Keyword(Keyword::Object) = lexer.peek()? {
         let object = Object::parse(&mut lexer, None)?;
 
         if let Some(contract) = contract {
             if let Some(position) = object.identifier.rfind('_') {
                 if &object.identifier[..position] == contract {
-                    return Ok(object);
+                    main = Some(object);
+                    continue;
                 }
             }
         }
 
-        objects.push(object);
+        dependencies.insert(object.identifier.clone(), object);
     }
 
-    match (objects.len(), contract) {
-        (0, _) => Err(ParserError::ContractNotFound.into()),
-        (1, None) => Ok(objects.remove(0)),
-        (_, None) => Err(ParserError::ContractNotSpecified.into()),
-        (_, Some(_)) => Err(ParserError::ContractNotFound.into()),
+    if contract.is_none() && dependencies.len() == 1 {
+        main = dependencies.remove(
+            dependencies
+                .keys()
+                .next()
+                .cloned()
+                .expect("Always exists")
+                .as_str(),
+        );
+    }
+
+    match (main, dependencies.is_empty(), contract) {
+        (None, _, _) => Err(ParserError::ContractNotFound.into()),
+        (Some(_), false, None) => Err(ParserError::ContractNotSpecified.into()),
+        (Some(main), _, _) => Ok((main, dependencies)),
     }
 }
 
@@ -61,14 +78,12 @@ pub fn parse_contract(input: &str, contract: Option<&str>) -> Result<Object, Err
 /// Parses and compiles the source code.
 ///
 pub fn compile(
-    input: &str,
-    contract: Option<&str>,
+    object: Object,
+    dependencies: HashMap<String, Object>,
     target: Target,
     optimization_level: usize,
     dump_llvm: bool,
 ) -> Result<String, Error> {
-    let object = parse_contract(input, contract)?;
-
     let optimization_level = match optimization_level {
         0 => inkwell::OptimizationLevel::None,
         1 => inkwell::OptimizationLevel::Less,
@@ -90,8 +105,13 @@ pub fn compile(
             Some(target_machine)
         }
     };
-    let mut context =
-        LLVMContext::new_with_optimizer(&llvm, target_machine.as_ref(), optimization_level);
+    let mut context = LLVMContext::new_with_optimizer(
+        &llvm,
+        target_machine.as_ref(),
+        optimization_level,
+        object.identifier.as_str(),
+        dependencies,
+    );
 
     object.into_llvm(&mut context);
     context
@@ -116,7 +136,7 @@ pub fn compile(
         .expect("Always exists")
         .write_to_memory_buffer(context.module(), inkwell::targets::FileType::Assembly)
         .map_err(|error| Error::LLVM(format!("Code compiling error: {}", error)))?;
-    let assembly = String::from_utf8_lossy(buffer.as_slice()).to_string();
+    let llvm_ir = String::from_utf8_lossy(buffer.as_slice()).to_string();
 
-    Ok(assembly)
+    Ok(llvm_ir)
 }

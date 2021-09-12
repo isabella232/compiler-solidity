@@ -78,7 +78,7 @@ impl ILLVMWritable for VariableDeclaration {
                 .insert(identifier.name, pointer);
             let value = if let Some(expression) = self.expression {
                 match expression.into_llvm(context) {
-                    Some(value) => value,
+                    Some(value) => value.to_llvm(),
                     None => r#type.const_zero().as_basic_value_enum(),
                 }
             } else {
@@ -105,7 +105,7 @@ impl ILLVMWritable for VariableDeclaration {
         match self.expression.take() {
             Some(expression) => {
                 if let Some(value) = expression.into_llvm(context) {
-                    context.build_store(pointer, value);
+                    context.build_store(pointer, value.to_llvm());
 
                     for (index, binding) in self.bindings.into_iter().enumerate() {
                         let pointer = unsafe {

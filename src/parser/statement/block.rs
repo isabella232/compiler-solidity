@@ -388,7 +388,7 @@ impl Block {
     ///
     fn is_executed_flag<'ctx>(context: &mut LLVMContext<'ctx>) -> inkwell::values::IntValue<'ctx> {
         let storage_key_string = compiler_common::hashes::keccak256(
-            compiler_common::abi::CONSTRUCTOR_EXECUTED_FLAG_KEY_PREIMAGE,
+            compiler_common::abi::CONSTRUCTOR_EXECUTED_FLAG_KEY_PREIMAGE.as_bytes(),
         );
         let storage_key_value = context
             .field_type()
@@ -417,7 +417,7 @@ impl Block {
     ///
     fn set_is_executed_flag(context: &mut LLVMContext) {
         let storage_key_string = compiler_common::hashes::keccak256(
-            compiler_common::abi::CONSTRUCTOR_EXECUTED_FLAG_KEY_PREIMAGE,
+            compiler_common::abi::CONSTRUCTOR_EXECUTED_FLAG_KEY_PREIMAGE.as_bytes(),
         );
         let storage_key_value = context
             .field_type()

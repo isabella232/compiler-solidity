@@ -116,8 +116,8 @@ impl ILLVMWritable for Switch {
             let constant = case.literal.into_llvm(context);
             let comparison = context.builder.build_int_compare(
                 inkwell::IntPredicate::EQ,
-                constant.into_int_value(),
-                scrutinee.into_int_value(),
+                constant.to_llvm().into_int_value(),
+                scrutinee.to_llvm().into_int_value(),
                 format!("switch_case_condition_{}", index).as_str(),
             );
             let next_block =

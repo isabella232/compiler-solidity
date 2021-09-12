@@ -89,15 +89,9 @@ impl ILLVMWritable for Object {
         context.allocate_calldata(64);
 
         if is_constructor {
-            let selector_type = match context.target {
-                Target::x86 => context
-                    .integer_type(compiler_common::bitlength::WORD)
-                    .fn_type(&[], false),
-                Target::zkEVM => context.void_type().fn_type(&[], false),
-            };
             context.add_function(
                 compiler_common::identifier::FUNCTION_SELECTOR,
-                selector_type,
+                context.void_type().fn_type(&[], false),
                 Some(inkwell::module::Linkage::External),
                 false,
             );

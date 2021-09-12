@@ -64,6 +64,7 @@ impl ILLVMWritable for ForLoop {
             .condition
             .into_llvm(context)
             .expect("Always exists")
+            .to_llvm()
             .into_int_value();
         let condition = context.builder.build_int_z_extend_or_bit_cast(
             condition,

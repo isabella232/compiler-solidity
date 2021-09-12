@@ -142,13 +142,6 @@ pub enum Name {
     /// identical to `call(g, a, 0, in, insize, out, outsize)` but do not allows state modifications
     StaticCall,
 
-    /// stop execution, identical to `return(0, 0)`
-    Stop,
-    /// end execution, destroy current contract and send funds to `a`
-    SelfDestruct,
-    /// end execution with invalid instruction
-    Invalid,
-
     /// create new contract with code `mem[p…(p+n))` and send `v` wei and return the new address
     Create,
     /// create new contract with code `mem[p…(p+n))` at address
@@ -156,9 +149,24 @@ pub enum Name {
     /// new address, where `0xff` is a 1-byte value, this is the current contract’s address as a
     /// 20-byte value and `s` is a big-endian 256-bit value
     Create2,
+    /// returns the size in the data area
+    DataSize,
+    /// returns the offset in the data area
+    DataOffset,
+    ///  is equivalent to `CodeCopy`
+    DataCopy,
 
-    /// `linkersymbol` is a metadata call
+    /// stop execution, identical to `return(0, 0)`
+    Stop,
+    /// end execution, destroy current contract and send funds to `a`
+    SelfDestruct,
+    /// end execution with invalid instruction
+    Invalid,
+
+    /// `linkersymbol` is a stub call
     LinkerSymbol,
+    /// `memoryguard` is a stub call
+    MemoryGuard,
 
     /// current position in code
     Pc,
@@ -188,12 +196,6 @@ pub enum Name {
     ExtCodeCopy,
     /// code hash of address `a`
     ExtCodeHash,
-    /// returns the size in the data area
-    DataSize,
-    /// returns the offset in the data area
-    DataOffset,
-    ///  is equivalent to `CodeCopy`
-    DataCopy,
 }
 
 impl From<&str> for Name {
@@ -269,14 +271,18 @@ impl From<&str> for Name {
             "delegatecall" => Self::DelegateCall,
             "staticcall" => Self::StaticCall,
 
+            "create" => Self::Create,
+            "create2" => Self::Create2,
+            "datasize" => Self::DataSize,
+            "dataoffset" => Self::DataOffset,
+            "datacopy" => Self::DataCopy,
+
             "stop" => Self::Stop,
             "selfdestruct" => Self::SelfDestruct,
             "invalid" => Self::Invalid,
 
-            "create" => Self::Create,
-            "create2" => Self::Create2,
-
             "linkersymbol" => Self::LinkerSymbol,
+            "memoryguard" => Self::MemoryGuard,
 
             "pc" => Self::Pc,
             "callvalue" => Self::CallValue,
@@ -292,9 +298,6 @@ impl From<&str> for Name {
             "gaslimit" => Self::GasLimit,
             "extcodecopy" => Self::ExtCodeCopy,
             "extcodehash" => Self::ExtCodeHash,
-            "datasize" => Self::DataSize,
-            "dataoffset" => Self::DataOffset,
-            "datacopy" => Self::DataCopy,
 
             input => Self::UserDefined(input.to_owned()),
         }
