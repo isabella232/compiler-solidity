@@ -143,7 +143,7 @@ pub fn datasize<'ctx>(
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let literal = arguments[0].original.take().unwrap_or_default();
 
-    if literal.ends_with("_deployed") {
+    if literal.ends_with("_deployed") || literal.as_str() == context.object() {
         return Some(context.field_const(0).as_basic_value_enum());
     }
 

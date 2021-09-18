@@ -38,6 +38,8 @@ pub struct Context<'ctx> {
     llvm: &'ctx inkwell::context::Context,
     /// The current module.
     module: inkwell::module::Module<'ctx>,
+    /// The current object.
+    object: Option<String>,
     /// The current function.
     function: Option<Function<'ctx>>,
     /// The loop context stack.
@@ -169,6 +171,7 @@ impl<'ctx> Context<'ctx> {
 
             llvm,
             module,
+            object: None,
             function: None,
             loop_stack: Vec::with_capacity(Self::LOOP_STACK_INITIAL_CAPACITY),
             dependencies,
@@ -223,6 +226,20 @@ impl<'ctx> Context<'ctx> {
     ///
     pub fn module(&self) -> &inkwell::module::Module<'ctx> {
         &self.module
+    }
+
+    ///
+    /// Sets the current object name.
+    ///
+    pub fn set_object(&mut self, name: &str) {
+        self.object = Some(name.to_owned());
+    }
+
+    ///
+    /// Returns the current object name.
+    ///
+    pub fn object(&self) -> &str {
+        self.object.as_deref().expect("Must exist at this point")
     }
 
     ///

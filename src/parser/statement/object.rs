@@ -81,6 +81,7 @@ impl Object {
 
 impl ILLVMWritable for Object {
     fn into_llvm(self, context: &mut LLVMContext) {
+        context.set_object(self.identifier.as_str());
         let is_selector = self.identifier.ends_with("_deployed");
         let is_constructor = !is_selector;
 
