@@ -122,7 +122,7 @@ pub fn call<'ctx>(
         &[call_definition.as_basic_value_enum()],
         "contract_call_external",
     );
-    context.check_exception();
+    let is_call_successful = context.check_exception();
 
     let source = context.builder.build_int_to_ptr(
         context.field_const(
@@ -150,5 +150,5 @@ pub fn call<'ctx>(
         "contract_call_memcpy_from_child",
     );
 
-    Some(context.field_const(1).as_basic_value_enum())
+    Some(is_call_successful.as_basic_value_enum())
 }

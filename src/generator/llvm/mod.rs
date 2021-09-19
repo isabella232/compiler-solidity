@@ -708,25 +708,31 @@ impl<'ctx> Context<'ctx> {
     /// The sequence must appear after each external contract call. The exceptions from external
     /// calls are copied from the child memory to the parent memory.
     ///
-    pub fn check_exception(&self) {
+    pub fn check_exception(&self) -> inkwell::values::IntValue<'ctx> {
         if !matches!(self.target, Target::zkEVM) {
-            return;
+            return self.field_const(0);
         }
 
-        let join_block = self.append_basic_block("exception_join_block");
         let error_block = self.append_basic_block("exception_error_block");
+        let join_block = self.append_basic_block("exception_join_block");
 
         let intrinsic = self.get_intrinsic_function(Intrinsic::LesserFlag);
         let overflow_flag = self
             .build_call(intrinsic, &[], "")
             .expect("Intrinsic always returns a flag")
             .into_int_value();
-        let overflow_flag = self.builder.build_int_truncate_or_bit_cast(
+        let is_overflow_flag_zero = self.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
             overflow_flag,
-            self.integer_type(compiler_common::bitlength::BOOLEAN),
-            "",
+            self.field_const(0),
+            "exception_is_overflow_flag_zero",
         );
-        self.build_conditional_branch(overflow_flag, error_block, join_block);
+        let is_overflow_flag_zero_extended = self.builder.build_int_z_extend_or_bit_cast(
+            is_overflow_flag_zero,
+            self.field_type(),
+            "is_overflow_flag_zero_extended",
+        );
+        self.build_conditional_branch(is_overflow_flag_zero, join_block, error_block);
 
         self.set_basic_block(error_block);
         let child_return_data_size_pointer = self.builder.build_int_to_ptr(
@@ -785,9 +791,11 @@ impl<'ctx> Context<'ctx> {
             "exception_memcpy_from_child_to_parent",
         );
 
-        self.build_unconditional_branch(self.function().throw_block);
+        self.build_unconditional_branch(join_block);
 
         self.set_basic_block(join_block);
+
+        is_overflow_flag_zero_extended
     }
 
     ///
