@@ -122,7 +122,23 @@ pub fn call<'ctx>(
         &[call_definition.as_basic_value_enum()],
         "contract_call_external",
     );
-    let is_call_successful = context.check_exception();
+
+    let intrinsic = context.get_intrinsic_function(Intrinsic::LesserFlag);
+    let overflow_flag = context
+        .build_call(intrinsic, &[], "")
+        .expect("Intrinsic always returns a flag")
+        .into_int_value();
+    let is_overflow_flag_zero = context.builder.build_int_compare(
+        inkwell::IntPredicate::EQ,
+        overflow_flag,
+        context.field_const(0),
+        "contract_call_is_overflow_flag_zero",
+    );
+    let is_call_successful = context.builder.build_int_z_extend_or_bit_cast(
+        is_overflow_flag_zero,
+        context.field_type(),
+        "contract_call_is_successfull",
+    );
 
     let source = context.builder.build_int_to_ptr(
         context.field_const(
