@@ -20,11 +20,11 @@ esac
 # Target build: 'debug' | 'release' (default is 'release')
 case "${2}" in
     debug)
-        export LLVM_SYS_110_PREFIX="${HOME}/opt/llvm-debug/"
+        export LLVM_SYS_130_PREFIX="${HOME}/opt/llvm-debug/"
         ;;
     *)
         export RELEASE_FLAG="--release"
-        export LLVM_SYS_110_PREFIX="${HOME}/opt/llvm-release/"
+        export LLVM_SYS_130_PREFIX="${HOME}/opt/llvm-release/"
         ;;
 esac
 
