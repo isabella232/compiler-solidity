@@ -81,7 +81,7 @@ dependencies = [
 [[package]]
 name = "compiler-common"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-common#af35e86628bc7aa6b89bf1bcc1a5fbabce6cf10d"
+source = "git+ssh://git@github.com/matter-labs/compiler-common#f99e8251d5e4ed7fc9b2ba714bcd2a5d24401748"
 dependencies = [
  "inkwell",
  "sha3",
@@ -176,7 +176,7 @@ checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 [[package]]
 name = "inkwell"
 version = "0.1.0"
-source = "git+ssh://git@github.com/matter-labs-forks/inkwell?branch=master#7bc33cac059ad550a0a32e6f7b7ae2008069da7c"
+source = "git+ssh://git@github.com/matter-labs-forks/inkwell?branch=master#3f06aed15d52cf08578cb519fccab18d0ab0205a"
 dependencies = [
  "either",
  "inkwell_internals",
@@ -190,7 +190,7 @@ dependencies = [
 [[package]]
 name = "inkwell_internals"
 version = "0.3.0"
-source = "git+ssh://git@github.com/matter-labs-forks/inkwell?branch=master#7bc33cac059ad550a0a32e6f7b7ae2008069da7c"
+source = "git+ssh://git@github.com/matter-labs-forks/inkwell?branch=master#3f06aed15d52cf08578cb519fccab18d0ab0205a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -199,9 +199,9 @@ dependencies = [
 
 [[package]]
 name = "instant"
-version = "0.1.10"
+version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bee0328b1209d157ef001c94dd85b4f8f64139adb0eac2659f4b08382b2f474d"
+checksum = "716d3d89f35ac6a34fd0eed635395f4c3b76fa889338a4632e5231a8684216bd"
 dependencies = [
  "cfg-if",
 ]
@@ -220,14 +220,14 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.102"
+version = "0.2.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2a5ac8f984bfcf3a823267e5fde638acc3325f6496633a5da6bb6eb2171e103"
+checksum = "dd8f7255a17a627354f321ef0055d63b898c6fb27eff628af4d1b66b7331edf6"
 
 [[package]]
 name = "llvm-sys"
-version = "110.0.0"
-source = "git+ssh://git@github.com/matter-labs-forks/llvm-sys.rs#6910bbf7f27f0c32ef1783a423689193ea01dd21"
+version = "130.0.0"
+source = "git+ssh://git@github.com/matter-labs-forks/llvm-sys.rs#0894ff65cf46ac990047710da97eef3072fec0bf"
 dependencies = [
  "cc",
  "lazy_static",
@@ -488,9 +488,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.76"
+version = "1.0.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6f107db402c2c2055242dbf4d2af0e69197202e9faacbef9571bbe47f5a1b84"
+checksum = "5239bc68e0fef57495900cfea4e8dc75596d9a319d7e16b1e0a440d24e6fe0a0"
 dependencies = [
  "proc-macro2",
  "quote",
