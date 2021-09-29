@@ -102,6 +102,22 @@ impl ILLVMWritable for VariableDeclaration {
                 .collect(),
         );
         let pointer = context.build_alloca(llvm_type, "bindings_pointer");
+        for (index, binding) in self.bindings.iter().enumerate() {
+            let yul_type = binding
+                .yul_type
+                .to_owned()
+                .unwrap_or_default()
+                .into_llvm(context);
+            let pointer = context.build_alloca(
+                yul_type.as_basic_type_enum(),
+                format!("binding_{}_pointer", index).as_str(),
+            );
+            context
+                .function_mut()
+                .stack
+                .insert(binding.name.to_owned(), pointer);
+        }
+
         match self.expression.take() {
             Some(expression) => {
                 if let Some(value) = expression.into_llvm(context) {
@@ -123,13 +139,12 @@ impl ILLVMWritable for VariableDeclaration {
 
                         let value = context
                             .build_load(pointer, format!("binding_{}_value", index).as_str());
-
-                        let yul_type = binding.yul_type.unwrap_or_default().into_llvm(context);
-                        let pointer = context.build_alloca(
-                            yul_type.as_basic_type_enum(),
-                            format!("binding_{}_pointer", index).as_str(),
-                        );
-                        context.function_mut().stack.insert(binding.name, pointer);
+                        let pointer = context
+                            .function_mut()
+                            .stack
+                            .get(binding.name.as_str())
+                            .cloned()
+                            .expect("Always exists");
                         context.build_store(pointer, value);
                     }
                 }
