@@ -96,10 +96,10 @@ pub fn set_immutable<'ctx>(
     }
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::HashAbsorbReset);
-    context.build_call(intrinsic, &[arguments[1]], "load_immutable_hash_absorb");
+    context.build_call(intrinsic, &[arguments[1]], "set_immutable_hash_absorb");
     let intrinsic = context.get_intrinsic_function(Intrinsic::HashOutput);
     let position = context
-        .build_call(intrinsic, &[], "load_immutable_hash_output")
+        .build_call(intrinsic, &[], "set_immutable_hash_output")
         .expect("Hash always returns a value");
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::StorageStore);
