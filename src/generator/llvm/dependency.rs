@@ -49,7 +49,8 @@ impl Dependency {
                     object,
                     HashMap::new(),
                     target,
-                    optimization_level as usize,
+                    optimization_level,
+                    optimization_level,
                     false,
                 )
                 .unwrap_or_else(|error| {

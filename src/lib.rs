@@ -81,21 +81,15 @@ pub fn compile(
     object: Object,
     dependencies: HashMap<String, Object>,
     target: Target,
-    optimization_level: usize,
+    opt_level_llvm_middle: inkwell::OptimizationLevel,
+    opt_level_llvm_back: inkwell::OptimizationLevel,
     dump_llvm: bool,
 ) -> Result<String, Error> {
-    let optimization_level = match optimization_level {
-        0 => inkwell::OptimizationLevel::None,
-        1 => inkwell::OptimizationLevel::Less,
-        2 => inkwell::OptimizationLevel::Default,
-        _ => inkwell::OptimizationLevel::Aggressive,
-    };
-
     let llvm = inkwell::context::Context::create();
     let target_machine = match target {
         Target::x86 => None,
         Target::zkEVM => {
-            let target_machine = compiler_common::vm::target_machine(optimization_level)
+            let target_machine = compiler_common::vm::target_machine(opt_level_llvm_back)
                 .ok_or_else(|| {
                     Error::LLVM(format!(
                         "Target machine `{}` creation error",
@@ -108,7 +102,7 @@ pub fn compile(
     let mut context = LLVMContext::new_with_optimizer(
         &llvm,
         target_machine.as_ref(),
-        optimization_level,
+        opt_level_llvm_middle,
         object.identifier.as_str(),
         dependencies,
     );

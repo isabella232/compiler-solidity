@@ -42,13 +42,21 @@ fn main_inner() -> Result<(), compiler_yul::Error> {
         std::fs::read_to_string(&arguments.input)?
     };
 
+    let optimization_level = match arguments.optimization_level {
+        0 => inkwell::OptimizationLevel::None,
+        1 => inkwell::OptimizationLevel::Less,
+        2 => inkwell::OptimizationLevel::Default,
+        _ => inkwell::OptimizationLevel::Aggressive,
+    };
+
     let (object, dependencies) =
         compiler_yul::parse_contract(code.as_str(), arguments.contract.as_deref())?;
     let representation = compiler_yul::compile(
         object,
         dependencies,
         target,
-        arguments.optimization_level,
+        optimization_level,
+        optimization_level,
         arguments.dump_llvm,
     )?;
 
