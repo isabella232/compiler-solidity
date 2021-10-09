@@ -111,7 +111,7 @@ pub fn exponent<'ctx>(
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let result_pointer = context.build_alloca(context.field_type(), "exponent_result");
-    context.build_store(result_pointer, arguments[0]);
+    context.build_store(result_pointer, context.field_const(1));
 
     let condition_block = context.append_basic_block("exponent_loop_condition");
     let body_block = context.append_basic_block("exponent_loop_body");
