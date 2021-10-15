@@ -31,9 +31,6 @@ fn main() {
 fn main_inner() -> Result<(), compiler_yul::Error> {
     let arguments = Arguments::new();
 
-    let target = compiler_yul::Target::try_from(arguments.target.as_str())
-        .map_err(compiler_yul::Error::Target)?;
-
     let code = if arguments.input.to_string_lossy() == "-" {
         let mut buffer = String::with_capacity(16384);
         std::io::stdin().read_to_string(&mut buffer)?;
@@ -54,7 +51,6 @@ fn main_inner() -> Result<(), compiler_yul::Error> {
     let representation = compiler_yul::compile(
         object,
         dependencies,
-        target,
         optimization_level,
         optimization_level,
         arguments.dump_llvm,
@@ -64,14 +60,8 @@ fn main_inner() -> Result<(), compiler_yul::Error> {
     let binary = zkevm_assembly::Assembly::try_from(representation)?;
     let binary = Vec::<u8>::from(&binary);
 
-    let text_file_name = match target {
-        compiler_yul::Target::x86 => compiler_common::file_name::LLVM_SOURCE,
-        compiler_yul::Target::zkEVM => compiler_common::file_name::ZKEVM_ASSEMBLY,
-    };
-    let text_file_extension = match target {
-        compiler_yul::Target::x86 => compiler_common::extension::LLVM_SOURCE,
-        compiler_yul::Target::zkEVM => compiler_common::extension::ZKEVM_ASSEMBLY,
-    };
+    let text_file_name = compiler_common::file_name::ZKEVM_ASSEMBLY;
+    let text_file_extension = compiler_common::extension::ZKEVM_ASSEMBLY;
     let text_file_path = PathBuf::from(format!("{}.{}", text_file_name, text_file_extension,));
     File::create(&text_file_path)
         .expect("Text file creating error")

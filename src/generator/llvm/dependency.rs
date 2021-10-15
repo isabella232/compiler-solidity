@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use crate::parser::statement::object::Object;
-use crate::target::Target;
 
 ///
 /// The contract dependency at different compilation states.
@@ -37,18 +36,13 @@ impl Dependency {
     ///
     /// Compiles the Yul object, if it has not been compiled yet.
     ///
-    pub fn compile(
-        self,
-        target: Target,
-        optimization_level: inkwell::OptimizationLevel,
-    ) -> Vec<u8> {
+    pub fn compile(self, optimization_level: inkwell::OptimizationLevel) -> Vec<u8> {
         match self {
             Self::Parsed(object) => {
                 let identifier = object.identifier.clone();
                 let llvm_ir = crate::compile(
                     object,
                     HashMap::new(),
-                    target,
                     optimization_level,
                     optimization_level,
                     false,

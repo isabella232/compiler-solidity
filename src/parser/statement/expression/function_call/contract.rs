@@ -4,9 +4,9 @@
 
 use inkwell::values::BasicValue;
 
+use crate::generator::llvm::argument::Argument;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
-use crate::target::Target;
 
 ///
 /// Translates a contract call.
@@ -20,10 +20,6 @@ pub fn call<'ctx>(
     output_size: inkwell::values::IntValue<'ctx>,
     call_type: Intrinsic,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if let Target::x86 = context.target {
-        return Some(context.field_const(0).as_basic_value_enum());
-    }
-
     let intrinsic = context.get_intrinsic_function(Intrinsic::SwitchContext);
     context.build_call(intrinsic, &[], "contract_call_switch_context");
 
@@ -167,4 +163,19 @@ pub fn call<'ctx>(
     );
 
     Some(is_call_successful.as_basic_value_enum())
+}
+
+///
+/// Translates a linker symbol.
+///
+pub fn linker_symbol<'ctx>(
+    context: &mut LLVMContext<'ctx>,
+    mut arguments: [Argument<'ctx>; 1],
+) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+    let path = arguments[0].original.take().unwrap_or_default();
+
+    match context.get_library_address(path.as_str()) {
+        Some(address) => Some(address.as_basic_value_enum()),
+        None => panic!("Linker symbol `{}` not found", path),
+    }
 }

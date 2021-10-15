@@ -6,7 +6,6 @@ use inkwell::values::BasicValue;
 
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
-use crate::target::Target;
 
 ///
 /// Translates a log or event call.
@@ -17,10 +16,6 @@ pub fn log<'ctx>(
     length: inkwell::values::IntValue<'ctx>,
     mut topics: Vec<inkwell::values::IntValue<'ctx>>,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if let Target::x86 = context.target {
-        return None;
-    }
-
     let intrinsic = context.get_intrinsic_function(Intrinsic::Event);
 
     let topics_length = context.field_const(topics.len() as u64);

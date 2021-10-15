@@ -15,7 +15,6 @@ use inkwell::values::BasicValue;
 
 use crate::parser::identifier::Identifier;
 use crate::parser::statement::object::Object;
-use crate::target::Target;
 
 use self::dependency::Dependency;
 use self::function::r#return::Return as FunctionReturn;
@@ -27,8 +26,6 @@ use self::r#loop::Loop;
 /// The LLVM generator context.
 ///
 pub struct Context<'ctx> {
-    /// The target to build for.
-    pub target: Target,
     /// The LLVM builder.
     pub builder: inkwell::builder::Builder<'ctx>,
     /// The declared functions.
@@ -46,6 +43,8 @@ pub struct Context<'ctx> {
     loop_stack: Vec<Loop<'ctx>>,
     /// The main contract dependencies.
     dependencies: HashMap<String, Dependency>,
+    /// The deployed libraries.
+    libraries: HashMap<String, inkwell::values::IntValue<'ctx>>,
 
     /// The personality function, used for exception handling.
     personality: inkwell::values::FunctionValue<'ctx>,
@@ -63,13 +62,6 @@ pub struct Context<'ctx> {
     pub is_native_bitwise_supported: bool,
     /// Whether the unaligned memory access is supported by the back-end.
     pub is_unaligned_memory_access_supported: bool,
-
-    /// The test heap representation.
-    heap: Option<inkwell::values::GlobalValue<'ctx>>,
-    /// The test contract storage representation.
-    storage: Option<inkwell::values::GlobalValue<'ctx>>,
-    /// The test calldata representation.
-    calldata: Option<inkwell::values::GlobalValue<'ctx>>,
 }
 
 impl<'ctx> Context<'ctx> {
@@ -83,7 +75,7 @@ impl<'ctx> Context<'ctx> {
     ///
     pub fn new(
         llvm: &'ctx inkwell::context::Context,
-        machine: Option<&inkwell::targets::TargetMachine>,
+        machine: &inkwell::targets::TargetMachine,
         identifier: &str,
         dependencies: HashMap<String, Object>,
     ) -> Self {
@@ -101,16 +93,14 @@ impl<'ctx> Context<'ctx> {
     ///
     pub fn new_with_optimizer(
         llvm: &'ctx inkwell::context::Context,
-        machine: Option<&inkwell::targets::TargetMachine>,
+        machine: &inkwell::targets::TargetMachine,
         optimization_level: inkwell::OptimizationLevel,
         identifier: &str,
         dependencies: HashMap<String, Object>,
     ) -> Self {
         let module = llvm.create_module(identifier);
-        if let Some(machine) = machine {
-            module.set_triple(&machine.get_triple());
-            module.set_data_layout(&machine.get_target_data().get_data_layout());
-        }
+        module.set_triple(&machine.get_triple());
+        module.set_data_layout(&machine.get_target_data().get_data_layout());
 
         let dependencies = dependencies
             .into_iter()
@@ -165,9 +155,9 @@ impl<'ctx> Context<'ctx> {
         );
 
         Self {
-            target: machine.into(),
             builder: llvm.create_builder(),
             functions: HashMap::with_capacity(Self::FUNCTION_HASHMAP_INITIAL_CAPACITY),
+            libraries: HashMap::new(),
 
             llvm,
             module,
@@ -185,10 +175,6 @@ impl<'ctx> Context<'ctx> {
 
             is_native_bitwise_supported: true,
             is_unaligned_memory_access_supported: false,
-
-            heap: None,
-            storage: None,
-            calldata: None,
         }
     }
 
@@ -253,21 +239,17 @@ impl<'ctx> Context<'ctx> {
         set_current: bool,
     ) {
         let value = self.module().add_function(name, r#type, linkage);
-        if let Target::zkEVM = self.target {
-            for index in 0..value.count_params() {
-                if value
-                    .get_nth_param(index)
-                    .map(|argument| argument.get_type().is_pointer_type())
-                    .unwrap_or_default()
-                {
-                    value.set_param_alignment(index, compiler_common::size::FIELD as u32);
-                }
+        for index in 0..value.count_params() {
+            if value
+                .get_nth_param(index)
+                .map(|argument| argument.get_type().is_pointer_type())
+                .unwrap_or_default()
+            {
+                value.set_param_alignment(index, compiler_common::size::FIELD as u32);
             }
         }
 
-        if let Target::zkEVM = self.target {
-            value.set_personality_function(self.personality);
-        }
+        value.set_personality_function(self.personality);
 
         let entry_block = self.llvm.append_basic_block(value, "entry");
         let throw_block = self.llvm.append_basic_block(value, "throw");
@@ -334,6 +316,26 @@ impl<'ctx> Context<'ctx> {
         self.function_mut().r#return = Some(r#return);
 
         self.function().to_owned()
+    }
+
+    ///
+    /// Inserts a deployed library address.
+    ///
+    /// The address must be a hexadecimal string without the `0x` prefix.
+    ///
+    pub fn insert_library_address(&mut self, key: String, value: String) {
+        let address = self
+            .field_type()
+            .const_int_from_string(value.as_str(), inkwell::types::StringRadix::Hexadecimal)
+            .unwrap_or_else(|| panic!("Library `{}` address `{}` is invalid", key, value));
+        self.libraries.insert(key, address);
+    }
+
+    ///
+    /// Gets a deployed library address.
+    ///
+    pub fn get_library_address(&self, path: &str) -> Option<inkwell::values::IntValue<'ctx>> {
+        self.libraries.get(path).cloned()
     }
 
     ///
@@ -406,7 +408,7 @@ impl<'ctx> Context<'ctx> {
             .dependencies
             .remove(identifier)
             .unwrap_or_else(|| panic!("Dependency `{}` not found", identifier));
-        let bytecode = dependency.compile(self.target, self.optimization_level);
+        let bytecode = dependency.compile(self.optimization_level);
         self.dependencies
             .insert(identifier.to_owned(), Dependency::new_bytecode(bytecode));
         match self.dependencies.get(identifier).expect("Always exists") {
@@ -426,13 +428,11 @@ impl<'ctx> Context<'ctx> {
         name: &str,
     ) -> inkwell::values::PointerValue<'ctx> {
         let pointer = self.builder.build_alloca(r#type, name);
-        if let Target::zkEVM = self.target {
-            self.basic_block()
-                .get_last_instruction()
-                .expect("Always exists")
-                .set_alignment(compiler_common::size::FIELD as u32)
-                .expect("Alignment is valid");
-        }
+        self.basic_block()
+            .get_last_instruction()
+            .expect("Always exists")
+            .set_alignment(compiler_common::size::FIELD as u32)
+            .expect("Alignment is valid");
         pointer
     }
 
@@ -447,11 +447,9 @@ impl<'ctx> Context<'ctx> {
         value: V,
     ) {
         let instruction = self.builder.build_store(pointer, value);
-        if let Target::zkEVM = self.target {
-            instruction
-                .set_alignment(compiler_common::size::FIELD as u32)
-                .expect("Alignment is valid");
-        }
+        instruction
+            .set_alignment(compiler_common::size::FIELD as u32)
+            .expect("Alignment is valid");
     }
 
     ///
@@ -465,13 +463,11 @@ impl<'ctx> Context<'ctx> {
         name: &str,
     ) -> inkwell::values::BasicValueEnum<'ctx> {
         let value = self.builder.build_load(pointer, name);
-        if let Target::zkEVM = self.target {
-            self.basic_block()
-                .get_last_instruction()
-                .expect("Always exists")
-                .set_alignment(compiler_common::size::FIELD as u32)
-                .expect("Alignment is valid");
-        }
+        self.basic_block()
+            .get_last_instruction()
+            .expect("Always exists")
+            .set_alignment(compiler_common::size::FIELD as u32)
+            .expect("Alignment is valid");
         value
     }
 
@@ -523,10 +519,6 @@ impl<'ctx> Context<'ctx> {
     ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
         let call_site_value = self.builder.build_call(function, args, name);
 
-        if let Target::x86 = self.target {
-            return call_site_value.try_as_basic_value().left();
-        }
-
         if name == compiler_common::identifier::FUNCTION_CXA_THROW {
             return call_site_value.try_as_basic_value().left();
         }
@@ -569,10 +561,6 @@ impl<'ctx> Context<'ctx> {
         args: &[inkwell::values::BasicValueEnum<'ctx>],
         name: &str,
     ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-        if let Target::x86 = self.target {
-            return self.build_call(function, args, name);
-        }
-
         let join_block = self.append_basic_block("join");
 
         let call_site_value = self.builder.build_invoke(
@@ -642,10 +630,6 @@ impl<'ctx> Context<'ctx> {
     /// Builds an exception catching block sequence.
     ///
     pub fn build_catch_block(&self) -> Option<inkwell::values::AnyValueEnum<'ctx>> {
-        if !matches!(self.target, Target::zkEVM) {
-            return None;
-        }
-
         let landing_pad_type = self.structure_type(vec![
             self.integer_type(compiler_common::bitlength::BYTE)
                 .ptr_type(compiler_common::AddressSpace::Stack.into())
@@ -684,10 +668,6 @@ impl<'ctx> Context<'ctx> {
     /// Builds an error throwing block sequence.
     ///
     pub fn build_throw_block(&self) {
-        if !matches!(self.target, Target::zkEVM) {
-            return;
-        }
-
         self.build_call(
             self.cxa_throw,
             vec![
@@ -857,53 +837,12 @@ impl<'ctx> Context<'ctx> {
         offset: inkwell::values::IntValue<'ctx>,
         name: &str,
     ) -> inkwell::values::PointerValue<'ctx> {
-        match self.target {
-            Target::x86 => {
-                let pointer = self.heap.expect("Always exists").as_pointer_value();
-                let pointer = self.builder.build_pointer_cast(
-                    pointer,
-                    self.field_type()
-                        .ptr_type(compiler_common::AddressSpace::Heap.into()),
-                    format!("{}_casted", name).as_str(),
-                );
-                let pointer = unsafe {
-                    self.builder.build_gep(
-                        pointer,
-                        &[self.field_const(0), offset],
-                        format!("{}_shifted", name).as_str(),
-                    )
-                };
-                pointer
-            }
-            Target::zkEVM => self.builder.build_int_to_ptr(
-                offset,
-                self.field_type()
-                    .ptr_type(compiler_common::AddressSpace::Heap.into()),
-                name,
-            ),
-        }
-    }
-
-    ///
-    /// Returns the storage pointer with the `offset` fields offset.
-    ///
-    /// Only for testing.
-    ///
-    pub fn access_storage(
-        &self,
-        offset: inkwell::values::IntValue<'ctx>,
-        name: &str,
-    ) -> inkwell::values::PointerValue<'ctx> {
-        let pointer = self.storage.expect("Always exists").as_pointer_value();
-        let indexes = vec![self.field_const(0), offset];
-        let pointer = unsafe {
-            self.builder.build_gep(
-                pointer,
-                indexes.as_slice(),
-                format!("{}_shifted", name).as_str(),
-            )
-        };
-        pointer
+        self.builder.build_int_to_ptr(
+            offset,
+            self.field_type()
+                .ptr_type(compiler_common::AddressSpace::Heap.into()),
+            name,
+        )
     }
 
     ///
@@ -914,80 +853,11 @@ impl<'ctx> Context<'ctx> {
         offset: inkwell::values::IntValue<'ctx>,
         name: &str,
     ) -> inkwell::values::PointerValue<'ctx> {
-        match self.target {
-            Target::x86 => {
-                let pointer = self.calldata.expect("Always exists").as_pointer_value();
-                let pointer = unsafe {
-                    self.builder.build_gep(
-                        pointer,
-                        &[self.field_const(0), offset],
-                        format!("{}_shifted", name).as_str(),
-                    )
-                };
-                pointer
-            }
-            Target::zkEVM => self.builder.build_int_to_ptr(
-                offset,
-                self.field_type()
-                    .ptr_type(compiler_common::AddressSpace::Parent.into()),
-                name,
-            ),
-        }
-    }
-
-    ///
-    /// Allocates the heap, if it has not been allocated yet.
-    ///
-    pub fn allocate_heap(&mut self, size: usize) {
-        if !matches!(self.target, Target::x86) {
-            return;
-        }
-
-        if self.heap.is_some() {
-            return;
-        }
-
-        let r#type = self
-            .integer_type(compiler_common::bitlength::BYTE)
-            .array_type(size as u32);
-        let global = self.module().add_global(r#type, None, "heap");
-        global.set_initializer(&r#type.const_zero());
-        self.heap = Some(global);
-    }
-
-    ///
-    /// Allocates the contract storage, if it has not been allocated yet.
-    ///
-    pub fn allocate_storage(&mut self, size: usize) {
-        if !matches!(self.target, Target::x86) {
-            return;
-        }
-
-        if self.storage.is_some() {
-            return;
-        }
-
-        let r#type = self.field_type().array_type(size as u32);
-        let global = self.module().add_global(r#type, None, "storage");
-        global.set_initializer(&r#type.const_zero());
-        self.storage = Some(global);
-    }
-
-    ///
-    /// Allocates the calldata, if it has not been allocated yet.
-    ///
-    pub fn allocate_calldata(&mut self, size: usize) {
-        if !matches!(self.target, Target::x86) {
-            return;
-        }
-
-        if self.calldata.is_some() {
-            return;
-        }
-
-        let r#type = self.field_type().array_type(size as u32);
-        let global = self.module().add_global(r#type, None, "calldata");
-        global.set_initializer(&r#type.const_zero());
-        self.calldata = Some(global);
+        self.builder.build_int_to_ptr(
+            offset,
+            self.field_type()
+                .ptr_type(compiler_common::AddressSpace::Parent.into()),
+            name,
+        )
     }
 }

@@ -16,7 +16,6 @@ use crate::parser::error::Error as ParserError;
 use crate::parser::statement::assignment::Assignment;
 use crate::parser::statement::expression::Expression;
 use crate::parser::statement::Statement;
-use crate::target::Target;
 
 ///
 /// The source code block.
@@ -213,23 +212,7 @@ impl Block {
         context.build_unreachable();
 
         context.set_basic_block(function.return_block);
-        match context.target {
-            Target::x86 => {
-                let mut return_value = context.build_load(return_pointer, "return_value");
-                return_value = context
-                    .builder
-                    .build_int_truncate_or_bit_cast(
-                        return_value.into_int_value(),
-                        context.integer_type(compiler_common::bitlength::WORD),
-                        "return_value_truncated",
-                    )
-                    .as_basic_value_enum();
-                context.build_return(Some(&return_value));
-            }
-            Target::zkEVM => {
-                context.build_return(None);
-            }
-        }
+        context.build_return(None);
 
         for function in functions.into_iter() {
             function.into_llvm(context);

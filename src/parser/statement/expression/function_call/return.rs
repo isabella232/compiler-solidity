@@ -6,7 +6,6 @@ use inkwell::values::BasicValue;
 
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
-use crate::target::Target;
 
 ///
 /// Translates the normal return.
@@ -16,28 +15,6 @@ pub fn r#return<'ctx>(
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let function = context.function().to_owned();
-
-    if let Target::x86 = context.target {
-        let source = context.access_heap(
-            arguments[0].into_int_value(),
-            "return_source_pointer",
-            //Some(context.integer_type(compiler_common::bitlength::BYTE)),
-        );
-        if let Some(return_pointer) = function.return_pointer() {
-            context
-                .builder
-                .build_memcpy(
-                    return_pointer,
-                    (compiler_common::size::BYTE) as u32,
-                    source,
-                    (compiler_common::size::BYTE) as u32,
-                    arguments[1].into_int_value(),
-                )
-                .expect("Return memory copy failed");
-        }
-        context.build_unconditional_branch(function.return_block);
-        return None;
-    }
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
 
@@ -93,10 +70,6 @@ pub fn revert<'ctx>(
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let function = context.function().to_owned();
-
-    if let Target::x86 = context.target {
-        return None;
-    }
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
 

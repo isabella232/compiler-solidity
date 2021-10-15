@@ -6,7 +6,6 @@ use inkwell::values::BasicValue;
 
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
-use crate::target::Target;
 
 ///
 /// Translates the return data size.
@@ -14,10 +13,6 @@ use crate::target::Target;
 pub fn size<'ctx>(
     context: &mut LLVMContext<'ctx>,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if let Target::x86 = context.target {
-        return Some(context.field_const(0).as_basic_value_enum());
-    }
-
     let pointer = context.builder.build_int_to_ptr(
         context.field_const(
             (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD) as u64,
@@ -43,10 +38,6 @@ pub fn copy<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if let Target::x86 = context.target {
-        return None;
-    }
-
     let destination = context.access_heap(
         arguments[0].into_int_value(),
         "return_data_copy_destination_pointer",

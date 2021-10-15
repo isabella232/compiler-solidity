@@ -2,11 +2,8 @@
 //! Translates the hash instruction.
 //!
 
-use inkwell::values::BasicValue;
-
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
-use crate::target::Target;
 
 ///
 /// Translates the hash instruction.
@@ -15,10 +12,6 @@ pub fn keccak256<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if let Target::x86 = context.target {
-        return Some(context.field_const(0).as_basic_value_enum());
-    }
-
     let range_start = arguments[0].into_int_value();
     let length = arguments[1].into_int_value();
 

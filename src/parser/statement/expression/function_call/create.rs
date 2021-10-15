@@ -7,7 +7,6 @@ use inkwell::values::BasicValue;
 use crate::generator::llvm::argument::Argument;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
-use crate::target::Target;
 
 ///
 /// Translates the contract `create` instruction.
@@ -34,10 +33,6 @@ pub fn create2<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 4],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if let Target::x86 = context.target {
-        return Some(context.field_const(0).as_basic_value_enum());
-    }
-
     let input_offset = context.builder.build_int_add(
         arguments[1].into_int_value(),
         context.field_const(compiler_common::size::FIELD as u64),

@@ -6,7 +6,6 @@ use inkwell::values::BasicValue;
 
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
-use crate::target::Target;
 
 ///
 /// Translates the calldata load.
@@ -39,17 +38,14 @@ pub fn load<'ctx>(
     context.build_unconditional_branch(join_block);
 
     context.set_basic_block(if_non_zero_block);
-    let offset = match context.target {
-        Target::x86 => arguments[0].into_int_value(),
-        Target::zkEVM => context.builder.build_int_add(
-            arguments[0].into_int_value(),
-            context.field_const(
-                (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD - 4)
-                    as u64,
-            ),
-            "calldata_value_offset",
+    let offset = context.builder.build_int_add(
+        arguments[0].into_int_value(),
+        context.field_const(
+            (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD - 4)
+                as u64,
         ),
-    };
+        "calldata_value_offset",
+    );
     let pointer = context.access_calldata(offset, "pointer_non_zero");
     let value = context.build_load(pointer, "calldata_value_non_zero");
     context.build_store(value_pointer, value);
@@ -67,14 +63,6 @@ pub fn size<'ctx>(
     context: &mut LLVMContext<'ctx>,
     has_selector: bool,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if let Target::x86 = context.target {
-        return Some(
-            context
-                .field_const(if has_selector { 4 } else { 0 })
-                .as_basic_value_enum(),
-        );
-    }
-
     let pointer = context.access_calldata(
         context.field_const(
             (compiler_common::abi::OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD) as u64,
@@ -108,41 +96,33 @@ pub fn copy<'ctx>(
     let zero_block = context.append_basic_block("calldata_if_zero");
     let join_block = context.append_basic_block("calldata_if_join");
 
-    let is_calldata_available = match context.target {
-        Target::x86 => context
-            .integer_type(compiler_common::bitlength::BOOLEAN)
-            .const_int(0, false),
-        Target::zkEVM => {
-            let pointer = context.access_calldata(
-                context.field_const(
-                    (compiler_common::abi::OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD)
-                        as u64,
-                ),
-                "calldata_size_pointer",
-            );
-            let calldata_size = context
-                .build_load(pointer, "calldata_size_value_cells")
-                .into_int_value();
+    let pointer = context.access_calldata(
+        context.field_const(
+            (compiler_common::abi::OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD) as u64,
+        ),
+        "calldata_size_pointer",
+    );
+    let calldata_size = context
+        .build_load(pointer, "calldata_size_value_cells")
+        .into_int_value();
 
-            let range_end_bytes = context.builder.build_int_add(
-                arguments[1].into_int_value(),
-                arguments[2].into_int_value(),
-                "calldata_range_end_bytes",
-            );
-            let range_end = context.builder.build_int_unsigned_div(
-                range_end_bytes,
-                context.field_const(compiler_common::size::FIELD as u64),
-                "calldata_range_end",
-            );
+    let range_end_bytes = context.builder.build_int_add(
+        arguments[1].into_int_value(),
+        arguments[2].into_int_value(),
+        "calldata_range_end_bytes",
+    );
+    let range_end = context.builder.build_int_unsigned_div(
+        range_end_bytes,
+        context.field_const(compiler_common::size::FIELD as u64),
+        "calldata_range_end",
+    );
 
-            context.builder.build_int_compare(
-                inkwell::IntPredicate::UGE,
-                calldata_size,
-                range_end,
-                "calldata_is_available",
-            )
-        }
-    };
+    let is_calldata_available = context.builder.build_int_compare(
+        inkwell::IntPredicate::UGE,
+        calldata_size,
+        range_end,
+        "calldata_is_available",
+    );
     context.build_conditional_branch(is_calldata_available, copy_block, zero_block);
 
     context.set_basic_block(copy_block);

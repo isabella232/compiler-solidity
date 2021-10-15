@@ -485,6 +485,10 @@ impl FunctionCall {
                     Intrinsic::DelegateCall,
                 )
             }
+            Name::LinkerSymbol => {
+                let arguments = self.pop_arguments::<1>(context);
+                contract::linker_symbol(context, arguments)
+            }
 
             Name::Create => {
                 let arguments = self.pop_arguments_llvm::<3>(context);
@@ -507,10 +511,6 @@ impl FunctionCall {
                 create::datacopy(context, arguments)
             }
 
-            Name::LinkerSymbol => {
-                let _arguments = self.pop_arguments_llvm::<1>(context);
-                Some(context.field_const(0).as_basic_value_enum())
-            }
             Name::MemoryGuard => {
                 let arguments = self.pop_arguments_llvm::<1>(context);
                 Some(arguments[0])

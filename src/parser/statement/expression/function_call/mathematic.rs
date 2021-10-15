@@ -5,7 +5,6 @@
 use inkwell::values::BasicValue;
 
 use crate::generator::llvm::Context as LLVMContext;
-use crate::target::Target;
 
 ///
 /// Translates the modular addition operation.
@@ -14,10 +13,6 @@ pub fn add_mod<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if let Target::x86 = context.target {
-        return add_mod_x86(context, arguments);
-    }
-
     let zero_block = context.append_basic_block("add_mod_if_zero");
     let non_zero_block = context.append_basic_block("add_mod_if_not_zero");
     let join_block = context.append_basic_block("add_mod_if_join");
@@ -62,10 +57,6 @@ pub fn mul_mod<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    if let Target::x86 = context.target {
-        return mul_mod_x86(context, arguments);
-    }
-
     let zero_block = context.append_basic_block("mul_mod_if_zero");
     let non_zero_block = context.append_basic_block("mul_mod_if_not_zero");
     let join_block = context.append_basic_block("mul_mod_if_join");
@@ -223,140 +214,4 @@ pub fn sign_extend<'ctx>(
         .build_int_add(value, sign_fill_bits_checked, "sign_extend_result");
 
     Some(result.as_basic_value_enum())
-}
-
-///
-/// Translates the modular addition operation on the `x86` target.
-///
-pub fn add_mod_x86<'ctx>(
-    context: &mut LLVMContext<'ctx>,
-    mut arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let zero_block = context.append_basic_block("add_mod_if_zero");
-    let non_zero_block = context.append_basic_block("add_mod_if_not_zero");
-    let join_block = context.append_basic_block("add_mod_if_join");
-
-    let result_pointer = context.build_alloca(context.field_type(), "add_mod_result_pointer");
-    let condition = context.builder.build_int_compare(
-        inkwell::IntPredicate::EQ,
-        arguments[2].into_int_value(),
-        context.field_const(0),
-        "add_mod_if_condition",
-    );
-    context.build_conditional_branch(condition, zero_block, non_zero_block);
-
-    context.set_basic_block(non_zero_block);
-    let mut result = context.builder.build_int_add(
-        arguments[0].into_int_value(),
-        arguments[1].into_int_value(),
-        "add_mod_addition",
-    );
-    let initial_type = context.field_type();
-    if let Target::x86 = context.target {
-        let allowed_type = context.integer_type(compiler_common::bitlength::BYTE * 16);
-        result = context.builder.build_int_truncate_or_bit_cast(
-            result,
-            allowed_type,
-            "add_mod_addition_truncated",
-        );
-        arguments[2] = context
-            .builder
-            .build_int_truncate_or_bit_cast(
-                arguments[2].into_int_value(),
-                allowed_type,
-                "add_mod_modulo_truncated",
-            )
-            .as_basic_value_enum();
-    }
-    let mut result = context.builder.build_int_unsigned_rem(
-        result,
-        arguments[2].into_int_value(),
-        "add_mod_result_truncated",
-    );
-    if let Target::x86 = context.target {
-        result = context.builder.build_int_z_extend_or_bit_cast(
-            result,
-            initial_type,
-            "add_mod_result_extended",
-        );
-    }
-    context.build_store(result_pointer, result);
-    context.build_unconditional_branch(join_block);
-
-    context.set_basic_block(zero_block);
-    context.build_store(result_pointer, context.field_const(0));
-    context.build_unconditional_branch(join_block);
-
-    context.set_basic_block(join_block);
-    let result = context.build_load(result_pointer, "add_mod_result");
-
-    Some(result)
-}
-
-///
-/// Translates the modular multiplication operation on the `x86` target.
-///
-pub fn mul_mod_x86<'ctx>(
-    context: &mut LLVMContext<'ctx>,
-    mut arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let zero_block = context.append_basic_block("mul_mod_if_zero");
-    let non_zero_block = context.append_basic_block("mul_mod_if_not_zero");
-    let join_block = context.append_basic_block("mul_mod_if_join");
-
-    let result_pointer = context.build_alloca(context.field_type(), "mul_mod_result_pointer");
-    let condition = context.builder.build_int_compare(
-        inkwell::IntPredicate::EQ,
-        arguments[2].into_int_value(),
-        context.field_const(0),
-        "mul_mod_if_condition",
-    );
-    context.build_conditional_branch(condition, zero_block, non_zero_block);
-
-    context.set_basic_block(non_zero_block);
-    let mut result = context.builder.build_int_mul(
-        arguments[0].into_int_value(),
-        arguments[1].into_int_value(),
-        "mul_mod_multiplication",
-    );
-    let initial_type = context.field_type();
-    if let Target::x86 = context.target {
-        let allowed_type = context.integer_type(compiler_common::bitlength::BYTE * 16);
-        result = context.builder.build_int_truncate_or_bit_cast(
-            result,
-            allowed_type,
-            "mul_mod_multiplication_truncated",
-        );
-        arguments[2] = context
-            .builder
-            .build_int_truncate_or_bit_cast(
-                arguments[2].into_int_value(),
-                allowed_type,
-                "mul_mod_modulo_truncated",
-            )
-            .as_basic_value_enum();
-    }
-    let mut result = context.builder.build_int_unsigned_rem(
-        result,
-        arguments[2].into_int_value(),
-        "mul_mod_result_truncated",
-    );
-    if let Target::x86 = context.target {
-        result = context.builder.build_int_z_extend_or_bit_cast(
-            result,
-            initial_type,
-            "mul_mod_result_extended",
-        );
-    }
-    context.build_store(result_pointer, result);
-    context.build_unconditional_branch(join_block);
-
-    context.set_basic_block(zero_block);
-    context.build_store(result_pointer, context.field_const(0));
-    context.build_unconditional_branch(join_block);
-
-    context.set_basic_block(join_block);
-    let result = context.build_load(result_pointer, "mul_mod_result");
-
-    Some(result)
 }

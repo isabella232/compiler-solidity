@@ -12,7 +12,6 @@ use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
 use crate::parser::statement::code::Code;
-use crate::target::Target;
 
 ///
 /// The YUL object.
@@ -85,10 +84,6 @@ impl ILLVMWritable for Object {
         let is_selector = self.identifier.ends_with("_deployed");
         let is_constructor = !is_selector;
 
-        context.allocate_heap(2048 * compiler_common::size::FIELD);
-        context.allocate_storage(256);
-        context.allocate_calldata(64);
-
         if is_constructor {
             context.add_function(
                 compiler_common::identifier::FUNCTION_SELECTOR,
@@ -97,9 +92,7 @@ impl ILLVMWritable for Object {
                 false,
             );
 
-            if matches!(context.target, Target::zkEVM) {
-                self.code.into_llvm_constructor(context);
-            }
+            self.code.into_llvm_constructor(context);
         } else if is_selector {
             self.code.into_llvm_selector(context);
         }
