@@ -4,6 +4,7 @@
 
 pub mod arguments;
 
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io::Read;
@@ -51,6 +52,7 @@ fn main_inner() -> Result<(), compiler_yul::Error> {
     let representation = compiler_yul::compile(
         object,
         dependencies,
+        HashMap::new(),
         optimization_level,
         optimization_level,
         arguments.dump_llvm,

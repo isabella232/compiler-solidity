@@ -78,6 +78,7 @@ impl<'ctx> Context<'ctx> {
         machine: &inkwell::targets::TargetMachine,
         identifier: &str,
         dependencies: HashMap<String, Object>,
+        libraries: HashMap<String, String>,
     ) -> Self {
         Self::new_with_optimizer(
             llvm,
@@ -85,6 +86,7 @@ impl<'ctx> Context<'ctx> {
             inkwell::OptimizationLevel::None,
             identifier,
             dependencies,
+            libraries,
         )
     }
 
@@ -97,6 +99,7 @@ impl<'ctx> Context<'ctx> {
         optimization_level: inkwell::OptimizationLevel,
         identifier: &str,
         dependencies: HashMap<String, Object>,
+        libraries: HashMap<String, String>,
     ) -> Self {
         let module = llvm.create_module(identifier);
         module.set_triple(&machine.get_triple());
@@ -154,10 +157,20 @@ impl<'ctx> Context<'ctx> {
             llvm.create_enum_attribute(27, 0),
         );
 
+        let libraries = libraries
+            .into_iter()
+            .map(|(key, value)| {
+                let address = llvm
+                    .custom_width_int_type(compiler_common::bitlength::FIELD as u32)
+                    .const_int_from_string(value.as_str(), inkwell::types::StringRadix::Hexadecimal)
+                    .unwrap_or_else(|| panic!("Library `{}` address `{}` is invalid", key, value));
+                (key, address)
+            })
+            .collect();
+
         Self {
             builder: llvm.create_builder(),
             functions: HashMap::with_capacity(Self::FUNCTION_HASHMAP_INITIAL_CAPACITY),
-            libraries: HashMap::new(),
 
             llvm,
             module,
@@ -165,6 +178,7 @@ impl<'ctx> Context<'ctx> {
             function: None,
             loop_stack: Vec::with_capacity(Self::LOOP_STACK_INITIAL_CAPACITY),
             dependencies,
+            libraries,
 
             personality,
             cxa_throw,
@@ -316,19 +330,6 @@ impl<'ctx> Context<'ctx> {
         self.function_mut().r#return = Some(r#return);
 
         self.function().to_owned()
-    }
-
-    ///
-    /// Inserts a deployed library address.
-    ///
-    /// The address must be a hexadecimal string without the `0x` prefix.
-    ///
-    pub fn insert_library_address(&mut self, key: String, value: String) {
-        let address = self
-            .field_type()
-            .const_int_from_string(value.as_str(), inkwell::types::StringRadix::Hexadecimal)
-            .unwrap_or_else(|| panic!("Library `{}` address `{}` is invalid", key, value));
-        self.libraries.insert(key, address);
     }
 
     ///

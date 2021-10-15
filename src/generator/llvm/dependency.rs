@@ -43,6 +43,7 @@ impl Dependency {
                 let llvm_ir = crate::compile(
                     object,
                     HashMap::new(),
+                    HashMap::new(),
                     optimization_level,
                     optimization_level,
                     false,

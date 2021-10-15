@@ -80,6 +80,7 @@ pub fn parse_contract(
 pub fn compile(
     object: Object,
     dependencies: HashMap<String, Object>,
+    libraries: HashMap<String, String>,
     opt_level_llvm_middle: inkwell::OptimizationLevel,
     opt_level_llvm_back: inkwell::OptimizationLevel,
     dump_llvm: bool,
@@ -98,6 +99,7 @@ pub fn compile(
         opt_level_llvm_middle,
         object.identifier.as_str(),
         dependencies,
+        libraries,
     );
 
     object.into_llvm(&mut context);
