@@ -176,15 +176,15 @@ impl Lexer {
     /// Removes comments from the given source code.
     ///
     fn remove_comments(src: &mut String) {
-        while let Some(position) = src.find("//") {
-            let end_of_line = src[position..].find('\n').unwrap_or(src.len() - position) + position;
-            src.replace_range(position..end_of_line, "");
-        }
-
         while let Some(position) = src.find("/*") {
             let end_of_comment =
                 src[position..].find("*/").unwrap_or(src.len() - position) + position;
             src.replace_range(position..end_of_comment + 2, "");
+        }
+
+        while let Some(position) = src.find("//") {
+            let end_of_line = src[position..].find('\n').unwrap_or(src.len() - position) + position;
+            src.replace_range(position..end_of_line, "");
         }
     }
 }
