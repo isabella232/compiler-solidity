@@ -115,7 +115,6 @@ impl<'ctx> Context<'ctx> {
 
         let pass_manager_builder = inkwell::passes::PassManagerBuilder::create();
         pass_manager_builder.set_optimization_level(optimization_level);
-        pass_manager_builder.set_inliner_with_threshold(0);
         pass_manager_builder.set_disable_unroll_loops(matches!(
             optimization_level,
             inkwell::OptimizationLevel::Aggressive
