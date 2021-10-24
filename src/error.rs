@@ -14,6 +14,8 @@ pub enum Error {
     Reader(std::io::Error),
     /// The input error.
     Input(serde_json::Error),
+    /// The Solidity error.
+    Solidity(&'static str),
     /// The lexer error.
     Lexer(LexerError),
     /// The parser error.

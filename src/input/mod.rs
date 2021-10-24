@@ -3,6 +3,8 @@
 //!
 
 pub mod contract;
+pub mod error;
+pub mod source;
 
 use std::collections::HashMap;
 
@@ -15,14 +17,20 @@ use crate::parser::statement::object::Object;
 use crate::source_data::SourceData;
 
 use self::contract::Contract;
+use self::error::Error as SolidityError;
+use self::source::Source;
 
 ///
 /// The `solc --standard-json` output representation.
 ///
 #[derive(Debug, Deserialize)]
 pub struct Input {
-    /// The files hashmap.
-    pub contracts: HashMap<String, HashMap<String, Contract>>,
+    /// The file-contract hashmap.
+    pub contracts: Option<HashMap<String, HashMap<String, Contract>>>,
+    /// The source code mapping data.
+    pub sources: HashMap<String, Source>,
+    /// The compilation errors and warnings.
+    pub errors: Vec<SolidityError>,
 }
 
 impl Input {
@@ -35,12 +43,18 @@ impl Input {
     /// Returns the main contract object and its dependencies.
     ///
     pub fn try_into_source_data(self, contract_path: Option<&str>) -> Result<SourceData, Error> {
+        for error in self.errors.into_iter() {
+            println!("{}", error);
+        }
+
+        let contracts = self.contracts.ok_or(Error::Solidity("Compilation"))?;
+
         let mut main = None;
         let mut dependencies = HashMap::new();
         let mut libraries = HashMap::new();
         let mut contract_index = 0;
 
-        for (file, contracts) in self.contracts.into_iter() {
+        for (file, contracts) in contracts.into_iter() {
             for (identifier, contract) in contracts.into_iter() {
                 let current_path = format!("{}:{}", file, identifier);
                 let mut lexer = Lexer::new(contract.ir_optimized);
