@@ -102,7 +102,7 @@ mod tests {
             for {} expr {} {}
         }}"#;
 
-        assert!(crate::parse(input).is_ok());
+        assert!(crate::SourceData::try_from_yul(input).is_ok());
     }
 
     #[test]
@@ -116,6 +116,6 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::parse(input).is_ok());
+        assert!(crate::SourceData::try_from_yul(input).is_ok());
     }
 }

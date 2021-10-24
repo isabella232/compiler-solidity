@@ -583,7 +583,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::parse(input).is_ok());
+        assert!(crate::SourceData::try_from_yul(input).is_ok());
     }
 
     #[test]
@@ -598,7 +598,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::parse(input).is_ok());
+        assert!(crate::SourceData::try_from_yul(input).is_ok());
     }
 
     #[test]
@@ -610,7 +610,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::parse(input).is_ok());
+        assert!(crate::SourceData::try_from_yul(input).is_ok());
     }
 
     #[test]
@@ -619,7 +619,7 @@ mod tests {
             function foo() -> x {let y := 3 x := add(3, y)}
         }}"#;
 
-        assert!(crate::parse(input).is_ok());
+        assert!(crate::SourceData::try_from_yul(input).is_ok());
     }
 
     #[test]
@@ -628,7 +628,7 @@ mod tests {
             function foo() -> x {let y := 3 x := sub(3, y)}
         }}"#;
 
-        assert!(crate::parse(input).is_ok());
+        assert!(crate::SourceData::try_from_yul(input).is_ok());
     }
 
     #[test]
@@ -637,7 +637,7 @@ mod tests {
             function foo() -> x {let y := 3 x := mul(3, y)}
         }}"#;
 
-        assert!(crate::parse(input).is_ok());
+        assert!(crate::SourceData::try_from_yul(input).is_ok());
     }
 
     #[test]
@@ -646,7 +646,7 @@ mod tests {
             function foo() -> x {let y := 3 x := div(3, y)}
         }}"#;
 
-        assert!(crate::parse(input).is_ok());
+        assert!(crate::SourceData::try_from_yul(input).is_ok());
     }
 
     #[test]
@@ -655,7 +655,7 @@ mod tests {
             function foo() -> x {let y := 3 x := sdiv(3, y)}
         }}"#;
 
-        assert!(crate::parse(input).is_ok());
+        assert!(crate::SourceData::try_from_yul(input).is_ok());
     }
 
     #[test]
@@ -664,7 +664,7 @@ mod tests {
             function foo() -> x {let y := 3 x := mod(3, y)}
         }}"#;
 
-        assert!(crate::parse(input).is_ok());
+        assert!(crate::SourceData::try_from_yul(input).is_ok());
     }
 
     #[test]
@@ -673,6 +673,6 @@ mod tests {
             function foo() -> x {let y := 3 x := smod(3, y)}
         }}"#;
 
-        assert!(crate::parse(input).is_ok());
+        assert!(crate::SourceData::try_from_yul(input).is_ok());
     }
 }

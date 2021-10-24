@@ -87,6 +87,6 @@ mod tests {
             foo(x, y)
         }}"#;
 
-        assert!(crate::parse(input).is_ok());
+        assert!(crate::SourceData::try_from_yul(input).is_ok());
     }
 }

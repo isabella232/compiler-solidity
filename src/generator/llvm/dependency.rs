@@ -2,10 +2,10 @@
 //! The contract dependency in different compilation states.
 //!
 
-use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use crate::parser::statement::object::Object;
+use crate::source_data::SourceData;
 
 ///
 /// The contract dependency at different compilation states.
@@ -40,17 +40,11 @@ impl Dependency {
         match self {
             Self::Parsed(object) => {
                 let identifier = object.identifier.clone();
-                let llvm_ir = crate::compile(
-                    object,
-                    HashMap::new(),
-                    HashMap::new(),
-                    optimization_level,
-                    optimization_level,
-                    false,
-                )
-                .unwrap_or_else(|error| {
-                    panic!("Dependency `{}` compiling error: {:?}", identifier, error)
-                });
+                let llvm_ir = SourceData::new(object)
+                    .compile(optimization_level, optimization_level, false)
+                    .unwrap_or_else(|error| {
+                        panic!("Dependency `{}` compiling error: {:?}", identifier, error)
+                    });
                 let assembly =
                     zkevm_assembly::Assembly::try_from(llvm_ir).unwrap_or_else(|error| {
                         panic!(

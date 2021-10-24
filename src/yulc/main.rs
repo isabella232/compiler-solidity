@@ -4,7 +4,6 @@
 
 pub mod arguments;
 
-use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io::Read;
@@ -32,7 +31,7 @@ fn main() {
 fn main_inner() -> Result<(), compiler_yul::Error> {
     let arguments = Arguments::new();
 
-    let code = if arguments.input.to_string_lossy() == "-" {
+    let input_string = if arguments.input.to_string_lossy() == "-" {
         let mut buffer = String::with_capacity(16384);
         std::io::stdin().read_to_string(&mut buffer)?;
         buffer
@@ -47,16 +46,10 @@ fn main_inner() -> Result<(), compiler_yul::Error> {
         _ => inkwell::OptimizationLevel::Aggressive,
     };
 
-    let (object, dependencies) =
-        compiler_yul::parse_contract(code.as_str(), arguments.contract.as_deref())?;
-    let representation = compiler_yul::compile(
-        object,
-        dependencies,
-        HashMap::new(),
-        optimization_level,
-        optimization_level,
-        arguments.dump_llvm,
-    )?;
+    let input: compiler_yul::Input = serde_json::from_str(input_string.as_str())?;
+    let source_data = input.try_into_source_data(arguments.contract.as_deref())?;
+    let representation =
+        source_data.compile(optimization_level, optimization_level, arguments.dump_llvm)?;
 
     let text = representation.clone().into_bytes();
     let binary = zkevm_assembly::Assembly::try_from(representation)?;
