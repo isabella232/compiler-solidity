@@ -42,9 +42,18 @@ impl Input {
     ///
     /// Returns the main contract object and its dependencies.
     ///
-    pub fn try_into_source_data(self, contract_path: Option<&str>) -> Result<SourceData, Error> {
+    pub fn try_into_source_data(
+        self,
+        contract_path: Option<&str>,
+        libraries: HashMap<String, String>,
+        print_warnings: bool,
+    ) -> Result<SourceData, Error> {
         if let Some(errors) = self.errors {
             for error in errors.into_iter() {
+                if error.severity.as_str() == "warning" && !print_warnings {
+                    continue;
+                }
+
                 println!("{}", error);
             }
         }
@@ -53,17 +62,12 @@ impl Input {
 
         let mut main = None;
         let mut dependencies = HashMap::new();
-        let mut libraries = HashMap::new();
-        let mut contract_index = 0;
 
         for (file, contracts) in contracts.into_iter() {
             for (identifier, contract) in contracts.into_iter() {
                 let current_path = format!("{}:{}", file, identifier);
                 let mut lexer = Lexer::new(contract.ir_optimized);
                 let object = Object::parse(&mut lexer, None)?;
-
-                libraries.insert(current_path.clone(), format!("{:064x}", contract_index));
-                contract_index += 1;
 
                 if let Some(contract_path) = contract_path {
                     if current_path.as_str() == contract_path {

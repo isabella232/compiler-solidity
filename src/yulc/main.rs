@@ -4,6 +4,7 @@
 
 pub mod arguments;
 
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io::Read;
@@ -46,8 +47,24 @@ fn main_inner() -> Result<(), compiler_yul::Error> {
         _ => inkwell::OptimizationLevel::Aggressive,
     };
 
+    let libraries: HashMap<String, String> = arguments
+        .libraries
+        .into_iter()
+        .enumerate()
+        .map(|(index, library)| {
+            let mut parts = library.split(':');
+            let path = parts
+                .next()
+                .unwrap_or_else(|| panic!("The library {} path is missing", index));
+            let address = parts
+                .next()
+                .unwrap_or_else(|| panic!("The library {} address is missing", index));
+            (path.to_owned(), address.to_owned())
+        })
+        .collect();
+
     let input: compiler_yul::Input = serde_json::from_str(input_string.as_str())?;
-    let source_data = input.try_into_source_data(arguments.contract.as_deref())?;
+    let source_data = input.try_into_source_data(arguments.contract.as_deref(), libraries, true)?;
     let representation =
         source_data.compile(optimization_level, optimization_level, arguments.dump_llvm)?;
 

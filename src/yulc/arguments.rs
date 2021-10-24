@@ -20,6 +20,10 @@ pub struct Arguments {
     #[structopt(short = "O", long = "opt-level", default_value = "0")]
     pub optimization_level: usize,
 
+    /// Whether to dump the Yul code.
+    #[structopt(long = "dump-yul")]
+    pub dump_yul: bool,
+
     /// Whether to dump the LLVM code to the terminal.
     #[structopt(long = "dump-llvm")]
     pub dump_llvm: bool,
@@ -27,6 +31,10 @@ pub struct Arguments {
     /// The main contract to choose from multiple contracts.
     #[structopt(short = "c", long = "contract")]
     pub contract: Option<String>,
+
+    /// The hashmap of colon-separated library paths and their ETH addresses.
+    #[structopt(short = "l", long = "library")]
+    pub libraries: Vec<String>,
 }
 
 impl Arguments {
