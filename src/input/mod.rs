@@ -30,7 +30,7 @@ pub struct Input {
     /// The source code mapping data.
     pub sources: HashMap<String, Source>,
     /// The compilation errors and warnings.
-    pub errors: Vec<SolidityError>,
+    pub errors: Option<Vec<SolidityError>>,
 }
 
 impl Input {
@@ -43,8 +43,10 @@ impl Input {
     /// Returns the main contract object and its dependencies.
     ///
     pub fn try_into_source_data(self, contract_path: Option<&str>) -> Result<SourceData, Error> {
-        for error in self.errors.into_iter() {
-            println!("{}", error);
+        if let Some(errors) = self.errors {
+            for error in errors.into_iter() {
+                println!("{}", error);
+            }
         }
 
         let contracts = self.contracts.ok_or(Error::Solidity("Compilation"))?;
