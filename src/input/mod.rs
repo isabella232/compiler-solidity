@@ -65,6 +65,10 @@ impl Input {
 
         for (file, contracts) in contracts.into_iter() {
             for (identifier, contract) in contracts.into_iter() {
+                if contract.ir_optimized.is_empty() {
+                    continue;
+                }
+
                 let current_path = format!("{}:{}", file, identifier);
                 let mut lexer = Lexer::new(contract.ir_optimized);
                 let object = Object::parse(&mut lexer, None)?;

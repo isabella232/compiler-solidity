@@ -38,7 +38,6 @@ impl Lexer {
     /// A shortcut constructor.
     ///
     pub fn new(mut input: String) -> Self {
-        Self::remove_ir_messages(&mut input);
         Self::remove_comments(&mut input);
         input.push('\n');
 
@@ -162,14 +161,6 @@ impl Lexer {
                 lexeme => lexemes.push(lexeme),
             }
         }
-    }
-
-    ///
-    /// Removes Solidity compiler IR messages from the given source code.
-    ///
-    fn remove_ir_messages(src: &mut String) {
-        *src = src.replace("Optimized IR:", "");
-        *src = src.replace("IR:", "");
     }
 
     ///
