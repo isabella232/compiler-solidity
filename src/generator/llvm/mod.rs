@@ -447,8 +447,17 @@ impl<'ctx> Context<'ctx> {
         value: V,
     ) {
         let instruction = self.builder.build_store(pointer, value);
+
+        let alignment = if inkwell::AddressSpace::from(compiler_common::AddressSpace::Heap)
+            == pointer.get_type().get_address_space()
+        {
+            1
+        } else {
+            compiler_common::size::FIELD
+        };
+
         instruction
-            .set_alignment(compiler_common::size::FIELD as u32)
+            .set_alignment(alignment as u32)
             .expect("Alignment is valid");
     }
 
@@ -463,10 +472,19 @@ impl<'ctx> Context<'ctx> {
         name: &str,
     ) -> inkwell::values::BasicValueEnum<'ctx> {
         let value = self.builder.build_load(pointer, name);
+
+        let alignment = if inkwell::AddressSpace::from(compiler_common::AddressSpace::Heap)
+            == pointer.get_type().get_address_space()
+        {
+            1
+        } else {
+            compiler_common::size::FIELD
+        };
+
         self.basic_block()
             .get_last_instruction()
             .expect("Always exists")
-            .set_alignment(compiler_common::size::FIELD as u32)
+            .set_alignment(alignment as u32)
             .expect("Alignment is valid");
         value
     }

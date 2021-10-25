@@ -23,7 +23,7 @@ pub fn store<'ctx>(
     context: &mut LLVMContext<'ctx>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let offset = context.adjust_offset(arguments[0].into_int_value(), "memory_store_offset");
+    let offset = arguments[0].into_int_value();
     let pointer = context.access_heap(offset, "memory_store_pointer");
     context.build_store(pointer, arguments[1]);
 
