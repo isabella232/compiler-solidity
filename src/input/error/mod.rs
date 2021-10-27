@@ -25,7 +25,7 @@ pub struct Error {
     /// The error severity.
     pub severity: String,
     /// The error location data.
-    pub source_location: SourceLocation,
+    pub source_location: Option<SourceLocation>,
     /// The error type.
     pub r#type: String,
 }
