@@ -10,8 +10,8 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 /// Translates the normal return.
 ///
-pub fn r#return<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn r#return<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let function = context.function().to_owned();
@@ -65,8 +65,8 @@ pub fn r#return<'ctx>(
 ///
 /// Translates the revert.
 ///
-pub fn revert<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn revert<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let function = context.function().to_owned();

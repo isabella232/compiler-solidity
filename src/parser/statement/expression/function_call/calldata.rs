@@ -10,8 +10,8 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 /// Translates the calldata load.
 ///
-pub fn load<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn load<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let if_zero_block = context.append_basic_block("calldata_if_zero");
@@ -59,8 +59,8 @@ pub fn load<'ctx>(
 ///
 /// Translates the calldata size.
 ///
-pub fn size<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn size<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     has_selector: bool,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let pointer = context.access_calldata(
@@ -88,8 +88,8 @@ pub fn size<'ctx>(
 ///
 /// Translates the calldata copy.
 ///
-pub fn copy<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn copy<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let copy_block = context.append_basic_block("calldata_if_copy");
@@ -221,8 +221,8 @@ pub fn copy<'ctx>(
 ///
 /// Translates the calldata copy from the `codecopy` instruction.
 ///
-pub fn codecopy<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn codecopy<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let destination = context.access_heap(

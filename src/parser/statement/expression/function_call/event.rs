@@ -10,8 +10,8 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 /// Translates a log or event call.
 ///
-pub fn log<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn log<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     range_start: inkwell::values::IntValue<'ctx>,
     length: inkwell::values::IntValue<'ctx>,
     mut topics: Vec<inkwell::values::IntValue<'ctx>>,

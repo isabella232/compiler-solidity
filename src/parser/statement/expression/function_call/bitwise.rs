@@ -9,8 +9,8 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 /// Translates the bitwise OR.
 ///
-pub fn or<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn or<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     if !context.is_native_bitwise_supported {
@@ -32,8 +32,8 @@ pub fn or<'ctx>(
 ///
 /// Translates the bitwise XOR.
 ///
-pub fn xor<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn xor<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     if !context.is_native_bitwise_supported {
@@ -55,8 +55,8 @@ pub fn xor<'ctx>(
 ///
 /// Translates the bitwise AND.
 ///
-pub fn and<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn and<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     if !context.is_native_bitwise_supported {
@@ -78,8 +78,8 @@ pub fn and<'ctx>(
 ///
 /// Translates the bitwise shift left.
 ///
-pub fn shift_left<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn shift_left<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     if !context.is_native_bitwise_supported {
@@ -101,8 +101,8 @@ pub fn shift_left<'ctx>(
 ///
 /// Translates the bitwise shift right.
 ///
-pub fn shift_right<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn shift_right<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     if !context.is_native_bitwise_supported {
@@ -125,8 +125,8 @@ pub fn shift_right<'ctx>(
 ///
 /// Translates the arithmetic bitwise shift right.
 ///
-pub fn shift_right_arithmetic<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn shift_right_arithmetic<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     if !context.is_native_bitwise_supported {
@@ -149,8 +149,8 @@ pub fn shift_right_arithmetic<'ctx>(
 ///
 /// Translates the byte extraction.
 ///
-pub fn byte<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn byte<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let byte_index = context.builder.build_int_sub(
@@ -179,8 +179,8 @@ pub fn byte<'ctx>(
 ///
 /// Translates the bitwise OR with loop, when the native operation is not supported.
 ///
-pub fn or_loop<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn or_loop<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let condition_block = context.append_basic_block("or_loop_condition");
@@ -295,8 +295,8 @@ pub fn or_loop<'ctx>(
 ///
 /// Translates the bitwise XOR with loop, when the native operation is not supported.
 ///
-pub fn xor_loop<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn xor_loop<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let condition_block = context.append_basic_block("xor_loop_condition");
@@ -411,8 +411,8 @@ pub fn xor_loop<'ctx>(
 ///
 /// Translates the bitwise AND with loop, when the native operation is not supported.
 ///
-pub fn and_loop<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn and_loop<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let condition_block = context.append_basic_block("and_loop_condition");
@@ -524,8 +524,8 @@ pub fn and_loop<'ctx>(
 ///
 /// Translates the bitwise shift left, when the native operation is not supported.
 ///
-pub fn shift_left_loop<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn shift_left_loop<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let result_pointer = context.build_alloca(context.field_type(), "shift_left_result_pointer");
@@ -587,8 +587,8 @@ pub fn shift_left_loop<'ctx>(
 ///
 /// Translates the bitwise shift right, when the native operation is not supported.
 ///
-pub fn shift_right_loop<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn shift_right_loop<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let result_pointer = context.build_alloca(context.field_type(), "shift_right_result_pointer");

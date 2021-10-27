@@ -9,8 +9,8 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 /// Translates the modular addition operation.
 ///
-pub fn add_mod<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn add_mod<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let zero_block = context.append_basic_block("add_mod_if_zero");
@@ -53,8 +53,8 @@ pub fn add_mod<'ctx>(
 ///
 /// Translates the modular multiplication operation.
 ///
-pub fn mul_mod<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn mul_mod<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let zero_block = context.append_basic_block("mul_mod_if_zero");
@@ -97,8 +97,8 @@ pub fn mul_mod<'ctx>(
 ///
 /// Translates the exponent operation.
 ///
-pub fn exponent<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn exponent<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let result_pointer = context.build_alloca(context.field_type(), "exponent_result");
@@ -159,8 +159,8 @@ pub fn exponent<'ctx>(
 ///
 /// Translates the sign extension operation.
 ///
-pub fn sign_extend<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn sign_extend<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let bitlength = context.builder.build_int_mul(

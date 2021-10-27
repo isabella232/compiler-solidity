@@ -11,8 +11,8 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 /// Translates a contract call.
 ///
-pub fn call<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn call<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     address: inkwell::values::IntValue<'ctx>,
     input_offset: inkwell::values::IntValue<'ctx>,
     input_size: inkwell::values::IntValue<'ctx>,
@@ -168,8 +168,8 @@ pub fn call<'ctx>(
 ///
 /// Translates a linker symbol.
 ///
-pub fn linker_symbol<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn linker_symbol<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     mut arguments: [Argument<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let path = arguments[0].original.take().unwrap_or_default();

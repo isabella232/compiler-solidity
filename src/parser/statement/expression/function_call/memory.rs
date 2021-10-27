@@ -7,8 +7,8 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 /// Translates the heap memory load.
 ///
-pub fn load<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn load<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let pointer = context.access_heap(arguments[0].into_int_value(), "memory_load_pointer");
@@ -19,8 +19,8 @@ pub fn load<'ctx>(
 ///
 /// Translates the heap memory store.
 ///
-pub fn store<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn store<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let offset = arguments[0].into_int_value();
@@ -33,8 +33,8 @@ pub fn store<'ctx>(
 ///
 /// Translates the heap memory byte store.
 ///
-pub fn store_byte<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn store_byte<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let offset_remainder_bytes = context.builder.build_int_unsigned_rem(

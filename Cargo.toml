@@ -6,7 +6,7 @@ authors = [
     "Dmitry Borisenkov <dmitry.borisenkov89@gmail.com>",
 ]
 license = "Apache-2.0"
-edition = "2018"
+edition = "2021"
 description = "The YUL to LLVM compiler"
 
 [[bin]]

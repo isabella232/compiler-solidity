@@ -105,9 +105,9 @@ impl Intrinsic {
     ///
     /// Returns the LLVM types for selecting via the signature.
     ///
-    pub fn argument_types<'ctx>(
+    pub fn argument_types<'ctx, 'src>(
         &self,
-        context: &LLVMContext<'ctx>,
+        context: &LLVMContext<'ctx, 'src>,
     ) -> Vec<inkwell::types::BasicTypeEnum<'ctx>> {
         match self {
             Self::StorageLoad => vec![],

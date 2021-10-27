@@ -10,8 +10,8 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 /// Translates the contract context getter calls.
 ///
-pub fn get<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn get<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     context_value: compiler_common::ContextValue,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let intrinsic = context.get_intrinsic_function(Intrinsic::GetFromContext);

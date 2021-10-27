@@ -9,8 +9,8 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 /// Translates the arithmetic addition.
 ///
-pub fn addition<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn addition<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     Some(
@@ -28,8 +28,8 @@ pub fn addition<'ctx>(
 ///
 /// Translates the arithmetic subtraction.
 ///
-pub fn subtraction<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn subtraction<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     Some(
@@ -47,8 +47,8 @@ pub fn subtraction<'ctx>(
 ///
 /// Translates the arithmetic multiplication.
 ///
-pub fn multiplication<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn multiplication<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     Some(
@@ -66,8 +66,8 @@ pub fn multiplication<'ctx>(
 ///
 /// Translates the arithmetic division.
 ///
-pub fn division<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn division<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let zero_block = context.append_basic_block("division_if_zero");
@@ -105,8 +105,8 @@ pub fn division<'ctx>(
 ///
 /// Translates the arithmetic remainder.
 ///
-pub fn remainder<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn remainder<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let zero_block = context.append_basic_block("remainder_if_zero");
@@ -144,8 +144,8 @@ pub fn remainder<'ctx>(
 ///
 /// Translates the signed arithmetic division.
 ///
-pub fn division_signed<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn division_signed<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let zero_block = context.append_basic_block("division_if_zero");
@@ -183,8 +183,8 @@ pub fn division_signed<'ctx>(
 ///
 /// Translates the signed arithmetic remainder.
 ///
-pub fn remainder_signed<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn remainder_signed<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let zero_block = context.append_basic_block("remainder_if_zero");

@@ -262,7 +262,7 @@ mod tests {
             function foo() {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -271,7 +271,7 @@ mod tests {
             function foo(a: A, b) {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -280,7 +280,7 @@ mod tests {
             function foo(a: A, b) -> x: T, z: Y {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -289,7 +289,7 @@ mod tests {
             function foo() -> x {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -298,7 +298,7 @@ mod tests {
             function foo() -> x, y {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -307,7 +307,7 @@ mod tests {
             function 42() {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_err());
+        assert!(crate::SourceData::try_from_test_yul(input).is_err());
     }
 
     #[test]
@@ -316,6 +316,6 @@ mod tests {
             function foo(42) {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_err());
+        assert!(crate::SourceData::try_from_test_yul(input).is_err());
     }
 }

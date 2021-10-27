@@ -145,7 +145,7 @@ mod tests {
                 case "a" {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -156,7 +156,7 @@ mod tests {
                 default {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -168,7 +168,7 @@ mod tests {
                 case "c" {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -181,7 +181,7 @@ mod tests {
                 default {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -191,7 +191,7 @@ mod tests {
                 default {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -209,7 +209,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -218,7 +218,7 @@ mod tests {
             switch {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_err());
+        assert!(crate::SourceData::try_from_test_yul(input).is_err());
     }
 
     #[test]
@@ -229,6 +229,6 @@ mod tests {
                 case 3 {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_err());
+        assert!(crate::SourceData::try_from_test_yul(input).is_err());
     }
 }

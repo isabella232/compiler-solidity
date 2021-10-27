@@ -349,8 +349,8 @@ impl Block {
     ///
     /// Returns the constructor call flag.
     ///
-    fn is_constructor_call<'ctx>(
-        context: &mut LLVMContext<'ctx>,
+    fn is_constructor_call<'ctx, 'src>(
+        context: &mut LLVMContext<'ctx, 'src>,
     ) -> inkwell::values::IntValue<'ctx> {
         let entry_pointer = context.access_calldata(
             context.field_const(
@@ -369,7 +369,9 @@ impl Block {
     ///
     /// Returns the constructor having executed flag.
     ///
-    fn is_executed_flag<'ctx>(context: &mut LLVMContext<'ctx>) -> inkwell::values::IntValue<'ctx> {
+    fn is_executed_flag<'ctx, 'src>(
+        context: &mut LLVMContext<'ctx, 'src>,
+    ) -> inkwell::values::IntValue<'ctx> {
         let storage_key_string = compiler_common::hashes::keccak256(
             compiler_common::abi::CONSTRUCTOR_EXECUTED_FLAG_KEY_PREIMAGE.as_bytes(),
         );

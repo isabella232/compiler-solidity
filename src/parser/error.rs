@@ -18,10 +18,6 @@ pub enum Error {
         /// The optional error hint text.
         help: Option<&'static str>,
     },
-    /// The contract cannot be found.
-    ContractNotFound,
-    /// If there is multiple contracts, the main contract name must be specified.
-    ContractNotSpecified,
 }
 
 impl Error {

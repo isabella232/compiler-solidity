@@ -11,8 +11,8 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 /// Translates the contract `create` instruction.
 ///
-pub fn create<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn create<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     create2(
@@ -29,8 +29,8 @@ pub fn create<'ctx>(
 ///
 /// Translates the contract `create2` instruction.
 ///
-pub fn create2<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn create2<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 4],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let input_offset = context.builder.build_int_add(
@@ -148,8 +148,8 @@ pub fn create2<'ctx>(
 /// Translates the `datasize` instruction, which is actually used to set the hash of the contract
 /// being created, or other related auxiliary data.
 ///
-pub fn datasize<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn datasize<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     mut arguments: [Argument<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let literal = arguments[0].original.take().unwrap_or_default();
@@ -169,8 +169,8 @@ pub fn datasize<'ctx>(
 /// Translates the `dataoffset` instruction, which is actually used to set the hash of the contract
 /// being created, or other related auxiliary data.
 ///
-pub fn dataoffset<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn dataoffset<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     mut arguments: [Argument<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let literal = arguments[0].original.take().unwrap_or_default();
@@ -180,7 +180,7 @@ pub fn dataoffset<'ctx>(
     }
 
     let dependency_bytecode = context.compile_dependency(literal.as_str());
-    let dependency_hash_str = compiler_common::hashes::keccak256(dependency_bytecode);
+    let dependency_hash_str = compiler_common::hashes::keccak256(dependency_bytecode.as_slice());
     let dependency_hash_value = context
         .field_type()
         .const_int_from_string(
@@ -196,8 +196,8 @@ pub fn dataoffset<'ctx>(
 /// Translates the `datacopy` instruction, which is actually used to set the hash of the contract
 /// being created, or other related auxiliary data.
 ///
-pub fn datacopy<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn datacopy<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let pointer = context.access_heap(arguments[0].into_int_value(), "datacopy_pointer");

@@ -3,7 +3,6 @@
 //!
 
 pub mod argument;
-pub mod dependency;
 pub mod function;
 pub mod intrinsic;
 pub mod r#loop;
@@ -14,9 +13,8 @@ use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
 
 use crate::parser::identifier::Identifier;
-use crate::parser::statement::object::Object;
+use crate::source_data::SourceData;
 
-use self::dependency::Dependency;
 use self::function::r#return::Return as FunctionReturn;
 use self::function::Function;
 use self::intrinsic::Intrinsic;
@@ -25,7 +23,7 @@ use self::r#loop::Loop;
 ///
 /// The LLVM generator context.
 ///
-pub struct Context<'ctx> {
+pub struct Context<'ctx, 'src> {
     /// The LLVM builder.
     pub builder: inkwell::builder::Builder<'ctx>,
     /// The declared functions.
@@ -41,16 +39,14 @@ pub struct Context<'ctx> {
     function: Option<Function<'ctx>>,
     /// The loop context stack.
     loop_stack: Vec<Loop<'ctx>>,
-    /// The main contract dependencies.
-    dependencies: HashMap<String, Dependency>,
-    /// The deployed libraries.
-    libraries: HashMap<String, inkwell::values::IntValue<'ctx>>,
 
     /// The personality function, used for exception handling.
     personality: inkwell::values::FunctionValue<'ctx>,
     /// The exception throwing function.
     cxa_throw: inkwell::values::FunctionValue<'ctx>,
 
+    /// The project source data.
+    source_data: &'src SourceData,
     /// The optimization level.
     optimization_level: inkwell::OptimizationLevel,
     /// The module optimization pass manager.
@@ -64,7 +60,7 @@ pub struct Context<'ctx> {
     pub is_unaligned_memory_access_supported: bool,
 }
 
-impl<'ctx> Context<'ctx> {
+impl<'ctx, 'src> Context<'ctx, 'src> {
     /// The functions hashmap default capacity.
     const FUNCTION_HASHMAP_INITIAL_CAPACITY: usize = 64;
     /// The loop stack default capacity.
@@ -77,16 +73,14 @@ impl<'ctx> Context<'ctx> {
         llvm: &'ctx inkwell::context::Context,
         machine: &inkwell::targets::TargetMachine,
         identifier: &str,
-        dependencies: HashMap<String, Object>,
-        libraries: HashMap<String, String>,
+        source_data: &'src SourceData,
     ) -> Self {
         Self::new_with_optimizer(
             llvm,
             machine,
             inkwell::OptimizationLevel::None,
             identifier,
-            dependencies,
-            libraries,
+            source_data,
         )
     }
 
@@ -98,17 +92,11 @@ impl<'ctx> Context<'ctx> {
         machine: &inkwell::targets::TargetMachine,
         optimization_level: inkwell::OptimizationLevel,
         identifier: &str,
-        dependencies: HashMap<String, Object>,
-        libraries: HashMap<String, String>,
+        source_data: &'src SourceData,
     ) -> Self {
         let module = llvm.create_module(identifier);
         module.set_triple(&machine.get_triple());
         module.set_data_layout(&machine.get_target_data().get_data_layout());
-
-        let dependencies = dependencies
-            .into_iter()
-            .map(|(identifier, object)| (identifier, Dependency::new_object(object)))
-            .collect();
 
         let internalize = matches!(optimization_level, inkwell::OptimizationLevel::Aggressive);
         let run_inliner = matches!(optimization_level, inkwell::OptimizationLevel::Aggressive);
@@ -156,17 +144,6 @@ impl<'ctx> Context<'ctx> {
             llvm.create_enum_attribute(27, 0),
         );
 
-        let libraries = libraries
-            .into_iter()
-            .map(|(key, value)| {
-                let address = llvm
-                    .custom_width_int_type(compiler_common::bitlength::FIELD as u32)
-                    .const_int_from_string(value.as_str(), inkwell::types::StringRadix::Hexadecimal)
-                    .unwrap_or_else(|| panic!("Library `{}` address `{}` is invalid", key, value));
-                (key, address)
-            })
-            .collect();
-
         Self {
             builder: llvm.create_builder(),
             functions: HashMap::with_capacity(Self::FUNCTION_HASHMAP_INITIAL_CAPACITY),
@@ -176,12 +153,11 @@ impl<'ctx> Context<'ctx> {
             object: None,
             function: None,
             loop_stack: Vec::with_capacity(Self::LOOP_STACK_INITIAL_CAPACITY),
-            dependencies,
-            libraries,
 
             personality,
             cxa_throw,
 
+            source_data,
             optimization_level,
             pass_manager_module,
             pass_manager_function,
@@ -335,7 +311,23 @@ impl<'ctx> Context<'ctx> {
     /// Gets a deployed library address.
     ///
     pub fn get_library_address(&self, path: &str) -> Option<inkwell::values::IntValue<'ctx>> {
-        self.libraries.get(path).cloned()
+        self.source_data.libraries.iter().find_map(|(key, value)| {
+            if key == path {
+                Some(
+                    self.llvm
+                        .custom_width_int_type(compiler_common::bitlength::FIELD as u32)
+                        .const_int_from_string(
+                            value.as_str(),
+                            inkwell::types::StringRadix::Hexadecimal,
+                        )
+                        .unwrap_or_else(|| {
+                            panic!("Library `{}` address `{}` is invalid", key, value)
+                        }),
+                )
+            } else {
+                None
+            }
+        })
     }
 
     ///
@@ -403,18 +395,37 @@ impl<'ctx> Context<'ctx> {
     ///
     /// Compiles the dependency object.
     ///
-    pub fn compile_dependency(&mut self, identifier: &str) -> &[u8] {
-        let dependency = self
-            .dependencies
-            .remove(identifier)
+    pub fn compile_dependency(&mut self, identifier: &str) -> Vec<u8> {
+        let contract_path = self
+            .source_data
+            .objects
+            .iter()
+            .find_map(|(path, object)| {
+                if object.identifier.as_str() == identifier {
+                    Some(path.as_str())
+                } else {
+                    None
+                }
+            })
             .unwrap_or_else(|| panic!("Dependency `{}` not found", identifier));
-        let bytecode = dependency.compile(self.optimization_level);
-        self.dependencies
-            .insert(identifier.to_owned(), Dependency::new_bytecode(bytecode));
-        match self.dependencies.get(identifier).expect("Always exists") {
-            Dependency::Parsed(_object) => panic!("Dependency is always compiled at this point"),
-            Dependency::Compiled(bytecode) => bytecode.as_slice(),
-        }
+        let llvm_ir = self
+            .source_data
+            .compile(
+                Some(contract_path),
+                self.optimization_level,
+                self.optimization_level,
+                false,
+            )
+            .unwrap_or_else(|error| {
+                panic!("Dependency `{}` compiling error: {:?}", identifier, error)
+            });
+        let assembly = zkevm_assembly::Assembly::try_from(llvm_ir).unwrap_or_else(|error| {
+            panic!(
+                "Dependency `{}` assembly parsing error: {}",
+                identifier, error
+            )
+        });
+        Vec::<u8>::from(&assembly)
     }
 
     ///

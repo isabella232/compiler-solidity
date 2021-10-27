@@ -14,55 +14,26 @@ use crate::parser::statement::object::Object;
 /// The processes input data representation.
 ///
 pub struct SourceData {
-    /// The main contract.
-    pub main: Object,
-    /// The dependency contracts,
-    pub dependencies: HashMap<String, Object>,
+    /// The contract objects,
+    pub objects: HashMap<String, Object>,
     /// The library addresses.
     pub libraries: HashMap<String, String>,
 }
 
 impl SourceData {
     ///
-    /// The simple constructor.
+    /// The shortcut constructor.
     ///
-    pub fn new(object: Object) -> Self {
-        Self {
-            main: object,
-            dependencies: HashMap::new(),
-            libraries: HashMap::new(),
-        }
-    }
-
-    ///
-    /// The complex constructor.
-    ///
-    pub fn new_with_relations(
-        main: Object,
-        dependencies: HashMap<String, Object>,
-        libraries: HashMap<String, String>,
-    ) -> Self {
-        Self {
-            main,
-            dependencies,
-            libraries,
-        }
-    }
-
-    ///
-    /// Parses the source code and returns the source data.
-    ///
-    pub fn try_from_yul(input: &str) -> Result<Self, Error> {
-        let mut lexer = Lexer::new(input.to_owned());
-        let object = Object::parse(&mut lexer, None)?;
-        Ok(Self::new(object))
+    pub fn new(objects: HashMap<String, Object>, libraries: HashMap<String, String>) -> Self {
+        Self { objects, libraries }
     }
 
     ///
     /// Compiles the source code data.
     ///
     pub fn compile(
-        self,
+        &self,
+        contract_path: Option<&str>,
         opt_level_llvm_middle: inkwell::OptimizationLevel,
         opt_level_llvm_back: inkwell::OptimizationLevel,
         dump_llvm: bool,
@@ -75,16 +46,32 @@ impl SourceData {
                     compiler_common::vm::TARGET_NAME
                 ))
             })?;
+
+        let main_object = match contract_path {
+            Some(contract_path) => self
+                .objects
+                .get(contract_path)
+                .cloned()
+                .ok_or(Error::ContractNotFound)?,
+            None if self.objects.len() == 1 => self
+                .objects
+                .iter()
+                .last()
+                .ok_or(Error::ContractNotFound)?
+                .1
+                .to_owned(),
+            None if self.objects.len() > 1 => return Err(Error::ContractNotSpecified),
+            _ => return Err(Error::ContractNotFound),
+        };
+
         let mut context = LLVMContext::new_with_optimizer(
             &llvm,
             &target_machine,
             opt_level_llvm_middle,
-            self.main.identifier.as_str(),
-            self.dependencies,
-            self.libraries,
+            main_object.identifier.as_str(),
+            self,
         );
-
-        self.main.into_llvm(&mut context);
+        main_object.into_llvm(&mut context);
         context
             .verify()
             .map_err(|error| Error::LLVM(error.to_string()))?;
@@ -104,5 +91,22 @@ impl SourceData {
         let llvm_ir = String::from_utf8_lossy(buffer.as_slice()).to_string();
 
         Ok(llvm_ir)
+    }
+
+    ///
+    /// Parses the test Yul source code and returns the source data.
+    ///
+    /// Only for integration testing purposes.
+    ///
+    pub fn try_from_test_yul(yul: &str) -> Result<Self, Error> {
+        let mut lexer = Lexer::new(yul.to_owned());
+        let object = Object::parse(&mut lexer, None)?;
+
+        let mut objects = HashMap::with_capacity(1);
+        objects.insert("Test".to_owned(), object);
+        Ok(Self {
+            objects,
+            libraries: HashMap::new(),
+        })
     }
 }

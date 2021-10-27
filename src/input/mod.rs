@@ -12,7 +12,6 @@ use serde::Deserialize;
 
 use crate::error::Error;
 use crate::lexer::Lexer;
-use crate::parser::error::Error as ParserError;
 use crate::parser::statement::object::Object;
 use crate::source_data::SourceData;
 
@@ -44,7 +43,6 @@ impl Input {
     ///
     pub fn try_into_source_data(
         self,
-        contract_path: Option<&str>,
         libraries: HashMap<String, String>,
         print_warnings: bool,
     ) -> Result<SourceData, Error> {
@@ -58,11 +56,10 @@ impl Input {
             }
         }
 
-        let contracts = self.contracts.ok_or(Error::Solidity("Compilation"))?;
-
-        let mut main = None;
-        let mut dependencies = HashMap::new();
-
+        let contracts = self
+            .contracts
+            .ok_or(Error::Solidity("Solidity compiler error"))?;
+        let mut objects = HashMap::with_capacity(contracts.len());
         for (file, contracts) in contracts.into_iter() {
             for (identifier, contract) in contracts.into_iter() {
                 if contract.ir_optimized.is_empty() {
@@ -72,37 +69,10 @@ impl Input {
                 let current_path = format!("{}:{}", file, identifier);
                 let mut lexer = Lexer::new(contract.ir_optimized);
                 let object = Object::parse(&mut lexer, None)?;
-
-                if let Some(contract_path) = contract_path {
-                    if current_path.as_str() == contract_path {
-                        main = Some(object);
-                        continue;
-                    }
-                }
-
-                dependencies.insert(object.identifier.clone(), object);
+                objects.insert(current_path, object);
             }
         }
 
-        if contract_path.is_none() && dependencies.len() == 1 {
-            main = dependencies.remove(
-                dependencies
-                    .keys()
-                    .next()
-                    .cloned()
-                    .expect("Always exists")
-                    .as_str(),
-            );
-        }
-
-        match (main, dependencies.is_empty(), contract_path) {
-            (None, _, _) => Err(ParserError::ContractNotFound.into()),
-            (Some(_), false, None) => Err(ParserError::ContractNotSpecified.into()),
-            (Some(main), _, _) => Ok(SourceData::new_with_relations(
-                main,
-                dependencies,
-                libraries,
-            )),
-        }
+        Ok(SourceData::new(objects, libraries))
     }
 }

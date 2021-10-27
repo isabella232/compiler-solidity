@@ -89,9 +89,9 @@ impl FunctionCall {
     ///
     /// Converts the function call into an LLVM value.
     ///
-    pub fn into_llvm<'ctx>(
+    pub fn into_llvm<'ctx, 'src>(
         mut self,
-        context: &mut LLVMContext<'ctx>,
+        context: &mut LLVMContext<'ctx, 'src>,
     ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
         match self.name {
             Name::UserDefined(name) => {
@@ -542,9 +542,9 @@ impl FunctionCall {
     ///
     /// Pops the specified number of arguments, converted into their LLVM values.
     ///
-    fn pop_arguments_llvm<'ctx, const N: usize>(
+    fn pop_arguments_llvm<'ctx, 'src, const N: usize>(
         &mut self,
-        context: &mut LLVMContext<'ctx>,
+        context: &mut LLVMContext<'ctx, 'src>,
     ) -> [inkwell::values::BasicValueEnum<'ctx>; N] {
         self.arguments
             .drain(0..N)
@@ -557,9 +557,9 @@ impl FunctionCall {
     ///
     /// Pops the specified number of arguments.
     ///
-    fn pop_arguments<'ctx, const N: usize>(
+    fn pop_arguments<'ctx, 'src, const N: usize>(
         &mut self,
-        context: &mut LLVMContext<'ctx>,
+        context: &mut LLVMContext<'ctx, 'src>,
     ) -> [Argument<'ctx>; N] {
         self.arguments
             .drain(0..N)
@@ -583,7 +583,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -598,7 +598,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -610,7 +610,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -619,7 +619,7 @@ mod tests {
             function foo() -> x {let y := 3 x := add(3, y)}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -628,7 +628,7 @@ mod tests {
             function foo() -> x {let y := 3 x := sub(3, y)}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -637,7 +637,7 @@ mod tests {
             function foo() -> x {let y := 3 x := mul(3, y)}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -646,7 +646,7 @@ mod tests {
             function foo() -> x {let y := 3 x := div(3, y)}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -655,7 +655,7 @@ mod tests {
             function foo() -> x {let y := 3 x := sdiv(3, y)}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -664,7 +664,7 @@ mod tests {
             function foo() -> x {let y := 3 x := mod(3, y)}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -673,6 +673,6 @@ mod tests {
             function foo() -> x {let y := 3 x := smod(3, y)}
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 }

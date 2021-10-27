@@ -12,7 +12,6 @@ use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::identifier::Identifier;
-use crate::parser::r#type::Type;
 use crate::parser::statement::expression::Expression;
 
 ///
@@ -67,10 +66,7 @@ impl ILLVMWritable for VariableDeclaration {
     fn into_llvm(mut self, context: &mut LLVMContext) {
         if self.bindings.len() == 1 {
             let identifier = self.bindings.remove(0);
-            let r#type = identifier
-                .yul_type
-                .unwrap_or_else(Type::default)
-                .into_llvm(context);
+            let r#type = identifier.yul_type.unwrap_or_default().into_llvm(context);
             let pointer = context.build_alloca(r#type, identifier.name.as_str());
             context
                 .function_mut()
@@ -164,7 +160,7 @@ mod tests {
             let x := false
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -173,7 +169,7 @@ mod tests {
             let x := true
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -182,7 +178,7 @@ mod tests {
             let x := 42
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -191,7 +187,7 @@ mod tests {
             let x := 0x42
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -200,7 +196,7 @@ mod tests {
             let x := "abc"
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -209,7 +205,7 @@ mod tests {
             let x := y
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -218,7 +214,7 @@ mod tests {
             let x := foo()
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -227,7 +223,7 @@ mod tests {
             let x := foo(x, y)
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -236,7 +232,7 @@ mod tests {
             let x := foo(bar(x, baz()))
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -248,7 +244,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -261,7 +257,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -273,7 +269,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -286,7 +282,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -302,7 +298,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -314,7 +310,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -326,6 +322,6 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 }

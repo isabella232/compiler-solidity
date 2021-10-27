@@ -64,7 +64,10 @@ impl Expression {
     ///
     /// Converts the expression into an LLVM value.
     ///
-    pub fn into_llvm<'ctx>(self, context: &mut LLVMContext<'ctx>) -> Option<Argument<'ctx>> {
+    pub fn into_llvm<'ctx, 'src>(
+        self,
+        context: &mut LLVMContext<'ctx, 'src>,
+    ) -> Option<Argument<'ctx>> {
         match self {
             Self::Literal(inner) => Some(inner.into_llvm(context)),
             Self::Identifier(inner) => Some(
@@ -87,6 +90,6 @@ mod tests {
             foo(x, y)
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 }

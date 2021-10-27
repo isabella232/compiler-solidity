@@ -8,8 +8,8 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 /// Translates the hash instruction.
 ///
-pub fn keccak256<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn keccak256<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let range_start = arguments[0].into_int_value();

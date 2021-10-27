@@ -58,7 +58,7 @@ impl Literal {
     ///
     /// Converts the literal into its LLVM representation.
     ///
-    pub fn into_llvm<'ctx>(self, context: &LLVMContext<'ctx>) -> Argument<'ctx> {
+    pub fn into_llvm<'ctx, 'src>(self, context: &LLVMContext<'ctx, 'src>) -> Argument<'ctx> {
         match self.inner {
             LexicalLiteral::Boolean(inner) => {
                 let value = self
@@ -131,7 +131,7 @@ mod tests {
             false
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -140,7 +140,7 @@ mod tests {
             true
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -151,7 +151,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -162,6 +162,6 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_yul(input).is_ok());
+        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
     }
 }

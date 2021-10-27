@@ -9,8 +9,8 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 /// Translates the comparison operations.
 ///
-pub fn compare<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn compare<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
     operation: inkwell::IntPredicate,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {

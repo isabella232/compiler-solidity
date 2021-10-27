@@ -10,8 +10,8 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 /// Translates the return data size.
 ///
-pub fn size<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn size<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let pointer = context.builder.build_int_to_ptr(
         context.field_const(
@@ -34,8 +34,8 @@ pub fn size<'ctx>(
 ///
 /// Translates the return data copy.
 ///
-pub fn copy<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn copy<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let destination = context.access_heap(

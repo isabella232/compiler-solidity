@@ -64,9 +64,13 @@ fn main_inner() -> Result<(), compiler_yul::Error> {
         .collect();
 
     let input: compiler_yul::Input = serde_json::from_str(input_string.as_str())?;
-    let source_data = input.try_into_source_data(arguments.contract.as_deref(), libraries, true)?;
-    let representation =
-        source_data.compile(optimization_level, optimization_level, arguments.dump_llvm)?;
+    let source_data = input.try_into_source_data(libraries, true)?;
+    let representation = source_data.compile(
+        arguments.contract.as_deref(),
+        optimization_level,
+        optimization_level,
+        arguments.dump_llvm,
+    )?;
 
     let text = representation.clone().into_bytes();
     let binary = zkevm_assembly::Assembly::try_from(representation)?;

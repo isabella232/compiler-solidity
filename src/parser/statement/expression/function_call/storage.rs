@@ -10,8 +10,8 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 /// Translates the contract storage load.
 ///
-pub fn load<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn load<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let intrinsic = context.get_intrinsic_function(Intrinsic::StorageLoad);
@@ -26,8 +26,8 @@ pub fn load<'ctx>(
 ///
 /// Translates the contract storage store.
 ///
-pub fn store<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn store<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let intrinsic = context.get_intrinsic_function(Intrinsic::StorageStore);
@@ -45,8 +45,8 @@ pub fn store<'ctx>(
 ///
 /// Translates the contract storage immutable load.
 ///
-pub fn load_immutable<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn load_immutable<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let intrinsic = context.get_intrinsic_function(Intrinsic::HashAbsorbReset);
@@ -71,8 +71,8 @@ pub fn load_immutable<'ctx>(
 ///
 /// Translates the contract storage immutable set.
 ///
-pub fn set_immutable<'ctx>(
-    context: &mut LLVMContext<'ctx>,
+pub fn set_immutable<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let intrinsic = context.get_intrinsic_function(Intrinsic::HashAbsorbReset);
