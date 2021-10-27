@@ -10,8 +10,8 @@ use crate::parser::error::Error as ParserError;
 ///
 #[derive(Debug)]
 pub enum Error {
-    /// The reader error.
-    Reader(std::io::Error),
+    /// The file system error.
+    FileSystem(std::io::Error),
     /// The input error.
     Input(serde_json::Error),
     /// The Solidity error.
@@ -43,7 +43,7 @@ impl PartialEq<Self> for Error {
 
 impl From<std::io::Error> for Error {
     fn from(error: std::io::Error) -> Self {
-        Self::Reader(error)
+        Self::FileSystem(error)
     }
 }
 

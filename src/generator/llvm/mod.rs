@@ -13,7 +13,7 @@ use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
 
 use crate::parser::identifier::Identifier;
-use crate::source_data::SourceData;
+use crate::project::Project;
 
 use self::function::r#return::Return as FunctionReturn;
 use self::function::Function;
@@ -46,7 +46,7 @@ pub struct Context<'ctx, 'src> {
     cxa_throw: inkwell::values::FunctionValue<'ctx>,
 
     /// The project source data.
-    source_data: &'src SourceData,
+    project: &'src mut Project,
     /// The optimization level.
     optimization_level: inkwell::OptimizationLevel,
     /// The module optimization pass manager.
@@ -73,14 +73,14 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         llvm: &'ctx inkwell::context::Context,
         machine: &inkwell::targets::TargetMachine,
         identifier: &str,
-        source_data: &'src SourceData,
+        project: &'src mut Project,
     ) -> Self {
         Self::new_with_optimizer(
             llvm,
             machine,
             inkwell::OptimizationLevel::None,
             identifier,
-            source_data,
+            project,
         )
     }
 
@@ -92,7 +92,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         machine: &inkwell::targets::TargetMachine,
         optimization_level: inkwell::OptimizationLevel,
         identifier: &str,
-        source_data: &'src SourceData,
+        project: &'src mut Project,
     ) -> Self {
         let module = llvm.create_module(identifier);
         module.set_triple(&machine.get_triple());
@@ -157,7 +157,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             personality,
             cxa_throw,
 
-            source_data,
+            project,
             optimization_level,
             pass_manager_module,
             pass_manager_function,
@@ -311,7 +311,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     /// Gets a deployed library address.
     ///
     pub fn get_library_address(&self, path: &str) -> Option<inkwell::values::IntValue<'ctx>> {
-        self.source_data.libraries.iter().find_map(|(key, value)| {
+        self.project.libraries.iter().find_map(|(key, value)| {
             if key == path {
                 Some(
                     self.llvm
@@ -397,35 +397,28 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ///
     pub fn compile_dependency(&mut self, identifier: &str) -> Vec<u8> {
         let contract_path = self
-            .source_data
-            .objects
+            .project
+            .contracts
             .iter()
-            .find_map(|(path, object)| {
-                if object.identifier.as_str() == identifier {
-                    Some(path.as_str())
+            .find_map(|(path, contract)| {
+                if contract.object.identifier.as_str() == identifier {
+                    Some(path.to_owned())
                 } else {
                     None
                 }
             })
             .unwrap_or_else(|| panic!("Dependency `{}` not found", identifier));
-        let llvm_ir = self
-            .source_data
+
+        self.project
             .compile(
-                Some(contract_path),
+                Some(contract_path.as_str()),
                 self.optimization_level,
                 self.optimization_level,
                 false,
             )
             .unwrap_or_else(|error| {
                 panic!("Dependency `{}` compiling error: {:?}", identifier, error)
-            });
-        let assembly = zkevm_assembly::Assembly::try_from(llvm_ir).unwrap_or_else(|error| {
-            panic!(
-                "Dependency `{}` assembly parsing error: {}",
-                identifier, error
-            )
-        });
-        Vec::<u8>::from(&assembly)
+            })
     }
 
     ///

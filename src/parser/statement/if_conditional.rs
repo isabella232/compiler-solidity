@@ -73,7 +73,7 @@ mod tests {
             if expr {}
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -88,7 +88,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -103,7 +103,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -118,6 +118,6 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 }

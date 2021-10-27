@@ -13,7 +13,8 @@ use serde::Deserialize;
 use crate::error::Error;
 use crate::lexer::Lexer;
 use crate::parser::statement::object::Object;
-use crate::source_data::SourceData;
+use crate::project::contract::Contract as ProjectContract;
+use crate::project::Project;
 
 use self::contract::Contract;
 use self::error::Error as SolidityError;
@@ -41,11 +42,11 @@ impl Input {
     ///
     /// Returns the main contract object and its dependencies.
     ///
-    pub fn try_into_source_data(
+    pub fn try_into_project(
         self,
         libraries: HashMap<String, String>,
         print_warnings: bool,
-    ) -> Result<SourceData, Error> {
+    ) -> Result<Project, Error> {
         if let Some(errors) = self.errors {
             for error in errors.into_iter() {
                 if error.severity.as_str() == "warning" && !print_warnings {
@@ -56,23 +57,24 @@ impl Input {
             }
         }
 
-        let contracts = self
+        let input_contracts = self
             .contracts
             .ok_or(Error::Solidity("Solidity compiler error"))?;
-        let mut objects = HashMap::with_capacity(contracts.len());
-        for (file, contracts) in contracts.into_iter() {
-            for (identifier, contract) in contracts.into_iter() {
+        let mut project_contracts = HashMap::with_capacity(input_contracts.len());
+        for (path, contracts) in input_contracts.into_iter() {
+            for (name, contract) in contracts.into_iter() {
                 if contract.ir_optimized.is_empty() {
                     continue;
                 }
 
-                let current_path = format!("{}:{}", file, identifier);
+                let full_path = format!("{}:{}", path, name);
                 let mut lexer = Lexer::new(contract.ir_optimized);
                 let object = Object::parse(&mut lexer, None)?;
-                objects.insert(current_path, object);
+                let project_contract = ProjectContract::new(path.clone(), name, object);
+                project_contracts.insert(full_path, project_contract);
             }
         }
 
-        Ok(SourceData::new(objects, libraries))
+        Ok(Project::new(project_contracts, libraries))
     }
 }

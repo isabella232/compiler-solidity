@@ -90,6 +90,6 @@ mod tests {
             foo(x, y)
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 }

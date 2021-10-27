@@ -160,7 +160,7 @@ mod tests {
             let x := false
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -169,7 +169,7 @@ mod tests {
             let x := true
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -178,7 +178,7 @@ mod tests {
             let x := 42
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -187,7 +187,7 @@ mod tests {
             let x := 0x42
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -196,7 +196,7 @@ mod tests {
             let x := "abc"
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -205,7 +205,7 @@ mod tests {
             let x := y
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -214,7 +214,7 @@ mod tests {
             let x := foo()
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -223,7 +223,7 @@ mod tests {
             let x := foo(x, y)
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -232,7 +232,7 @@ mod tests {
             let x := foo(bar(x, baz()))
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -244,7 +244,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -257,7 +257,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -269,7 +269,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -282,7 +282,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -298,7 +298,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -310,7 +310,7 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 
     #[test]
@@ -322,6 +322,6 @@ mod tests {
             }
         }}"#;
 
-        assert!(crate::SourceData::try_from_test_yul(input).is_ok());
+        assert!(crate::Project::try_from_test_yul(input).is_ok());
     }
 }

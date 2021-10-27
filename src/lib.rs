@@ -7,7 +7,7 @@ pub mod generator;
 pub mod input;
 pub mod lexer;
 pub mod parser;
-pub mod source_data;
+pub mod project;
 
 pub use self::error::Error;
 pub use self::generator::llvm::Context as LLVMContext;
@@ -19,4 +19,5 @@ pub use self::lexer::lexeme::Lexeme;
 pub use self::lexer::Lexer;
 pub use self::parser::error::Error as ParserError;
 pub use self::parser::statement::object::Object;
-pub use self::source_data::SourceData;
+pub use self::project::contract::Contract as ProjectContract;
+pub use self::project::Project;

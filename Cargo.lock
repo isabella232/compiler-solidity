@@ -81,7 +81,7 @@ dependencies = [
 [[package]]
 name = "compiler-common"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-common#f99e8251d5e4ed7fc9b2ba714bcd2a5d24401748"
+source = "git+ssh://git@github.com/matter-labs/compiler-common#d70d0b4796d151a16a92d0a3b4de40f73811ee00"
 dependencies = [
  "inkwell",
  "sha3",

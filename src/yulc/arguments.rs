@@ -16,8 +16,12 @@ pub struct Arguments {
     #[structopt(parse(from_os_str))]
     pub input: PathBuf,
 
+    /// The output directory path.
+    #[structopt(short = "o", long = "output", default_value = "./build/")]
+    pub output: PathBuf,
+
     /// Sets the LLVM optimization level.
-    #[structopt(short = "O", long = "opt-level", default_value = "0")]
+    #[structopt(short = "O", long = "opt-level", default_value = "3")]
     pub optimization_level: usize,
 
     /// Whether to dump the Yul code.
@@ -27,10 +31,6 @@ pub struct Arguments {
     /// Whether to dump the LLVM code to the terminal.
     #[structopt(long = "dump-llvm")]
     pub dump_llvm: bool,
-
-    /// The main contract to choose from multiple contracts.
-    #[structopt(short = "c", long = "contract")]
-    pub contract: Option<String>,
 
     /// The hashmap of colon-separated library paths and their ETH addresses.
     #[structopt(short = "l", long = "library")]
