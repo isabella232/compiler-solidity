@@ -409,7 +409,8 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             })
             .unwrap_or_else(|| panic!("Dependency `{}` not found", identifier));
 
-        self.project
+        let (_assembly_text, bytecode) = self
+            .project
             .compile(
                 Some(contract_path.as_str()),
                 self.optimization_level,
@@ -418,7 +419,9 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             )
             .unwrap_or_else(|error| {
                 panic!("Dependency `{}` compiling error: {:?}", identifier, error)
-            })
+            });
+
+        bytecode
     }
 
     ///

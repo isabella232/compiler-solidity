@@ -46,11 +46,13 @@ impl Project {
         opt_level_llvm_middle: inkwell::OptimizationLevel,
         opt_level_llvm_back: inkwell::OptimizationLevel,
         dump_llvm: bool,
-    ) -> Result<Vec<u8>, Error> {
+    ) -> Result<(String, Vec<u8>), Error> {
         if let Some(contract_path) = contract_path {
             if let Some(contract) = self.contracts.get(contract_path) {
-                if let Some(bytecode) = contract.bytecode.as_deref() {
-                    return Ok(bytecode.to_owned());
+                if let (Some(assembly_text), Some(bytecode)) =
+                    (contract.assembly.as_deref(), contract.bytecode.as_deref())
+                {
+                    return Ok((assembly_text.to_owned(), bytecode.to_owned()));
                 }
             }
         }
@@ -127,10 +129,10 @@ impl Project {
             .contracts
             .get_mut(contract_path.as_str())
             .expect("Always exists");
-        contract.assembly = Some(assembly_text);
+        contract.assembly = Some(assembly_text.clone());
         contract.bytecode = Some(bytecode.clone());
 
-        Ok(bytecode)
+        Ok((assembly_text, bytecode))
     }
 
     ///
