@@ -2,7 +2,6 @@
 //! The boolean literal lexeme.
 //!
 
-use std::convert::TryFrom;
 use std::fmt;
 
 use crate::lexer::lexeme::keyword::Keyword;

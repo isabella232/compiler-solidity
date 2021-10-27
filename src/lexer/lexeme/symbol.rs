@@ -2,7 +2,6 @@
 //! The symbol lexeme.
 //!
 
-use std::convert::TryFrom;
 use std::fmt;
 
 ///

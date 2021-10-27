@@ -8,8 +8,6 @@ mod tests;
 pub mod error;
 pub mod lexeme;
 
-use std::convert::TryFrom;
-
 use self::error::Error;
 use self::lexeme::keyword::Keyword;
 use self::lexeme::literal::boolean::Boolean as BooleanLiteral;

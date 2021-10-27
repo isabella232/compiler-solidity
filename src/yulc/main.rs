@@ -5,7 +5,6 @@
 pub mod arguments;
 
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;

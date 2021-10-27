@@ -18,8 +18,6 @@ pub mod r#return;
 pub mod return_data;
 pub mod storage;
 
-use std::convert::TryInto;
-
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
 
