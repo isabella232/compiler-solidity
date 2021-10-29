@@ -45,6 +45,7 @@ impl Input {
     pub fn try_into_project(
         self,
         libraries: HashMap<String, String>,
+        dump_yul: bool,
         print_warnings: bool,
     ) -> Result<Project, Error> {
         if let Some(errors) = self.errors {
@@ -68,9 +69,15 @@ impl Input {
                 }
 
                 let full_path = format!("{}:{}", path, name);
-                let mut lexer = Lexer::new(contract.ir_optimized);
+                if dump_yul {
+                    println!("Contract {}:", full_path);
+                    println!("{}", contract.ir_optimized);
+                }
+
+                let mut lexer = Lexer::new(contract.ir_optimized.clone());
                 let object = Object::parse(&mut lexer, None)?;
-                let project_contract = ProjectContract::new(path.clone(), name, object);
+                let project_contract =
+                    ProjectContract::new(path.clone(), name, contract.ir_optimized, object);
                 project_contracts.insert(full_path, project_contract);
             }
         }

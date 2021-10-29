@@ -180,7 +180,7 @@ impl Project {
         let object = Object::parse(&mut lexer, None)?;
 
         let mut project_contracts = HashMap::with_capacity(1);
-        project_contracts.insert(full_path, Contract::new(path, name, object));
+        project_contracts.insert(full_path, Contract::new(path, name, yul.to_owned(), object));
         Ok(Self {
             contracts: project_contracts,
             libraries: HashMap::new(),

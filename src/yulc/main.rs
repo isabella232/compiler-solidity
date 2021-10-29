@@ -60,7 +60,7 @@ fn main_inner() -> Result<(), compiler_yul::Error> {
         .collect();
 
     let input: compiler_yul::Input = serde_json::from_str(input_string.as_str())?;
-    let mut project = input.try_into_project(libraries, true)?;
+    let mut project = input.try_into_project(libraries, arguments.dump_yul, true)?;
     project.compile_all(
         arguments.output,
         optimization_level,
