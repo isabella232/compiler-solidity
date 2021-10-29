@@ -18,11 +18,13 @@ pub struct Contract {
     pub path: String,
     /// The contract type name.
     pub name: String,
-    /// The AST object.
+    /// The Yul source code.
+    pub source: String,
+    /// The Yul AST object.
     pub object: Object,
-    /// The text assembly.
+    /// The zkEVM text assembly.
     pub assembly: Option<String>,
-    /// The binary bytecode.
+    /// The zkEVM binary bytecode.
     pub bytecode: Option<Vec<u8>>,
 }
 
@@ -30,10 +32,11 @@ impl Contract {
     ///
     /// A shortcut constructor.
     ///
-    pub fn new(path: String, name: String, object: Object) -> Self {
+    pub fn new(path: String, name: String, source: String, object: Object) -> Self {
         Self {
             path,
             name,
+            source,
             object,
             assembly: None,
             bytecode: None,
