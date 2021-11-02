@@ -32,10 +32,12 @@ pub fn call<'ctx, 'src>(
             .ptr_type(compiler_common::AddressSpace::Child.into()),
         "contract_call_child_pointer_input",
     );
+    let input_size_adjusted =
+        context.adjust_offset(input_size, "contract_call_input_size_adjusted");
     context.build_store(
         child_pointer_input,
         context.builder.build_int_unsigned_div(
-            input_size,
+            input_size_adjusted,
             context.field_const(compiler_common::size::FIELD as u64),
             "contract_call_input_size_cells",
         ),
@@ -58,39 +60,17 @@ pub fn call<'ctx, 'src>(
         ),
     );
 
-    let entry_data_pointer = context.access_heap(input_offset, "contract_call_entry_data_pointer");
-    let entry_data = context.build_load(entry_data_pointer, "contract_call_entry_data");
-    let child_pointer_entry_data = context.builder.build_int_to_ptr(
-        context.field_const(
-            (compiler_common::abi::OFFSET_ENTRY_DATA * compiler_common::size::FIELD) as u64,
-        ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Child.into()),
-        "contract_call_child_pointer_entry_data",
-    );
-    context.build_store(child_pointer_entry_data, entry_data.as_basic_value_enum());
-
     let destination = context.builder.build_int_to_ptr(
         context.field_const(
-            (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
+            (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD - 4)
+                as u64,
         ),
         context
             .field_type()
             .ptr_type(compiler_common::AddressSpace::Child.into()),
         "contract_call_child_input_destination",
     );
-    let input_offset_adjusted = context.builder.build_int_add(
-        input_offset,
-        context.field_const((compiler_common::size::FIELD) as u64),
-        "contract_call_input_offset_adjusted",
-    );
-    let source = context.access_heap(input_offset_adjusted, "contract_call_child_input_source");
-    let input_size_adjusted = context.builder.build_int_sub(
-        input_size,
-        context.field_const(4),
-        "contract_call_input_size_adjusted",
-    );
+    let source = context.access_heap(input_offset, "contract_call_child_input_source");
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToChild);
     context.build_call(
@@ -98,7 +78,7 @@ pub fn call<'ctx, 'src>(
         &[
             destination.as_basic_value_enum(),
             source.as_basic_value_enum(),
-            input_size_adjusted.as_basic_value_enum(),
+            input_size.as_basic_value_enum(),
             context
                 .integer_type(compiler_common::bitlength::BOOLEAN)
                 .const_zero()
@@ -172,7 +152,7 @@ pub fn linker_symbol<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     mut arguments: [Argument<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let path = arguments[0].original.take().unwrap_or_default();
+    let path = arguments[0].original.take().expect("Always exists");
 
     match context.get_library_address(path.as_str()) {
         Some(address) => Some(address.as_basic_value_enum()),

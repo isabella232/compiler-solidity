@@ -59,6 +59,8 @@ fn main_inner() -> Result<(), compiler_yul::Error> {
         })
         .collect();
 
+    compiler_common::vm::initialize_target();
+
     let input: compiler_yul::Input = serde_json::from_str(input_string.as_str())?;
     let mut project = input.try_into_project(libraries, arguments.dump_yul, true)?;
     project.compile_all(

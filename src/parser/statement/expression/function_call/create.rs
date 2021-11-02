@@ -152,7 +152,7 @@ pub fn datasize<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     mut arguments: [Argument<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let literal = arguments[0].original.take().unwrap_or_default();
+    let literal = arguments[0].original.take().expect("Always exists");
 
     if literal.ends_with("_deployed") || literal.as_str() == context.object() {
         return Some(context.field_const(0).as_basic_value_enum());
@@ -173,7 +173,7 @@ pub fn dataoffset<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     mut arguments: [Argument<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let literal = arguments[0].original.take().unwrap_or_default();
+    let literal = arguments[0].original.take().expect("Always exists");
 
     if literal.ends_with("_deployed") {
         return Some(context.field_const(0).as_basic_value_enum());

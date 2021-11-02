@@ -126,11 +126,10 @@ pub fn copy<'ctx, 'src>(
     context.build_conditional_branch(is_calldata_available, copy_block, zero_block);
 
     context.set_basic_block(copy_block);
-    let destination_offset = context.adjust_offset(
+    let destination = context.access_heap(
         arguments[0].into_int_value(),
-        "calldata_copy_destination_offset",
+        "calldata_copy_destination_pointer",
     );
-    let destination = context.access_heap(destination_offset, "calldata_copy_destination_pointer");
 
     let source_offset_shift =
         compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD - 4;
@@ -159,6 +158,7 @@ pub fn copy<'ctx, 'src>(
     );
     context.build_unconditional_branch(join_block);
 
+    // TODO: remove if VM provides zeros after actual calldata
     context.set_basic_block(zero_block);
     let condition_block = context.append_basic_block("calldata_copy_zero_loop_condition");
     let body_block = context.append_basic_block("calldata_copy_zero_loop_body");
