@@ -32,8 +32,15 @@ pub fn call<'ctx, 'src>(
             .ptr_type(compiler_common::AddressSpace::Child.into()),
         "contract_call_child_pointer_input",
     );
-    let input_size_adjusted =
-        context.adjust_offset(input_size, "contract_call_input_size_adjusted");
+    let input_size_without_selector = context.builder.build_int_sub(
+        input_size,
+        context.field_const(4),
+        "contract_call_input_size_without_selector",
+    );
+    let input_size_adjusted = context.ceil32(
+        input_size_without_selector,
+        "contract_call_input_size_adjusted",
+    );
     context.build_store(
         child_pointer_input,
         context.builder.build_int_unsigned_div(

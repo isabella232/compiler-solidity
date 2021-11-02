@@ -822,9 +822,9 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     }
 
     ///
-    /// Adjusts the specified offset to the beginning of the next 32-byte cell.
+    /// Adjusts the specified integer value to the beginning of the next 32-byte cell.
     ///
-    pub fn adjust_offset(
+    pub fn ceil32(
         &self,
         initial: inkwell::values::IntValue<'ctx>,
         name: &str,

@@ -28,6 +28,7 @@ pub fn r#return<'ctx, 'src>(
     );
 
     let size = arguments[1].into_int_value();
+    let size_adjusted = context.ceil32(size, "return_size_adjusted");
 
     let parent_pointer_return_data_size = context.access_calldata(
         context.field_const(
@@ -38,7 +39,7 @@ pub fn r#return<'ctx, 'src>(
     context.build_store(
         parent_pointer_return_data_size,
         context.builder.build_int_unsigned_div(
-            size,
+            size_adjusted,
             context.field_const(compiler_common::size::FIELD as u64),
             "return_destination_size_cells",
         ),
@@ -82,7 +83,8 @@ pub fn revert<'ctx, 'src>(
         "revert_destination_pointer",
     );
 
-    let size = context.adjust_offset(arguments[1].into_int_value(), "revert_size");
+    let size = arguments[1].into_int_value();
+    let size_adjusted = context.ceil32(size, "revert_size_adjusted");
 
     let parent_pointer_return_data_size = context.access_calldata(
         context.field_const(
@@ -93,7 +95,7 @@ pub fn revert<'ctx, 'src>(
     context.build_store(
         parent_pointer_return_data_size,
         context.builder.build_int_unsigned_div(
-            size,
+            size_adjusted,
             context.field_const(compiler_common::size::FIELD as u64),
             "revert_parent_return_data_size_cells",
         ),
