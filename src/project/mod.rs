@@ -57,15 +57,6 @@ impl Project {
             }
         }
 
-        let llvm = inkwell::context::Context::create();
-        let target_machine =
-            compiler_common::vm::target_machine(opt_level_llvm_back).ok_or_else(|| {
-                Error::LLVM(format!(
-                    "Target machine `{}` creation error",
-                    compiler_common::vm::TARGET_NAME
-                ))
-            })?;
-
         let (contract_path, main_object) = match contract_path {
             Some(contract_path) => {
                 let object = self
@@ -87,6 +78,14 @@ impl Project {
         };
 
         let (assembly_text, bytecode) = {
+            let llvm = inkwell::context::Context::create();
+            let target_machine = compiler_common::vm::target_machine(opt_level_llvm_back)
+                .ok_or_else(|| {
+                    Error::LLVM(format!(
+                        "Target machine `{}` creation error",
+                        compiler_common::vm::TARGET_NAME
+                    ))
+                })?;
             let mut context = LLVMContext::new_with_optimizer(
                 &llvm,
                 &target_machine,
@@ -112,6 +111,9 @@ impl Project {
                 .write_to_memory_buffer(context.module(), inkwell::targets::FileType::Assembly)
                 .map_err(|error| Error::LLVM(format!("Code compiling error: {}", error)))?;
             let assembly_text = String::from_utf8_lossy(buffer.as_slice()).to_string();
+
+            // Prevents calling the destructor. Is suspected in segmentation faults.
+            std::mem::forget(buffer);
 
             let assembly = zkevm_assembly::Assembly::try_from(assembly_text.clone())
                 .unwrap_or_else(|error| {
