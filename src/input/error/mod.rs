@@ -17,7 +17,7 @@ pub struct Error {
     /// The component type.
     pub component: String,
     /// The error code.
-    pub error_code: String,
+    pub error_code: Option<String>,
     /// The formatted error message.
     pub formatted_message: String,
     /// The non-formatted error message.
