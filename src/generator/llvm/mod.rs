@@ -455,6 +455,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ) {
         let instruction = self.builder.build_store(pointer, value);
 
+        // TODO: set 1 for parent and child
         let alignment = if inkwell::AddressSpace::from(compiler_common::AddressSpace::Heap)
             == pointer.get_type().get_address_space()
         {
@@ -480,6 +481,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ) -> inkwell::values::BasicValueEnum<'ctx> {
         let value = self.builder.build_load(pointer, name);
 
+        // TODO: set 1 for parent and child
         let alignment = if inkwell::AddressSpace::from(compiler_common::AddressSpace::Heap)
             == pointer.get_type().get_address_space()
         {
@@ -711,11 +713,12 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     /// Writes the error data to the parent memory.
     ///
     pub fn write_error(&self, message: &'static str) {
-        let parent_return_data_size_pointer = self.access_calldata(
+        let parent_return_data_size_pointer = self.access_memory(
             self.field_const(
                 (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD)
                     as u64,
             ),
+            compiler_common::AddressSpace::Parent,
             "parent_return_data_size_pointer",
         );
         self.build_store(parent_return_data_size_pointer, self.field_const(1));
@@ -735,11 +738,12 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             ),
             "error_code_shifted",
         );
-        let parent_error_code_pointer = self.access_calldata(
+        let parent_error_code_pointer = self.access_memory(
             self.field_const(
                 (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD)
                     as u64,
             ),
+            compiler_common::AddressSpace::Parent,
             "parent_error_code_pointer",
         );
         self.build_store(parent_error_code_pointer, error_code_shifted);
@@ -853,35 +857,17 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     }
 
     ///
-    /// Returns the heap pointer with the `offset` bytes offset, optionally casted to `r#type`.
+    /// Returns the memory pointer to `address_space at the `offset` bytes.
     ///
-    /// Mostly for testing.
-    ///
-    pub fn access_heap(
+    pub fn access_memory(
         &self,
         offset: inkwell::values::IntValue<'ctx>,
+        address_space: compiler_common::AddressSpace,
         name: &str,
     ) -> inkwell::values::PointerValue<'ctx> {
         self.builder.build_int_to_ptr(
             offset,
-            self.field_type()
-                .ptr_type(compiler_common::AddressSpace::Heap.into()),
-            name,
-        )
-    }
-
-    ///
-    /// Returns the calldata with the `offset` fields offset.
-    ///
-    pub fn access_calldata(
-        &self,
-        offset: inkwell::values::IntValue<'ctx>,
-        name: &str,
-    ) -> inkwell::values::PointerValue<'ctx> {
-        self.builder.build_int_to_ptr(
-            offset,
-            self.field_type()
-                .ptr_type(compiler_common::AddressSpace::Parent.into()),
+            self.field_type().ptr_type(address_space.into()),
             name,
         )
     }

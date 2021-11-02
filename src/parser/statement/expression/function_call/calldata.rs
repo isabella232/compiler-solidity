@@ -32,7 +32,11 @@ pub fn load<'ctx, 'src>(
     let offset = context.field_const(
         (compiler_common::abi::OFFSET_ENTRY_DATA * compiler_common::size::FIELD) as u64,
     );
-    let pointer = context.access_calldata(offset, "hash_pointer");
+    let pointer = context.access_memory(
+        offset,
+        compiler_common::AddressSpace::Parent,
+        "hash_pointer",
+    );
     let value = context.build_load(pointer, "calldata_entry_hash_value");
     context.build_store(value_pointer, value);
     context.build_unconditional_branch(join_block);
@@ -46,7 +50,11 @@ pub fn load<'ctx, 'src>(
         ),
         "calldata_value_offset",
     );
-    let pointer = context.access_calldata(offset, "pointer_non_zero");
+    let pointer = context.access_memory(
+        offset,
+        compiler_common::AddressSpace::Parent,
+        "pointer_non_zero",
+    );
     let value = context.build_load(pointer, "calldata_value_non_zero");
     context.build_store(value_pointer, value);
     context.build_unconditional_branch(join_block);
@@ -63,10 +71,11 @@ pub fn size<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     has_selector: bool,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let pointer = context.access_calldata(
+    let pointer = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD) as u64,
         ),
+        compiler_common::AddressSpace::Parent,
         "calldata_size_pointer",
     );
     let value = context.build_load(pointer, "calldata_size_value_cells");
@@ -96,10 +105,11 @@ pub fn copy<'ctx, 'src>(
     let zero_block = context.append_basic_block("calldata_if_zero");
     let join_block = context.append_basic_block("calldata_if_join");
 
-    let pointer = context.access_calldata(
+    let pointer = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD) as u64,
         ),
+        compiler_common::AddressSpace::Parent,
         "calldata_size_pointer",
     );
     let calldata_size = context
@@ -126,8 +136,9 @@ pub fn copy<'ctx, 'src>(
     context.build_conditional_branch(is_calldata_available, copy_block, zero_block);
 
     context.set_basic_block(copy_block);
-    let destination = context.access_heap(
+    let destination = context.access_memory(
         arguments[0].into_int_value(),
+        compiler_common::AddressSpace::Heap,
         "calldata_copy_destination_pointer",
     );
 
@@ -138,7 +149,11 @@ pub fn copy<'ctx, 'src>(
         context.field_const(source_offset_shift as u64),
         "calldata_copy_source_offset",
     );
-    let source = context.access_calldata(source_offset, "calldata_copy_source_pointer");
+    let source = context.access_memory(
+        source_offset,
+        compiler_common::AddressSpace::Parent,
+        "calldata_copy_source_pointer",
+    );
 
     let size = arguments[2].into_int_value();
 
@@ -210,7 +225,11 @@ pub fn copy<'ctx, 'src>(
     let index_value = context
         .build_load(index_pointer, "calldata_copy_zero_loop_index_value_body")
         .into_int_value();
-    let pointer = context.access_heap(index_value, "calldata_copy_zero_pointer_body");
+    let pointer = context.access_memory(
+        index_value,
+        compiler_common::AddressSpace::Heap,
+        "calldata_copy_zero_pointer_body",
+    );
     context.build_store(pointer, context.field_const(0));
     context.build_unconditional_branch(increment_block);
 
@@ -225,15 +244,17 @@ pub fn codecopy<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let destination = context.access_heap(
+    let destination = context.access_memory(
         arguments[0].into_int_value(),
+        compiler_common::AddressSpace::Heap,
         "calldata_codecopy_destination_pointer",
     );
 
-    let source = context.access_calldata(
+    let source = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
         ),
+        compiler_common::AddressSpace::Parent,
         "calldata_codecopy_source_pointer",
     );
 

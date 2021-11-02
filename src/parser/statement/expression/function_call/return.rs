@@ -18,22 +18,28 @@ pub fn r#return<'ctx, 'src>(
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
 
-    let source = context.access_heap(arguments[0].into_int_value(), "return_source_pointer");
+    let source = context.access_memory(
+        arguments[0].into_int_value(),
+        compiler_common::AddressSpace::Heap,
+        "return_source_pointer",
+    );
 
-    let destination = context.access_calldata(
+    let destination = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
         ),
+        compiler_common::AddressSpace::Parent,
         "return_destination_pointer",
     );
 
     let size = arguments[1].into_int_value();
     let size_adjusted = context.ceil32(size, "return_size_adjusted");
 
-    let parent_pointer_return_data_size = context.access_calldata(
+    let parent_pointer_return_data_size = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD) as u64,
         ),
+        compiler_common::AddressSpace::Parent,
         "return_destination_size_pointer",
     );
     context.build_store(
@@ -45,12 +51,13 @@ pub fn r#return<'ctx, 'src>(
         ),
     );
 
+    // TODO: remove adjustment
     context.build_call(
         intrinsic,
         &[
             destination.as_basic_value_enum(),
             source.as_basic_value_enum(),
-            size.as_basic_value_enum(),
+            size_adjusted.as_basic_value_enum(),
             context
                 .integer_type(compiler_common::bitlength::BOOLEAN)
                 .const_zero()
@@ -74,22 +81,28 @@ pub fn revert<'ctx, 'src>(
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
 
-    let source = context.access_heap(arguments[0].into_int_value(), "revert_source_pointer");
+    let source = context.access_memory(
+        arguments[0].into_int_value(),
+        compiler_common::AddressSpace::Heap,
+        "revert_source_pointer",
+    );
 
-    let destination = context.access_calldata(
+    let destination = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
         ),
+        compiler_common::AddressSpace::Parent,
         "revert_destination_pointer",
     );
 
     let size = arguments[1].into_int_value();
     let size_adjusted = context.ceil32(size, "revert_size_adjusted");
 
-    let parent_pointer_return_data_size = context.access_calldata(
+    let parent_pointer_return_data_size = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD) as u64,
         ),
+        compiler_common::AddressSpace::Parent,
         "revert_parent_pointer_return_data_size",
     );
     context.build_store(
@@ -101,12 +114,13 @@ pub fn revert<'ctx, 'src>(
         ),
     );
 
+    // TODO: remove adjustment
     context.build_call(
         intrinsic,
         &[
             destination.as_basic_value_enum(),
             source.as_basic_value_enum(),
-            size.as_basic_value_enum(),
+            size_adjusted.as_basic_value_enum(),
             context
                 .integer_type(compiler_common::bitlength::BOOLEAN)
                 .const_zero()

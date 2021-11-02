@@ -13,13 +13,11 @@ use crate::generator::llvm::Context as LLVMContext;
 pub fn size<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let pointer = context.builder.build_int_to_ptr(
+    let pointer = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD) as u64,
         ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Child.into()),
+        compiler_common::AddressSpace::Child,
         "return_data_size_pointer",
     );
     let value = context.build_load(pointer, "return_data_size_value_cells");
@@ -38,8 +36,9 @@ pub fn copy<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let destination = context.access_heap(
+    let destination = context.access_memory(
         arguments[0].into_int_value(),
+        compiler_common::AddressSpace::Heap,
         "return_data_copy_destination_pointer",
     );
 
@@ -50,11 +49,9 @@ pub fn copy<'ctx, 'src>(
         context.field_const(source_offset_shift as u64),
         "return_data_copy_source_offset",
     );
-    let source = context.builder.build_int_to_ptr(
+    let source = context.access_memory(
         source_offset,
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Child.into()),
+        compiler_common::AddressSpace::Child,
         "return_data_copy_source_pointer",
     );
 

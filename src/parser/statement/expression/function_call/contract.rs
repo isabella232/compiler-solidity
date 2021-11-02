@@ -23,13 +23,11 @@ pub fn call<'ctx, 'src>(
     let intrinsic = context.get_intrinsic_function(Intrinsic::SwitchContext);
     context.build_call(intrinsic, &[], "contract_call_switch_context");
 
-    let child_pointer_input = context.builder.build_int_to_ptr(
+    let child_pointer_input = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD) as u64,
         ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Child.into()),
+        compiler_common::AddressSpace::Child,
         "contract_call_child_pointer_input",
     );
     let input_size_without_selector = context.builder.build_int_sub(
@@ -49,13 +47,11 @@ pub fn call<'ctx, 'src>(
             "contract_call_input_size_cells",
         ),
     );
-    let child_pointer_output = context.builder.build_int_to_ptr(
+    let child_pointer_output = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD) as u64,
         ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Child.into()),
+        compiler_common::AddressSpace::Child,
         "contract_call_child_pointer_output",
     );
     context.build_store(
@@ -67,17 +63,19 @@ pub fn call<'ctx, 'src>(
         ),
     );
 
-    let destination = context.builder.build_int_to_ptr(
+    let destination = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD - 4)
                 as u64,
         ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Child.into()),
+        compiler_common::AddressSpace::Child,
         "contract_call_child_input_destination",
     );
-    let source = context.access_heap(input_offset, "contract_call_child_input_source");
+    let source = context.access_memory(
+        input_offset,
+        compiler_common::AddressSpace::Heap,
+        "contract_call_child_input_source",
+    );
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToChild);
     context.build_call(
@@ -123,16 +121,18 @@ pub fn call<'ctx, 'src>(
         "contract_call_is_successfull",
     );
 
-    let source = context.builder.build_int_to_ptr(
+    let source = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
         ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Child.into()),
+        compiler_common::AddressSpace::Child,
         "contract_call_output_source",
     );
-    let destination = context.access_heap(output_offset, "contract_call_output_pointer");
+    let destination = context.access_memory(
+        output_offset,
+        compiler_common::AddressSpace::Heap,
+        "contract_call_output_pointer",
+    );
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyFromChild);
     context.build_call(

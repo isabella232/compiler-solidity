@@ -11,7 +11,11 @@ pub fn load<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let pointer = context.access_heap(arguments[0].into_int_value(), "memory_load_pointer");
+    let pointer = context.access_memory(
+        arguments[0].into_int_value(),
+        compiler_common::AddressSpace::Heap,
+        "memory_load_pointer",
+    );
     let result = context.build_load(pointer, "memory_load_result");
     Some(result)
 }
@@ -24,7 +28,11 @@ pub fn store<'ctx, 'src>(
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let offset = arguments[0].into_int_value();
-    let pointer = context.access_heap(offset, "memory_store_pointer");
+    let pointer = context.access_memory(
+        offset,
+        compiler_common::AddressSpace::Heap,
+        "memory_store_pointer",
+    );
     context.build_store(pointer, arguments[1]);
 
     None
@@ -53,7 +61,11 @@ pub fn store_byte<'ctx, 'src>(
         "memory_store_byte_offset",
     );
 
-    let pointer = context.access_heap(offset, "original_value_pointer");
+    let pointer = context.access_memory(
+        offset,
+        compiler_common::AddressSpace::Heap,
+        "original_value_pointer",
+    );
 
     let original_value = context
         .build_load(pointer, "original_value")

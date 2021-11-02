@@ -47,13 +47,11 @@ pub fn create2<'ctx, 'src>(
     let intrinsic = context.get_intrinsic_function(Intrinsic::SwitchContext);
     context.build_call(intrinsic, &[], "create_switch_context");
 
-    let child_pointer_input = context.builder.build_int_to_ptr(
+    let child_pointer_input = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD) as u64,
         ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Child.into()),
+        compiler_common::AddressSpace::Child,
         "create_child_pointer_input",
     );
     context.build_store(
@@ -65,13 +63,11 @@ pub fn create2<'ctx, 'src>(
         ),
     );
 
-    let child_pointer_entry_data = context.builder.build_int_to_ptr(
+    let child_pointer_entry_data = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_ENTRY_DATA * compiler_common::size::FIELD) as u64,
         ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Child.into()),
+        compiler_common::AddressSpace::Child,
         "create_child_pointer_entry_data",
     );
     context.build_store(
@@ -79,16 +75,18 @@ pub fn create2<'ctx, 'src>(
         context.field_const(1).as_basic_value_enum(),
     );
 
-    let destination = context.builder.build_int_to_ptr(
+    let destination = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
         ),
-        context
-            .field_type()
-            .ptr_type(compiler_common::AddressSpace::Child.into()),
+        compiler_common::AddressSpace::Child,
         "create_child_input_destination",
     );
-    let source = context.access_heap(input_offset, "create_child_input_source");
+    let source = context.access_memory(
+        input_offset,
+        compiler_common::AddressSpace::Heap,
+        "create_child_input_source",
+    );
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToChild);
     context.build_call(
@@ -200,7 +198,11 @@ pub fn datacopy<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let pointer = context.access_heap(arguments[0].into_int_value(), "datacopy_pointer");
+    let pointer = context.access_memory(
+        arguments[0].into_int_value(),
+        compiler_common::AddressSpace::Heap,
+        "datacopy_pointer",
+    );
     context.build_store(pointer, arguments[1]);
 
     None

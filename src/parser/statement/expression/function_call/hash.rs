@@ -20,7 +20,11 @@ pub fn keccak256<'ctx, 'src>(
     let increment_block = context.append_basic_block("keccak256_increment");
     let join_block = context.append_basic_block("keccak256_join");
 
-    let pointer = context.access_heap(range_start, "keccak256_first_value_pointer");
+    let pointer = context.access_memory(
+        range_start,
+        compiler_common::AddressSpace::Heap,
+        "keccak256_first_value_pointer",
+    );
     let value = context.build_load(pointer, "keccak256_first_value");
     let intrinsic = context.get_intrinsic_function(Intrinsic::HashAbsorbReset);
     context.build_call(intrinsic, &[value], "keccak256_call_hash_absorb_reset");
@@ -70,7 +74,11 @@ pub fn keccak256<'ctx, 'src>(
     let index_value = context
         .build_load(index_pointer, "keccak256_body_index_value")
         .into_int_value();
-    let pointer = context.access_heap(index_value, "keccak256_next_value_pointer");
+    let pointer = context.access_memory(
+        index_value,
+        compiler_common::AddressSpace::Heap,
+        "keccak256_next_value_pointer",
+    );
     let value = context.build_load(pointer, "keccak256_next_value");
     let intrinsic = context.get_intrinsic_function(Intrinsic::HashAbsorb);
     context.build_call(intrinsic, &[value], "keccak256_call_hash_absorb");
