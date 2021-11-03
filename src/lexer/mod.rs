@@ -9,6 +9,7 @@ pub mod error;
 pub mod lexeme;
 
 use self::error::Error;
+use self::lexeme::comment::Comment;
 use self::lexeme::keyword::Keyword;
 use self::lexeme::literal::boolean::Boolean as BooleanLiteral;
 use self::lexeme::literal::integer::Integer as IntegerLiteral;
@@ -162,18 +163,42 @@ impl Lexer {
     }
 
     ///
+    /// Returns the unprocessed slice of the input.
+    ///
+    pub fn remaining(&self) -> &str {
+        &self.input[self.index..]
+    }
+
+    ///
     /// Removes comments from the given source code.
     ///
     fn remove_comments(src: &mut String) {
-        while let Some(position) = src.find("/*") {
-            let end_of_comment =
-                src[position..].find("*/").unwrap_or(src.len() - position) + position;
-            src.replace_range(position..end_of_comment + 2, "");
-        }
+        loop {
+            let next_multiline = src.find("/*");
+            let next_oneline = src.find("//");
 
-        while let Some(position) = src.find("//") {
-            let end_of_line = src[position..].find('\n').unwrap_or(src.len() - position) + position;
-            src.replace_range(position..end_of_line, "");
+            let (position, r#type) = match (next_multiline, next_oneline) {
+                (Some(next_multiline), Some(next_oneline)) if next_oneline < next_multiline => {
+                    (next_oneline, Comment::SingleLine)
+                }
+                (Some(next_multiline), Some(_next_oneline)) => (next_multiline, Comment::MultiLine),
+                (Some(next_multiline), None) => (next_multiline, Comment::MultiLine),
+                (None, Some(next_oneline)) => (next_oneline, Comment::SingleLine),
+                (None, None) => break,
+            };
+
+            match r#type {
+                Comment::SingleLine => {
+                    let end_of_line =
+                        src[position..].find('\n').unwrap_or(src.len() - position) + position;
+                    src.replace_range(position..end_of_line, "");
+                }
+                Comment::MultiLine => {
+                    let end_of_comment =
+                        src[position..].find("*/").unwrap_or(src.len() - position) + position;
+                    src.replace_range(position..end_of_comment + 2, "");
+                }
+            }
         }
     }
 }

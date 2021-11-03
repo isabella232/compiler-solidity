@@ -2,6 +2,7 @@
 //! The lexeme.
 //!
 
+pub mod comment;
 pub mod keyword;
 pub mod literal;
 pub mod symbol;
