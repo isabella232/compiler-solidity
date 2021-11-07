@@ -1,6 +1,6 @@
-# YUL compiler
+# Solidity compiler for zkEVM
 
-The compiler from YUL intermediate language to zkEVM bytecode.
+The compiler from Solidity to zkEVM bytecode.
 
 ## Warning 
 
@@ -9,8 +9,10 @@ The compiler from YUL intermediate language to zkEVM bytecode.
 ## Usage
 
 ```
-solc ERC20.sol --ir-optimized --optimize | yulc - -O3
+zksolc ERC20.sol --asm --bin --optimize --output-dir './build/'
 ```
+
+The latest patch of the `solc 0.8.x` Solidity compiler must be available in `PATH`.
 
 ## Tested
 
@@ -24,57 +26,6 @@ Solidity compiler versions:
 0.8.5
 0.8.6
 0.8.7
-```
-
-## Grammar
-
-```
-Block = '{' Statement* '}'
-Statement =
-    Block |
-    FunctionDefinition |
-    VariableDeclaration |
-    Assignment |
-    If |
-    Expression |
-    Switch |
-    ForLoop |
-    BreakContinue |
-    Leave
-FunctionDefinition =
-    'function' Identifier '(' TypedIdentifierList? ')'
-    ( '->' TypedIdentifierList )? Block
-VariableDeclaration =
-    'let' TypedIdentifierList ( ':=' Expression )?
-Assignment =
-    IdentifierList ':=' Expression
-Expression =
-    FunctionCall | Identifier | Literal
-If =
-    'if' Expression Block
-Switch =
-    'switch' Expression ( Case+ Default? | Default )
-Case =
-    'case' Literal Block
-Default =
-    'default' Block
-ForLoop =
-    'for' Block Expression Block Block
-BreakContinue =
-    'break' | 'continue'
-Leave = 'leave'
-FunctionCall =
-    Identifier '(' ( Expression ( ',' Expression )* )? ')'
-Identifier = [a-zA-Z_$] [a-zA-Z_$0-9.]*
-IdentifierList = Identifier ( ',' Identifier)*
-TypeName = Identifier
-TypedIdentifierList = Identifier ( ':' TypeName )? ( ',' Identifier ( ':' TypeName )? )*
-Literal =
-    (NumberLiteral | StringLiteral | TrueLiteral | FalseLiteral) ( ':' TypeName )?
-NumberLiteral = HexNumber | DecimalNumber
-StringLiteral = '"' ([^"\r\n\\] | '\\' .)* '"'
-TrueLiteral = 'true'
-FalseLiteral = 'false'
-HexNumber = '0x' [0-9a-fA-F]+
-DecimalNumber = [0-9]+
+0.8.8
+0.8.9
 ```

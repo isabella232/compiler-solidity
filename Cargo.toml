@@ -1,5 +1,5 @@
 [package]
-name = "compiler-yul"
+name = "compiler-solidity"
 version = "0.8.9"
 authors = [
     "Alex Zarudnyy <a.zarudnyy@matterlabs.dev>",
@@ -7,11 +7,11 @@ authors = [
 ]
 license = "Apache-2.0"
 edition = "2021"
-description = "The YUL to LLVM compiler"
+description = "The zkEVM Solidity compiler"
 
 [[bin]]
-name = "yulc"
-path = "src/yulc/main.rs"
+name = "zksolc"
+path = "src/zksolc/main.rs"
 
 [dependencies]
 structopt = { version = "0.3", default-features = false }
@@ -21,6 +21,7 @@ rand = "0.8"
 regex = "1.5"
 serde = { version = "1.0", "features" = [ "derive" ] }
 serde_json = "1.0"
+semver = "1.0"
 
 zkevm-assembly = { git = "ssh://git@github.com/matter-labs/zkEVM-assembly" }
 compiler-common = { git = "ssh://git@github.com/matter-labs/compiler-common" }

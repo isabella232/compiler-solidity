@@ -46,29 +46,56 @@ impl Contract {
     ///
     /// Writes the contract text assembly and bytecode to files.
     ///
-    pub fn write_to_directory(&self, path: &Path) -> Result<(), Error> {
+    pub fn write_to_directory(
+        &self,
+        path: &Path,
+        output_assembly: bool,
+        output_binary: bool,
+        overwrite: bool,
+    ) -> Result<(), Error> {
         std::fs::create_dir_all(path)?;
 
-        let file_name = format!("{}.{}", self.path.replace('/', ""), self.name);
+        let file_name = format!("{}.{}", self.path.replace('/', "."), self.name);
 
-        let text_assembly_file_name = format!(
-            "{}.{}",
-            file_name,
-            compiler_common::extension::ZKEVM_ASSEMBLY
-        );
-        let mut text_assembly_file_path = path.to_owned();
-        text_assembly_file_path.push(text_assembly_file_name);
-        File::create(&text_assembly_file_path)
-            .map_err(Error::FileSystem)?
-            .write_all(self.assembly.as_ref().expect("Always exists").as_bytes())
-            .map_err(Error::FileSystem)?;
+        if output_assembly {
+            let file_name = format!(
+                "{}.{}",
+                file_name,
+                compiler_common::extension::ZKEVM_ASSEMBLY
+            );
+            let mut file_path = path.to_owned();
+            file_path.push(file_name);
 
-        let mut binary_file_path = path.to_owned();
-        binary_file_path.push(file_name);
-        File::create(&binary_file_path)
-            .map_err(Error::FileSystem)?
-            .write_all(self.bytecode.as_ref().expect("Always exists").as_slice())
-            .map_err(Error::FileSystem)?;
+            if file_path.exists() && !overwrite {
+                println!(
+                    "Refusing to overwrite existing file {:?} (use --overwrite to force).",
+                    file_path
+                );
+            } else {
+                File::create(&file_path)
+                    .map_err(Error::FileSystem)?
+                    .write_all(self.assembly.as_ref().expect("Always exists").as_bytes())
+                    .map_err(Error::FileSystem)?;
+            }
+        }
+
+        if output_binary {
+            let file_name = format!("{}.{}", file_name, compiler_common::extension::ZKEVM_BINARY);
+            let mut file_path = path.to_owned();
+            file_path.push(file_name);
+
+            if file_path.exists() && !overwrite {
+                println!(
+                    "Refusing to overwrite existing file {:?} (use --overwrite to force).",
+                    file_path
+                );
+            } else {
+                File::create(&file_path)
+                    .map_err(Error::FileSystem)?
+                    .write_all(self.bytecode.as_ref().expect("Always exists").as_slice())
+                    .map_err(Error::FileSystem)?;
+            }
+        }
 
         Ok(())
     }

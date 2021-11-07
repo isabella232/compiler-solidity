@@ -15,7 +15,7 @@ pub enum Error {
     /// The input error.
     Input(serde_json::Error),
     /// The Solidity error.
-    Solidity(&'static str),
+    Solidity(String),
     /// The contract cannot be found.
     ContractNotFound,
     /// If there is multiple contracts, the main contract name must be specified.

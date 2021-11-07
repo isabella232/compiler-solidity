@@ -20,13 +20,3 @@ pub fn take_or_next(mut lexeme: Option<Lexeme>, lexer: &mut Lexer) -> Result<Lex
         None => Ok(lexer.next()?),
     }
 }
-
-///
-/// Returns the `token` value if it is `Some(_)`, otherwise peeks the next token from the `stream`.
-///
-pub fn peek_or_next(mut lexeme: Option<Lexeme>, lexer: &mut Lexer) -> Result<Lexeme, Error> {
-    match lexeme.take() {
-        Some(lexeme) => Ok(lexeme),
-        None => Ok(lexer.peek()?),
-    }
-}

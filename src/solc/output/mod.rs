@@ -24,16 +24,16 @@ use self::source::Source;
 /// The `solc --standard-json` output representation.
 ///
 #[derive(Debug, Deserialize)]
-pub struct Input {
+pub struct Output {
     /// The file-contract hashmap.
     pub contracts: Option<HashMap<String, HashMap<String, Contract>>>,
     /// The source code mapping data.
-    pub sources: HashMap<String, Source>,
+    pub sources: Option<HashMap<String, Source>>,
     /// The compilation errors and warnings.
     pub errors: Option<Vec<SolidityError>>,
 }
 
-impl Input {
+impl Output {
     ///
     /// If there is only contract, it is returned regardless of `contract_path`.
     /// If there is more than one contract, the `contract_path` must be specified, otherwise, an
@@ -44,7 +44,7 @@ impl Input {
     ///
     pub fn try_into_project(
         self,
-        libraries: HashMap<String, String>,
+        libraries: HashMap<String, HashMap<String, String>>,
         dump_yul: bool,
         print_warnings: bool,
     ) -> Result<Project, Error> {
@@ -60,7 +60,7 @@ impl Input {
 
         let input_contracts = self
             .contracts
-            .ok_or(Error::Solidity("Solidity compiler error"))?;
+            .ok_or_else(|| Error::Solidity("Solidity compiler error".to_owned()))?;
         let mut project_contracts = HashMap::with_capacity(input_contracts.len());
         for (path, contracts) in input_contracts.into_iter() {
             for (name, contract) in contracts.into_iter() {
@@ -70,7 +70,7 @@ impl Input {
 
                 let full_path = format!("{}:{}", path, name);
                 if dump_yul {
-                    println!("Contract {}:", full_path);
+                    println!("Contract `{}` Yul:\n", full_path);
                     println!("{}", contract.ir_optimized);
                 }
 

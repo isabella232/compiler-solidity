@@ -311,23 +311,26 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     /// Gets a deployed library address.
     ///
     pub fn get_library_address(&self, path: &str) -> Option<inkwell::values::IntValue<'ctx>> {
-        self.project.libraries.iter().find_map(|(key, value)| {
-            if key == path {
-                Some(
-                    self.llvm
-                        .custom_width_int_type(compiler_common::bitlength::FIELD as u32)
-                        .const_int_from_string(
-                            value.as_str(),
-                            inkwell::types::StringRadix::Hexadecimal,
-                        )
-                        .unwrap_or_else(|| {
-                            panic!("Library `{}` address `{}` is invalid", key, value)
-                        }),
-                )
-            } else {
-                None
+        for (file_path, contracts) in self.project.libraries.iter() {
+            for (contract_name, address) in contracts.iter() {
+                let key = format!("{}:{}", file_path, contract_name);
+                if key.as_str() == path {
+                    return Some(
+                        self.llvm
+                            .custom_width_int_type(compiler_common::bitlength::FIELD as u32)
+                            .const_int_from_string(
+                                &address["0x".len()..],
+                                inkwell::types::StringRadix::Hexadecimal,
+                            )
+                            .unwrap_or_else(|| {
+                                panic!("Library `{}` address `{}` is invalid", key, address)
+                            }),
+                    );
+                }
             }
-        })
+        }
+
+        None
     }
 
     ///

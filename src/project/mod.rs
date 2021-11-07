@@ -23,14 +23,17 @@ pub struct Project {
     /// The contract data,
     pub contracts: HashMap<String, Contract>,
     /// The library addresses.
-    pub libraries: HashMap<String, String>,
+    pub libraries: HashMap<String, HashMap<String, String>>,
 }
 
 impl Project {
     ///
     /// The shortcut constructor.
     ///
-    pub fn new(contracts: HashMap<String, Contract>, libraries: HashMap<String, String>) -> Self {
+    pub fn new(
+        contracts: HashMap<String, Contract>,
+        libraries: HashMap<String, HashMap<String, String>>,
+    ) -> Self {
         Self {
             contracts,
             libraries,
@@ -103,7 +106,7 @@ impl Project {
                 .map_err(|error| Error::LLVM(error.to_string()))?;
             if dump_llvm {
                 let llvm_code = context.module().print_to_string().to_string();
-                eprintln!("The LLVM IR code:\n");
+                println!("Contract `{}` LLVM IR:\n", contract_path);
                 println!("{}", llvm_code);
             }
 
@@ -141,12 +144,16 @@ impl Project {
     /// Compiles all contracts, setting their text assembly and binary bytecode.
     ///
     #[allow(clippy::needless_collect)]
+    #[allow(clippy::too_many_arguments)]
     pub fn compile_all(
         &mut self,
         output_directory: PathBuf,
         opt_level_llvm_middle: inkwell::OptimizationLevel,
         opt_level_llvm_back: inkwell::OptimizationLevel,
         dump_llvm: bool,
+        output_assembly: bool,
+        output_binary: bool,
+        overwrite: bool,
     ) -> Result<(), Error> {
         let contract_paths: Vec<String> = self.contracts.keys().cloned().collect();
 
@@ -163,7 +170,16 @@ impl Project {
                 .get(contract_path.as_str())
                 .as_ref()
                 .expect("Always exists")
-                .write_to_directory(&output_directory)?;
+                .write_to_directory(&output_directory, output_assembly, output_binary, overwrite)?;
+        }
+
+        if output_assembly || output_binary {
+            println!(
+                "Compiler run successful. Artifact(s) can be found in directory {:?}.",
+                output_directory
+            );
+        } else {
+            println!("Compiler run successful. No output requested. Use --asm and --bin flags.");
         }
 
         Ok(())
