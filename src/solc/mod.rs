@@ -2,12 +2,16 @@
 //! The Solidity compiler.
 //!
 
+pub mod hashes;
 pub mod input;
 pub mod output;
 
 use std::io::Write;
-use std::str::FromStr;
+use std::path::Path;
 
+use crate::error::Error;
+
+use self::hashes::Hashes;
 use self::input::Input;
 use self::output::Output;
 
@@ -21,16 +25,20 @@ pub struct Compiler {
     pub version: semver::Version,
 }
 
-impl Default for Compiler {
-    fn default() -> Self {
+impl Compiler {
+    ///
+    /// A shortcut constructor.
+    ///
+    /// Different tools may use different `executable` names. For example, the integration tester
+    /// uses `solc-<version>` format.
+    ///
+    pub fn new(executable: String, version: semver::Version) -> Self {
         Self {
-            executable: "solc".to_owned(),
-            version: semver::Version::from_str(env!("CARGO_PKG_VERSION")).expect("Always valid"),
+            executable,
+            version,
         }
     }
-}
 
-impl Compiler {
     ///
     /// Compiles the Solidity `--standard-json` input into Yul IR.
     ///
@@ -40,7 +48,7 @@ impl Compiler {
         base_path: Option<String>,
         include_paths: Vec<String>,
         allow_paths: Option<String>,
-    ) -> Result<Output, String> {
+    ) -> Result<Output, Error> {
         let mut solc_command = std::process::Command::new(self.executable.as_str());
         solc_command.stdin(std::process::Stdio::piped());
         solc_command.stdout(std::process::Stdio::piped());
@@ -59,27 +67,42 @@ impl Compiler {
             solc_command.arg(allow_paths);
         }
 
-        let input_json = serde_json::to_vec(&input).expect("Always valid");
+        let input_json = serde_json::to_vec(&input)?;
 
-        let solc_process = solc_command
-            .spawn()
-            .map_err(|_| "Solc spawning error".to_owned())?;
+        let solc_process = solc_command.spawn()?;
         solc_process
             .stdin
             .as_ref()
-            .ok_or_else(|| "Solc stdin getting error".to_owned())?
-            .write_all(input_json.as_slice())
-            .map_err(|_| "Solc stdin writing error".to_owned())?;
+            .unwrap_or_else(|| panic!("Solc stdin getting error"))
+            .write_all(input_json.as_slice())?;
 
-        let solc_output = solc_process
-            .wait_with_output()
-            .map_err(|_| "Solc process error".to_owned())?;
+        let solc_output = solc_process.wait_with_output()?;
         if !solc_output.status.success() {
-            return Err(String::from_utf8_lossy(solc_output.stderr.as_slice()).to_string());
+            return Err(Error::Solc(
+                String::from_utf8_lossy(solc_output.stderr.as_slice()).to_string(),
+            ));
         }
 
         let output = serde_json::from_slice(solc_output.stdout.as_slice()).expect("Always valid");
 
         Ok(output)
+    }
+
+    ///
+    /// Returns the entry hashes for the contract at `path`.
+    ///
+    pub fn hashes(&self, path: &Path) -> Result<Hashes, Error> {
+        let solc_pipeline = std::process::Command::new(self.executable.as_str())
+            .arg(&path)
+            .arg("--combined-json")
+            .arg("hashes")
+            .output()?;
+        if !solc_pipeline.status.success() {
+            return Err(Error::Solc(
+                String::from_utf8_lossy(solc_pipeline.stderr.as_slice()).to_string(),
+            ));
+        }
+
+        Ok(serde_json::from_slice(solc_pipeline.stdout.as_slice())?)
     }
 }

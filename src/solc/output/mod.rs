@@ -60,7 +60,7 @@ impl Output {
 
         let input_contracts = self
             .contracts
-            .ok_or_else(|| Error::Solidity("Solidity compiler error".to_owned()))?;
+            .ok_or_else(|| Error::Solc("Solidity compiler error".to_owned()))?;
         let mut project_contracts = HashMap::with_capacity(input_contracts.len());
         for (path, contracts) in input_contracts.into_iter() {
             for (name, contract) in contracts.into_iter() {

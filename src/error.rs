@@ -9,23 +9,26 @@ use crate::parser::error::Error as ParserError;
 /// The Yul compiler error.
 ///
 #[derive(Debug)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum Error {
     /// The file system error.
     FileSystem(std::io::Error),
-    /// The input error.
-    Input(serde_json::Error),
-    /// The Solidity error.
-    Solidity(String),
+    /// The JSON conversion error.
+    Json(serde_json::Error),
+    /// The Solidity compiler error.
+    Solc(String),
+    /// The library input is invalid.
+    LibraryInput(String),
     /// The contract cannot be found.
     ContractNotFound,
     /// If there is multiple contracts, the main contract name must be specified.
     ContractNotSpecified,
+
     /// The lexer error.
     Lexer(LexerError),
     /// The parser error.
     Parser(ParserError),
     /// The LLVM error.
-    #[allow(clippy::upper_case_acronyms)]
     LLVM(String),
     /// The assembly error.
     Assembly(zkevm_assembly::AssemblyParseError),
@@ -49,7 +52,7 @@ impl From<std::io::Error> for Error {
 
 impl From<serde_json::Error> for Error {
     fn from(error: serde_json::Error) -> Self {
-        Self::Input(error)
+        Self::Json(error)
     }
 }
 

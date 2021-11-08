@@ -15,8 +15,11 @@ pub struct Optimizer {
     pub enabled: bool,
 }
 
-impl Default for Optimizer {
-    fn default() -> Self {
-        Self { enabled: false }
+impl Optimizer {
+    ///
+    /// A shortcut constructor.
+    ///
+    pub fn new(enabled: bool) -> Self {
+        Self { enabled }
     }
 }

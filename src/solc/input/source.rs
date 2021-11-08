@@ -20,6 +20,12 @@ pub struct Source {
     pub content: String,
 }
 
+impl From<String> for Source {
+    fn from(content: String) -> Self {
+        Self { content }
+    }
+}
+
 impl TryFrom<&Path> for Source {
     type Error = Error;
 

@@ -4,6 +4,8 @@
 
 pub mod arguments;
 
+use std::str::FromStr;
+
 use self::arguments::Arguments;
 
 ///
@@ -31,18 +33,22 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         inkwell::OptimizationLevel::None
     };
 
-    let solc = compiler_solidity::SolcCompiler::default();
-    let solc_input =
-        compiler_solidity::SolcInput::try_from_paths(arguments.input_files, arguments.libraries)?;
+    let solc = compiler_solidity::SolcCompiler::new(
+        "solc".to_owned(),
+        semver::Version::from_str(env!("CARGO_PKG_VERSION")).expect("Always valid"),
+    );
+    let solc_input = compiler_solidity::SolcInput::try_from_paths(
+        arguments.input_files,
+        arguments.libraries,
+        false,
+    )?;
     let libraries = solc_input.settings.libraries.clone();
-    let solc_output: compiler_solidity::SolcOutput = solc
-        .standard_json(
-            solc_input,
-            arguments.base_path,
-            arguments.include_paths,
-            arguments.allow_paths,
-        )
-        .map_err(compiler_solidity::Error::Solidity)?;
+    let solc_output: compiler_solidity::SolcOutput = solc.standard_json(
+        solc_input,
+        arguments.base_path,
+        arguments.include_paths,
+        arguments.allow_paths,
+    )?;
 
     compiler_common::vm::initialize_target();
 
