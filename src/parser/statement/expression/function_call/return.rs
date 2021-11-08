@@ -2,8 +2,6 @@
 //! Translates the transaction return operations.
 //!
 
-use inkwell::values::BasicValue;
-
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 
@@ -15,8 +13,6 @@ pub fn r#return<'ctx, 'src>(
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let function = context.function().to_owned();
-
-    let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
 
     let source = context.access_memory(
         arguments[0].into_int_value(),
@@ -51,18 +47,11 @@ pub fn r#return<'ctx, 'src>(
         ),
     );
 
-    // TODO: remove adjustment
-    context.build_call(
-        intrinsic,
-        &[
-            destination.as_basic_value_enum(),
-            source.as_basic_value_enum(),
-            size_adjusted.as_basic_value_enum(),
-            context
-                .integer_type(compiler_common::bitlength::BOOLEAN)
-                .const_zero()
-                .as_basic_value_enum(),
-        ],
+    context.build_memcpy(
+        Intrinsic::MemoryCopyToParent,
+        destination,
+        source,
+        size,
         "return_memcpy_to_parent",
     );
 
@@ -78,8 +67,6 @@ pub fn revert<'ctx, 'src>(
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let function = context.function().to_owned();
-
-    let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToParent);
 
     let source = context.access_memory(
         arguments[0].into_int_value(),
@@ -114,18 +101,11 @@ pub fn revert<'ctx, 'src>(
         ),
     );
 
-    // TODO: remove adjustment
-    context.build_call(
-        intrinsic,
-        &[
-            destination.as_basic_value_enum(),
-            source.as_basic_value_enum(),
-            size_adjusted.as_basic_value_enum(),
-            context
-                .integer_type(compiler_common::bitlength::BOOLEAN)
-                .const_zero()
-                .as_basic_value_enum(),
-        ],
+    context.build_memcpy(
+        Intrinsic::MemoryCopyToParent,
+        destination,
+        source,
+        size,
         "revert_memcpy_to_parent",
     );
 

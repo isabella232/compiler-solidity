@@ -449,7 +449,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ///
     /// Builds a stack store instruction.
     ///
-    /// Sets the alignment to 256 bits.
+    /// Sets the alignment to 256 bits for stack and 1 bit for heap, parent, and child.
     ///
     pub fn build_store<V: BasicValue<'ctx>>(
         &self,
@@ -458,13 +458,12 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ) {
         let instruction = self.builder.build_store(pointer, value);
 
-        // TODO: set 1 for parent and child
-        let alignment = if inkwell::AddressSpace::from(compiler_common::AddressSpace::Heap)
+        let alignment = if inkwell::AddressSpace::from(compiler_common::AddressSpace::Stack)
             == pointer.get_type().get_address_space()
         {
-            1
-        } else {
             compiler_common::size::FIELD
+        } else {
+            1
         };
 
         instruction
@@ -475,7 +474,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ///
     /// Builds a stack load instruction.
     ///
-    /// Sets the alignment to 256 bits.
+    /// Sets the alignment to 256 bits for stack and 1 bit for heap, parent, and child.
     ///
     pub fn build_load(
         &self,
@@ -484,13 +483,12 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ) -> inkwell::values::BasicValueEnum<'ctx> {
         let value = self.builder.build_load(pointer, name);
 
-        // TODO: set 1 for parent and child
-        let alignment = if inkwell::AddressSpace::from(compiler_common::AddressSpace::Heap)
+        let alignment = if inkwell::AddressSpace::from(compiler_common::AddressSpace::Stack)
             == pointer.get_type().get_address_space()
         {
-            1
-        } else {
             compiler_common::size::FIELD
+        } else {
+            1
         };
 
         self.basic_block()
@@ -628,6 +626,38 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         self.set_basic_block(join_block);
 
         call_site_value.try_as_basic_value().left()
+    }
+
+    ///
+    /// Builds a memory copy call.
+    ///
+    /// Sets the alignment to 1 bit for heap, parent, and child.
+    ///
+    pub fn build_memcpy(
+        &self,
+        intrinsic: Intrinsic,
+        destination: inkwell::values::PointerValue<'ctx>,
+        source: inkwell::values::PointerValue<'ctx>,
+        size: inkwell::values::IntValue<'ctx>,
+        name: &str,
+    ) {
+        let intrinsic = self.get_intrinsic_function(intrinsic);
+
+        let call_site_value = self.builder.build_call(
+            intrinsic,
+            &[
+                destination.as_basic_value_enum(),
+                source.as_basic_value_enum(),
+                size.as_basic_value_enum(),
+                self.integer_type(compiler_common::bitlength::BOOLEAN)
+                    .const_zero()
+                    .as_basic_value_enum(),
+            ],
+            name,
+        );
+
+        call_site_value.set_alignment_attribute(inkwell::attributes::AttributeLoc::Param(0), 1);
+        call_site_value.set_alignment_attribute(inkwell::attributes::AttributeLoc::Param(1), 1);
     }
 
     ///

@@ -77,18 +77,11 @@ pub fn call<'ctx, 'src>(
         "contract_call_child_input_source",
     );
 
-    let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyToChild);
-    context.build_call(
-        intrinsic,
-        &[
-            destination.as_basic_value_enum(),
-            source.as_basic_value_enum(),
-            input_size.as_basic_value_enum(),
-            context
-                .integer_type(compiler_common::bitlength::BOOLEAN)
-                .const_zero()
-                .as_basic_value_enum(),
-        ],
+    context.build_memcpy(
+        Intrinsic::MemoryCopyToChild,
+        destination,
+        source,
+        input_size,
         "contract_call_memcpy_to_child",
     );
 
@@ -134,18 +127,11 @@ pub fn call<'ctx, 'src>(
         "contract_call_output_pointer",
     );
 
-    let intrinsic = context.get_intrinsic_function(Intrinsic::MemoryCopyFromChild);
-    context.build_call(
-        intrinsic,
-        &[
-            destination.as_basic_value_enum(),
-            source.as_basic_value_enum(),
-            output_size.as_basic_value_enum(),
-            context
-                .integer_type(compiler_common::bitlength::BOOLEAN)
-                .const_zero()
-                .as_basic_value_enum(),
-        ],
+    context.build_memcpy(
+        Intrinsic::MemoryCopyFromChild,
+        destination,
+        source,
+        output_size,
         "contract_call_memcpy_from_child",
     );
 
