@@ -29,7 +29,7 @@ pub fn r#return<'ctx, 'src>(
     );
 
     let size = arguments[1].into_int_value();
-    let size_adjusted = context.ceil32(size, "return_size_adjusted");
+    let size_ceiled = context.ceil32(size, "return_size_ceiled");
 
     let parent_pointer_return_data_size = context.access_memory(
         context.field_const(
@@ -41,12 +41,13 @@ pub fn r#return<'ctx, 'src>(
     context.build_store(
         parent_pointer_return_data_size,
         context.builder.build_int_unsigned_div(
-            size_adjusted,
+            size_ceiled,
             context.field_const(compiler_common::size::FIELD as u64),
             "return_destination_size_cells",
         ),
     );
 
+    trim_last(context, size, "return");
     context.build_memcpy(
         Intrinsic::MemoryCopyToParent,
         destination,
@@ -83,7 +84,7 @@ pub fn revert<'ctx, 'src>(
     );
 
     let size = arguments[1].into_int_value();
-    let size_adjusted = context.ceil32(size, "revert_size_adjusted");
+    let size_ceiled = context.ceil32(size, "revert_size_ceiled");
 
     let parent_pointer_return_data_size = context.access_memory(
         context.field_const(
@@ -95,12 +96,13 @@ pub fn revert<'ctx, 'src>(
     context.build_store(
         parent_pointer_return_data_size,
         context.builder.build_int_unsigned_div(
-            size_adjusted,
+            size_ceiled,
             context.field_const(compiler_common::size::FIELD as u64),
             "revert_parent_return_data_size_cells",
         ),
     );
 
+    trim_last(context, size, "revert");
     context.build_memcpy(
         Intrinsic::MemoryCopyToParent,
         destination,
@@ -111,4 +113,28 @@ pub fn revert<'ctx, 'src>(
 
     context.build_unconditional_branch(function.throw_block);
     None
+}
+
+///
+/// Writes zeros to the last parent memory cell.
+///
+fn trim_last<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
+    size: inkwell::values::IntValue<'ctx>,
+    name: &str,
+) {
+    let size_floored = context.floor32(size, format!("{}_size_floored", name).as_str());
+    let last_cell_offset = context.builder.build_int_add(
+        context.field_const(
+            (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
+        ),
+        size_floored,
+        format!("{}_last_cell_offset", name).as_str(),
+    );
+    let last_cell_pointer = context.access_memory(
+        last_cell_offset,
+        compiler_common::AddressSpace::Parent,
+        format!("{}_last_cell_pointer", name).as_str(),
+    );
+    context.build_store(last_cell_pointer, context.field_const(0));
 }
