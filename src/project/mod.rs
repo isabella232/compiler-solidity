@@ -115,9 +115,6 @@ impl Project {
                 .map_err(|error| Error::LLVM(format!("Code compiling error: {}", error)))?;
             let assembly_text = String::from_utf8_lossy(buffer.as_slice()).to_string();
 
-            // Prevents calling the destructor. Is suspected in segmentation faults.
-            std::mem::forget(buffer);
-
             let assembly = zkevm_assembly::Assembly::try_from(assembly_text.clone())
                 .unwrap_or_else(|error| {
                     panic!(
