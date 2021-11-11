@@ -859,7 +859,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     }
 
     ///
-    /// Adjusts the specified integer value to the beginning of the next 32-byte cell.
+    /// Rounds the specified integer value up to the beginning of the next 32-byte cell.
     ///
     pub fn ceil32(
         &self,
@@ -886,6 +886,25 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             adjustment_remainder,
             format!("{}_adjusted", name).as_str(),
         );
+        adjusted
+    }
+
+    ///
+    /// Rounds the specified integer value down to the beginning of the current 32-byte cell.
+    ///
+    pub fn floor32(
+        &self,
+        initial: inkwell::values::IntValue<'ctx>,
+        name: &str,
+    ) -> inkwell::values::IntValue<'ctx> {
+        let remainder = self.builder.build_int_unsigned_rem(
+            initial,
+            self.field_const(compiler_common::size::FIELD as u64),
+            format!("{}_remainder", name).as_str(),
+        );
+        let adjusted =
+            self.builder
+                .build_int_sub(initial, remainder, format!("{}_adjusted", name).as_str());
         adjusted
     }
 
