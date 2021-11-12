@@ -52,17 +52,6 @@ pub enum Intrinsic {
     MemoryCopyToChild,
     /// The memory copy from child to parent.
     MemoryCopyFromChildToParent,
-    /// The memory move.
-    MemoryMove,
-    /// The memory set.
-    MemorySet,
-
-    /// The `eq` flag getter.
-    EqualsFlag,
-    /// The `gt` flag getter.
-    GreaterFlag,
-    /// The `lt`/overflow flag getter.
-    LesserFlag,
 }
 
 impl Intrinsic {
@@ -78,10 +67,10 @@ impl Intrinsic {
 
             Intrinsic::SwitchContext => "llvm.syncvm.switchcontext",
             Intrinsic::GetFromContext => "llvm.syncvm.getfromcontext",
-            Intrinsic::FarCall => "llvm.syncvm.farcall",
-            Intrinsic::CallCode => "llvm.syncvm.callcode",
-            Intrinsic::DelegateCall => "llvm.syncvm.delegatecall",
-            Intrinsic::StaticCall => "llvm.syncvm.staticcall",
+            Intrinsic::FarCall => "llvm.syncvm.farcall.rc",
+            Intrinsic::CallCode => "llvm.syncvm.callcode.rc",
+            Intrinsic::DelegateCall => "llvm.syncvm.delegatecall.rc",
+            Intrinsic::StaticCall => "llvm.syncvm.staticcall.rc",
 
             Intrinsic::HashAbsorb => "llvm.syncvm.habs",
             Intrinsic::HashAbsorbReset => "llvm.syncvm.habsr",
@@ -93,12 +82,6 @@ impl Intrinsic {
             Intrinsic::MemoryCopyFromChild => "llvm.memcpy",
             Intrinsic::MemoryCopyToChild => "llvm.memcpy",
             Intrinsic::MemoryCopyFromChildToParent => "llvm.memcpy",
-            Intrinsic::MemoryMove => "llvm.memmov",
-            Intrinsic::MemorySet => "llvm.memset",
-
-            Intrinsic::EqualsFlag => "llvm.syncvm.eqflag",
-            Intrinsic::LesserFlag => "llvm.syncvm.ltflag",
-            Intrinsic::GreaterFlag => "llvm.syncvm.gtflag",
         }
     }
 
@@ -192,28 +175,6 @@ impl Intrinsic {
                     .as_basic_type_enum(),
                 context.field_type().as_basic_type_enum(),
             ],
-            Self::MemoryMove => vec![
-                context
-                    .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Stack.into())
-                    .as_basic_type_enum(),
-                context
-                    .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Stack.into())
-                    .as_basic_type_enum(),
-                context.field_type().as_basic_type_enum(),
-            ],
-            Self::MemorySet => vec![
-                context
-                    .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Stack.into())
-                    .as_basic_type_enum(),
-                context.field_type().as_basic_type_enum(),
-            ],
-
-            Self::EqualsFlag => vec![],
-            Self::GreaterFlag => vec![],
-            Self::LesserFlag => vec![],
         }
     }
 }

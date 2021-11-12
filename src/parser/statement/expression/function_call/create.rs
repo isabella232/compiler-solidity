@@ -109,30 +109,15 @@ pub fn create2<'ctx, 'src>(
         context.field_const((compiler_common::bitlength::BYTE * 4) as u64),
         "",
     );
-    context.build_call(
-        intrinsic,
-        &[call_definition.as_basic_value_enum()],
-        "create_call",
-    );
+    let is_call_successful = context
+        .build_call(
+            intrinsic,
+            &[call_definition.as_basic_value_enum()],
+            "create_call",
+        )
+        .expect("Intrinsic always returns a flag");
 
-    let intrinsic = context.get_intrinsic_function(Intrinsic::LesserFlag);
-    let overflow_flag = context
-        .build_call(intrinsic, &[], "")
-        .expect("Intrinsic always returns a flag")
-        .into_int_value();
-    let is_overflow_flag_zero = context.builder.build_int_compare(
-        inkwell::IntPredicate::EQ,
-        overflow_flag,
-        context.field_const(0),
-        "create_call_is_overflow_flag_zero",
-    );
-    let is_call_successful = context.builder.build_int_z_extend_or_bit_cast(
-        is_overflow_flag_zero,
-        context.field_type(),
-        "create_call_is_successfull",
-    );
-
-    Some(is_call_successful.as_basic_value_enum())
+    Some(is_call_successful)
 }
 
 ///

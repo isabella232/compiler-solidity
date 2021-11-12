@@ -91,28 +91,13 @@ pub fn call<'ctx, 'src>(
         context.field_const((compiler_common::bitlength::BYTE * 4) as u64),
         "",
     );
-    context.build_call(
-        intrinsic,
-        &[call_definition.as_basic_value_enum()],
-        "contract_call_external",
-    );
-
-    let intrinsic = context.get_intrinsic_function(Intrinsic::LesserFlag);
-    let overflow_flag = context
-        .build_call(intrinsic, &[], "")
-        .expect("Intrinsic always returns a flag")
-        .into_int_value();
-    let is_overflow_flag_zero = context.builder.build_int_compare(
-        inkwell::IntPredicate::EQ,
-        overflow_flag,
-        context.field_const(0),
-        "contract_call_is_overflow_flag_zero",
-    );
-    let is_call_successful = context.builder.build_int_z_extend_or_bit_cast(
-        is_overflow_flag_zero,
-        context.field_type(),
-        "contract_call_is_successfull",
-    );
+    let is_call_successful = context
+        .build_call(
+            intrinsic,
+            &[call_definition.as_basic_value_enum()],
+            "contract_call_external",
+        )
+        .expect("Intrinsic always returns a flag");
 
     let source = context.access_memory(
         context.field_const(
@@ -135,7 +120,7 @@ pub fn call<'ctx, 'src>(
         "contract_call_memcpy_from_child",
     );
 
-    Some(is_call_successful.as_basic_value_enum())
+    Some(is_call_successful)
 }
 
 ///
