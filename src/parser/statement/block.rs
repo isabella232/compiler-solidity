@@ -157,14 +157,11 @@ impl Block {
     /// Translates the main deployed code block into LLVM.
     ///
     pub fn into_llvm_selector(mut self, context: &mut LLVMContext) {
-        let function = match context
+        let function = context
             .functions
             .get(compiler_common::identifier::FUNCTION_SELECTOR)
             .cloned()
-        {
-            Some(function) => function,
-            None => return,
-        };
+            .expect("Always exists");
 
         let mut functions = Vec::with_capacity(self.statements.len());
         let mut local_statements = Vec::with_capacity(self.statements.len());
@@ -244,7 +241,7 @@ impl Block {
                 Statement::Leave => {
                     context.build_unconditional_branch(context.function().return_block);
                 }
-                _ => {}
+                statement => panic!("Unexpected local statement: {:?}", statement),
             }
         }
     }

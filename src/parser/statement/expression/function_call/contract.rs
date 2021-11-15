@@ -23,39 +23,6 @@ pub fn call<'ctx, 'src>(
     let intrinsic = context.get_intrinsic_function(Intrinsic::SwitchContext);
     context.build_call(intrinsic, &[], "contract_call_switch_context");
 
-    let input_offset_adjusted = context.builder.build_int_add(
-        input_offset,
-        context.field_const(4),
-        "contract_call_input_offset_adjusted",
-    );
-    let input_size_without_selector = context.builder.build_int_sub(
-        input_size,
-        context.field_const(4),
-        "contract_call_input_size_without_selector",
-    );
-    let input_size_adjusted = context.ceil32(
-        input_size_without_selector,
-        "contract_call_input_size_adjusted",
-    );
-
-    let input_selector_pointer = context.access_memory(
-        input_offset,
-        compiler_common::AddressSpace::Heap,
-        "contract_call_input_selector_pointer",
-    );
-    let input_selector = context.build_load(input_selector_pointer, "input_selector");
-    let input_selector_masked = context.builder.build_and(
-        input_selector.into_int_value(),
-        context
-            .field_type()
-            .const_int_from_string(
-                "ffffffff00000000000000000000000000000000000000000000000000000000",
-                inkwell::types::StringRadix::Hexadecimal,
-            )
-            .expect("Always exists"),
-        "contract_call_input_selector_masked",
-    );
-
     let child_pointer_input = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD) as u64,
@@ -63,14 +30,7 @@ pub fn call<'ctx, 'src>(
         compiler_common::AddressSpace::Child,
         "contract_call_child_pointer_input",
     );
-    context.build_store(
-        child_pointer_input,
-        context.builder.build_int_unsigned_div(
-            input_size_adjusted,
-            context.field_const(compiler_common::size::FIELD as u64),
-            "contract_call_input_size_cells",
-        ),
-    );
+    context.build_store(child_pointer_input, input_size);
     let child_pointer_output = context.access_memory(
         context.field_const(
             (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD) as u64,
@@ -78,22 +38,7 @@ pub fn call<'ctx, 'src>(
         compiler_common::AddressSpace::Child,
         "contract_call_child_pointer_output",
     );
-    context.build_store(
-        child_pointer_output,
-        context.builder.build_int_unsigned_div(
-            output_size,
-            context.field_const(compiler_common::size::FIELD as u64),
-            "contract_call_output_size_cells",
-        ),
-    );
-    let child_pointer_selector = context.access_memory(
-        context.field_const(
-            (compiler_common::abi::OFFSET_ENTRY_DATA * compiler_common::size::FIELD) as u64,
-        ),
-        compiler_common::AddressSpace::Child,
-        "contract_call_child_pointer_selector",
-    );
-    context.build_store(child_pointer_selector, input_selector_masked);
+    context.build_store(child_pointer_output, output_size);
 
     let destination = context.access_memory(
         context.field_const(
@@ -103,7 +48,7 @@ pub fn call<'ctx, 'src>(
         "contract_call_child_input_destination",
     );
     let source = context.access_memory(
-        input_offset_adjusted,
+        input_offset,
         compiler_common::AddressSpace::Heap,
         "contract_call_child_input_source",
     );
@@ -112,7 +57,7 @@ pub fn call<'ctx, 'src>(
         Intrinsic::MemoryCopyToChild,
         destination,
         source,
-        input_size_without_selector,
+        input_size,
         "contract_call_memcpy_to_child",
     );
 

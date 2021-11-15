@@ -2,8 +2,6 @@
 //! Translates the calldata instructions.
 //!
 
-use inkwell::values::BasicValue;
-
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 
@@ -14,53 +12,20 @@ pub fn load<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let if_zero_block = context.append_basic_block("calldata_if_zero");
-    let if_non_zero_block = context.append_basic_block("calldata_if_not_zero");
-    let join_block = context.append_basic_block("calldata_if_join");
-
-    let value_pointer = context.build_alloca(context.field_type(), "calldata_value_pointer");
-    context.build_store(value_pointer, context.field_const(0));
-    let is_zero = context.builder.build_int_compare(
-        inkwell::IntPredicate::EQ,
-        arguments[0].into_int_value(),
-        context.field_const(0),
-        "calldata_if_zero_condition",
-    );
-    context.build_conditional_branch(is_zero, if_zero_block, if_non_zero_block);
-
-    context.set_basic_block(if_zero_block);
-    let offset = context.field_const(
-        (compiler_common::abi::OFFSET_ENTRY_DATA * compiler_common::size::FIELD) as u64,
-    );
-    let pointer = context.access_memory(
-        offset,
-        compiler_common::AddressSpace::Parent,
-        "hash_pointer",
-    );
-    let value = context.build_load(pointer, "calldata_entry_hash_value");
-    context.build_store(value_pointer, value);
-    context.build_unconditional_branch(join_block);
-
-    context.set_basic_block(if_non_zero_block);
+    let offset_shift = compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD;
     let offset = context.builder.build_int_add(
         arguments[0].into_int_value(),
-        context.field_const(
-            (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD - 4)
-                as u64,
-        ),
-        "calldata_value_offset",
+        context.field_const(offset_shift as u64),
+        "calldata_offset",
     );
+
     let pointer = context.access_memory(
         offset,
         compiler_common::AddressSpace::Parent,
-        "pointer_non_zero",
+        "calldata_pointer",
     );
-    let value = context.build_load(pointer, "calldata_value_non_zero");
-    context.build_store(value_pointer, value);
-    context.build_unconditional_branch(join_block);
+    let value = context.build_load(pointer, "calldata_value");
 
-    context.set_basic_block(join_block);
-    let value = context.build_load(value_pointer, "calldata_value_result");
     Some(value)
 }
 
@@ -69,7 +34,6 @@ pub fn load<'ctx, 'src>(
 ///
 pub fn size<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
-    has_selector: bool,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let pointer = context.access_memory(
         context.field_const(
@@ -79,19 +43,8 @@ pub fn size<'ctx, 'src>(
         "calldata_size_pointer",
     );
     let value = context.build_load(pointer, "calldata_size_value_cells");
-    let mut value = context.builder.build_int_mul(
-        value.into_int_value(),
-        context.field_const(compiler_common::size::FIELD as u64),
-        "calldata_size_value_bytes",
-    );
-    if has_selector {
-        value = context.builder.build_int_add(
-            value,
-            context.field_const(4),
-            "calldata_size_value_bytes_with_selector",
-        );
-    }
-    Some(value.as_basic_value_enum())
+
+    Some(value)
 }
 
 ///
@@ -143,7 +96,7 @@ pub fn copy<'ctx, 'src>(
     );
 
     let source_offset_shift =
-        compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD - 4;
+        compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD;
     let source_offset = context.builder.build_int_add(
         arguments[1].into_int_value(),
         context.field_const(source_offset_shift as u64),

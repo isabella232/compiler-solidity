@@ -20,12 +20,8 @@ pub fn size<'ctx, 'src>(
         compiler_common::AddressSpace::Child,
         "return_data_size_pointer",
     );
-    let value = context.build_load(pointer, "return_data_size_value_cells");
-    let value = context.builder.build_int_mul(
-        value.into_int_value(),
-        context.field_const(compiler_common::size::FIELD as u64),
-        "return_data_size_value_bytes",
-    );
+    let value = context.build_load(pointer, "return_data_size_value");
+
     Some(value.as_basic_value_enum())
 }
 

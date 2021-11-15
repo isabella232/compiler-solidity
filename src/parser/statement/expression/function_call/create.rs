@@ -54,14 +54,7 @@ pub fn create2<'ctx, 'src>(
         compiler_common::AddressSpace::Child,
         "create_child_pointer_input",
     );
-    context.build_store(
-        child_pointer_input,
-        context.builder.build_int_unsigned_div(
-            input_size,
-            context.field_const(compiler_common::size::FIELD as u64),
-            "create_input_size_cells",
-        ),
-    );
+    context.build_store(child_pointer_input, input_size);
 
     let child_pointer_entry_data = context.access_memory(
         context.field_const(
