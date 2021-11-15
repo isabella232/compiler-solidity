@@ -45,54 +45,36 @@ pub fn store_byte<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let offset_remainder_bytes = context.builder.build_int_unsigned_rem(
-        arguments[0].into_int_value(),
-        context.field_const(compiler_common::size::FIELD as u64),
-        "memory_store_byte_offset_remainder_bytes",
-    );
-    let offset_remainder_bits = context.builder.build_int_mul(
-        offset_remainder_bytes,
-        context.field_const(compiler_common::bitlength::BYTE as u64),
-        "memory_store_byte_offset_remainder_bits",
-    );
-    let offset = context.builder.build_int_sub(
-        arguments[0].into_int_value(),
-        offset_remainder_bytes,
-        "memory_store_byte_offset",
-    );
-
     let pointer = context.access_memory(
-        offset,
+        arguments[0].into_int_value(),
         compiler_common::AddressSpace::Heap,
-        "original_value_pointer",
+        "memory_store_byte_original_value_pointer",
     );
 
     let original_value = context
-        .build_load(pointer, "original_value")
+        .build_load(pointer, "memory_store_byte_original_value")
         .into_int_value();
-    let original_value_mask = context.builder.build_left_shift(
-        context.field_const(0xff),
-        offset_remainder_bits,
-        "memory_store_byte_original_value_mask",
-    );
-    let original_value_mask_inverted = context.builder.build_xor(
-        original_value_mask,
-        context.field_type().const_all_ones(),
-        "memory_store_byte_original_value_mask_inverted",
-    );
-    let original_value_with_empty_byte = context.builder.build_and(
+    let original_value_shifted_left = context.builder.build_left_shift(
         original_value,
-        original_value_mask_inverted,
-        "original_value_with_empty_byte",
+        context.field_const(compiler_common::bitlength::BYTE as u64),
+        "memory_store_byte_original_value_shifted_left",
+    );
+    let original_value_shifted_right = context.builder.build_right_shift(
+        original_value_shifted_left,
+        context.field_const(compiler_common::bitlength::BYTE as u64),
+        false,
+        "memory_store_byte_original_value_shifted_right",
     );
 
     let value_shifted = context.builder.build_left_shift(
         arguments[1].into_int_value(),
-        offset_remainder_bits,
+        context.field_const(
+            ((compiler_common::size::FIELD - 1) * compiler_common::bitlength::BYTE) as u64,
+        ),
         "memory_store_byte_value_shifted",
     );
     let result = context.builder.build_or(
-        original_value_with_empty_byte,
+        original_value_shifted_right,
         value_shifted,
         "memory_store_byte_result",
     );

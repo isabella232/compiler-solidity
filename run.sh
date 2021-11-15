@@ -28,6 +28,11 @@ case "${2}" in
         ;;
 esac
 
+# The LLVM static binding library build cleanup
+if [[ "${3}" == '--clean' ]]; then
+    rm -rfv ./target/release/build/llvm-sys-*
+fi
+
 cargo fmt --all
 cargo clippy
 cargo test
