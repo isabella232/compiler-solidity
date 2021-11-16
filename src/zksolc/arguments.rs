@@ -43,14 +43,14 @@ pub struct Arguments {
 
     /// If given, creates one file per component and
     /// contract/file at the specified directory.
-    #[structopt(short = "o", long = "output-dir", default_value = "./build/")]
-    pub output_directory: PathBuf,
+    #[structopt(short = "o", long = "output-dir")]
+    pub output_directory: Option<PathBuf>,
 
     /// Overwrite existing files (used together with -o).
     #[structopt(long = "overwrite")]
     pub overwrite: bool,
 
-    /// Enable bytecode optimizer.
+    /// Enable the LLVM bytecode optimizer.
     #[structopt(long = "optimize")]
     pub optimize: bool,
 
@@ -59,6 +59,20 @@ pub struct Arguments {
     /// Address is interpreted as a hex string prefixed by 0x.
     #[structopt(short = "l", long = "libraries")]
     pub libraries: Vec<String>,
+
+    /// Output a single json document containing the specified information.
+    /// Available arguments: abi, hashes
+    /// Example: solc --combined-json abi,hashes
+    #[structopt(long = "combined-json")]
+    pub combined_json: Option<String>,
+
+    /// Output ABI specification of the contracts.
+    #[structopt(long = "abi")]
+    pub output_abi: bool,
+
+    /// Output function signature hashes of the contracts.
+    #[structopt(long = "hashes")]
+    pub output_hashes: bool,
 
     /// Dump Yul Intermediate Representation (IR) of all contracts.
     #[structopt(long = "ir")]

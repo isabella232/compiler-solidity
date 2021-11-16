@@ -5,7 +5,7 @@
 pub mod contract;
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::error::Error;
 use crate::generator::llvm::Context as LLVMContext;
@@ -144,7 +144,7 @@ impl Project {
     #[allow(clippy::too_many_arguments)]
     pub fn compile_all(
         &mut self,
-        output_directory: PathBuf,
+        output_directory: &Path,
         opt_level_llvm_middle: inkwell::OptimizationLevel,
         opt_level_llvm_back: inkwell::OptimizationLevel,
         dump_llvm: bool,
@@ -167,16 +167,7 @@ impl Project {
                 .get(contract_path.as_str())
                 .as_ref()
                 .expect("Always exists")
-                .write_to_directory(&output_directory, output_assembly, output_binary, overwrite)?;
-        }
-
-        if output_assembly || output_binary {
-            println!(
-                "Compiler run successful. Artifact(s) can be found in directory {:?}.",
-                output_directory
-            );
-        } else {
-            println!("Compiler run successful. No output requested. Use --asm and --bin flags.");
+                .write_to_directory(output_directory, output_assembly, output_binary, overwrite)?;
         }
 
         Ok(())

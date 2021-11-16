@@ -8,6 +8,7 @@ pub mod output;
 
 use std::io::Write;
 use std::path::Path;
+use std::path::PathBuf;
 
 use crate::error::Error;
 
@@ -104,5 +105,54 @@ impl Compiler {
         }
 
         Ok(serde_json::from_slice(solc_pipeline.stdout.as_slice())?)
+    }
+
+    ///
+    /// The `solc --abi --hashes ...` mirror.
+    ///
+    pub fn extra_output(
+        &self,
+        paths: &[PathBuf],
+        output_abi: bool,
+        output_hashes: bool,
+    ) -> Result<String, Error> {
+        let mut solc_command = std::process::Command::new(self.executable.as_str());
+        solc_command.args(paths);
+        if output_abi {
+            solc_command.arg("--abi");
+        }
+        if output_hashes {
+            solc_command.arg("--hashes");
+        }
+        let solc_pipeline = solc_command.output()?;
+        if !solc_pipeline.status.success() {
+            return Err(Error::Solc(
+                String::from_utf8_lossy(solc_pipeline.stderr.as_slice()).to_string(),
+            ));
+        }
+
+        Ok(String::from_utf8_lossy(solc_pipeline.stdout.as_slice()).to_string())
+    }
+
+    ///
+    /// The `solc --combined-json abi,hashes...` mirror.
+    ///
+    pub fn combined_json(
+        &self,
+        paths: &[PathBuf],
+        combined_json_argument: String,
+    ) -> Result<String, Error> {
+        let mut solc_command = std::process::Command::new(self.executable.as_str());
+        solc_command.args(paths);
+        solc_command.arg("--combined-json");
+        solc_command.arg(combined_json_argument);
+        let solc_pipeline = solc_command.output()?;
+        if !solc_pipeline.status.success() {
+            return Err(Error::Solc(
+                String::from_utf8_lossy(solc_pipeline.stderr.as_slice()).to_string(),
+            ));
+        }
+
+        Ok(String::from_utf8_lossy(solc_pipeline.stdout.as_slice()).to_string())
     }
 }
