@@ -67,7 +67,7 @@ impl Contract {
             file_path.push(file_name);
 
             if file_path.exists() && !overwrite {
-                println!(
+                eprintln!(
                     "Refusing to overwrite existing file {:?} (use --overwrite to force).",
                     file_path
                 );
@@ -85,7 +85,7 @@ impl Contract {
             file_path.push(file_name);
 
             if file_path.exists() && !overwrite {
-                println!(
+                eprintln!(
                     "Refusing to overwrite existing file {:?} (use --overwrite to force).",
                     file_path
                 );

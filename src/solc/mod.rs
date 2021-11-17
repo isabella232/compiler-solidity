@@ -115,7 +115,7 @@ impl Compiler {
         paths: &[PathBuf],
         output_abi: bool,
         output_hashes: bool,
-    ) -> Result<String, Error> {
+    ) -> Result<String, String> {
         let mut solc_command = std::process::Command::new(self.executable.as_str());
         solc_command.args(paths);
         if output_abi {
@@ -124,11 +124,11 @@ impl Compiler {
         if output_hashes {
             solc_command.arg("--hashes");
         }
-        let solc_pipeline = solc_command.output()?;
+        let solc_pipeline = solc_command
+            .output()
+            .map_err(|error| format!("solc subprocess error: {:?}", error))?;
         if !solc_pipeline.status.success() {
-            return Err(Error::Solc(
-                String::from_utf8_lossy(solc_pipeline.stderr.as_slice()).to_string(),
-            ));
+            return Err(String::from_utf8_lossy(solc_pipeline.stderr.as_slice()).to_string());
         }
 
         Ok(String::from_utf8_lossy(solc_pipeline.stdout.as_slice()).to_string())
@@ -141,16 +141,16 @@ impl Compiler {
         &self,
         paths: &[PathBuf],
         combined_json_argument: String,
-    ) -> Result<String, Error> {
+    ) -> Result<String, String> {
         let mut solc_command = std::process::Command::new(self.executable.as_str());
         solc_command.args(paths);
         solc_command.arg("--combined-json");
         solc_command.arg(combined_json_argument);
-        let solc_pipeline = solc_command.output()?;
+        let solc_pipeline = solc_command
+            .output()
+            .map_err(|error| format!("solc subprocess error: {:?}", error))?;
         if !solc_pipeline.status.success() {
-            return Err(Error::Solc(
-                String::from_utf8_lossy(solc_pipeline.stderr.as_slice()).to_string(),
-            ));
+            return Err(String::from_utf8_lossy(solc_pipeline.stderr.as_slice()).to_string());
         }
 
         Ok(String::from_utf8_lossy(solc_pipeline.stdout.as_slice()).to_string())

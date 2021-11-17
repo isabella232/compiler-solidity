@@ -44,12 +44,19 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     let mut is_output_requested = false;
 
     if let Some(combined_json) = arguments.combined_json {
-        let stdout = solc.combined_json(arguments.input_files.as_slice(), combined_json)?;
+        let stdout = match solc.combined_json(arguments.input_files.as_slice(), combined_json) {
+            Ok(stdout) => stdout,
+            Err(stderr) => {
+                eprint!("{}", stderr);
+                std::process::exit(compiler_common::exit_code::FAILURE);
+            }
+        };
+
         if let Some(ref output_directory) = arguments.output_directory {
             let mut file_path = output_directory.to_owned();
             file_path.push(format!("combined.{}", compiler_common::extension::JSON));
             if file_path.exists() && !arguments.overwrite {
-                println!(
+                eprintln!(
                     "Refusing to overwrite existing file {:?} (use --overwrite to force).",
                     file_path
                 );
@@ -59,7 +66,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
                     .write_all(stdout.as_bytes())
                     .map_err(compiler_solidity::Error::FileSystem)?;
 
-                println!(
+                eprintln!(
                     "Compiler run successful. Artifact(s) can be found in directory {:?}.",
                     output_directory
                 );
@@ -72,15 +79,20 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     }
 
     if arguments.output_abi || arguments.output_hashes {
-        print!(
-            "{}",
-            solc.extra_output(
-                arguments.input_files.as_slice(),
-                arguments.output_abi,
-                arguments.output_hashes
-            )?
-        );
-        is_output_requested = true;
+        match solc.extra_output(
+            arguments.input_files.as_slice(),
+            arguments.output_abi,
+            arguments.output_hashes,
+        ) {
+            Ok(stdout) => {
+                print!("{}", stdout);
+                is_output_requested = true;
+            }
+            Err(stderr) => {
+                eprint!("{}", stderr);
+                std::process::exit(compiler_common::exit_code::FAILURE);
+            }
+        }
     }
 
     let solc_input = compiler_solidity::SolcInput::try_from_paths(
@@ -114,12 +126,12 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     )?;
 
     if arguments.output_assembly || arguments.output_binary {
-        println!(
+        eprintln!(
             "Compiler run successful. Artifact(s) can be found in directory {:?}.",
             output_directory
         );
     } else if !is_output_requested {
-        println!("Compiler run successful. No output requested. Use --asm and --bin flags.");
+        eprintln!("Compiler run successful. No output requested. Use --asm and --bin flags.");
     }
 
     Ok(())

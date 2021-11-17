@@ -54,7 +54,7 @@ impl Output {
                     continue;
                 }
 
-                println!("{}", error);
+                eprintln!("{}", error);
             }
         }
 
@@ -70,7 +70,7 @@ impl Output {
 
                 let full_path = format!("{}:{}", path, name);
                 if dump_yul {
-                    println!("Contract `{}` Yul:\n", full_path);
+                    eprintln!("Contract `{}` Yul:\n", full_path);
                     println!("{}", contract.ir_optimized);
                 }
 

@@ -106,7 +106,7 @@ impl Project {
                 .map_err(|error| Error::LLVM(error.to_string()))?;
             if dump_llvm {
                 let llvm_code = context.module().print_to_string().to_string();
-                println!("Contract `{}` LLVM IR:\n", contract_path);
+                eprintln!("Contract `{}` LLVM IR:\n", contract_path);
                 println!("{}", llvm_code);
             }
 
