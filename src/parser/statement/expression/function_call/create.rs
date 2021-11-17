@@ -47,31 +47,30 @@ pub fn create2<'ctx, 'src>(
     let intrinsic = context.get_intrinsic_function(Intrinsic::SwitchContext);
     context.build_call(intrinsic, &[], "create_switch_context");
 
-    let child_pointer_input = context.access_memory(
-        context.field_const(
-            (compiler_common::abi::OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD) as u64,
-        ),
-        compiler_common::AddressSpace::Child,
-        "create_child_pointer_input",
-    );
-    context.build_store(child_pointer_input, input_size);
+    let constructor_data = context
+        .field_type()
+        .const_int_from_string(
+            "00000000000000010000000000000000",
+            inkwell::types::StringRadix::Hexadecimal,
+        )
+        .expect("Always valid");
+    let child_header_data =
+        context
+            .builder
+            .build_or(input_size, constructor_data, "child_header_data");
 
-    let child_pointer_entry_data = context.access_memory(
+    let child_pointer_header = context.access_memory(
         context.field_const(
-            (compiler_common::abi::OFFSET_ENTRY_DATA * compiler_common::size::FIELD) as u64,
+            (compiler_common::abi::OFFSET_HEADER * compiler_common::size::FIELD) as u64,
         ),
         compiler_common::AddressSpace::Child,
-        "create_child_pointer_entry_data",
+        "create_child_pointer_header",
     );
-    context.build_store(
-        child_pointer_entry_data,
-        context.field_const(1).as_basic_value_enum(),
-    );
+    context.build_store(child_pointer_header, child_header_data);
 
     let destination = context.access_memory(
-        context.field_const(
-            (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
-        ),
+        context
+            .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
         compiler_common::AddressSpace::Child,
         "create_child_input_destination",
     );

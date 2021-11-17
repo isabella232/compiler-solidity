@@ -350,18 +350,12 @@ impl Block {
     fn is_constructor_call<'ctx, 'src>(
         context: &mut LLVMContext<'ctx, 'src>,
     ) -> inkwell::values::IntValue<'ctx> {
-        let entry_pointer = context.access_memory(
-            context.field_const(
-                (compiler_common::abi::OFFSET_ENTRY_DATA * compiler_common::size::FIELD) as u64,
-            ),
-            compiler_common::AddressSpace::Parent,
-            "entry_pointer",
-        );
-        let entry_value = context.build_load(entry_pointer, "entry_value");
-        context.builder.build_and(
-            entry_value.into_int_value(),
-            context.field_const(compiler_common::abi::CONSTRUCTOR_ENTRY_MASK as u64),
-            "entry_constructor_bit",
+        let header = context.read_header(compiler_common::AddressSpace::Parent);
+        context.builder.build_right_shift(
+            header,
+            context.field_const((8 * compiler_common::bitlength::BYTE) as u64),
+            false,
+            "header_constructor_bit",
         )
     }
 

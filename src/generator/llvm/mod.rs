@@ -743,18 +743,46 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     }
 
     ///
+    /// Reads the data size from the specified memory.
+    ///
+    pub fn read_header(
+        &self,
+        address_space: compiler_common::AddressSpace,
+    ) -> inkwell::values::IntValue<'ctx> {
+        let header_pointer = self.access_memory(
+            self.field_const(
+                (compiler_common::abi::OFFSET_HEADER * compiler_common::size::FIELD) as u64,
+            ),
+            address_space,
+            "header_pointer",
+        );
+        self.build_load(header_pointer, "header_value")
+            .into_int_value()
+    }
+
+    ///
+    /// Writes the data size to the specified memory.
+    ///
+    pub fn write_header(
+        &self,
+        header: inkwell::values::IntValue<'ctx>,
+        address_space: compiler_common::AddressSpace,
+    ) {
+        let header_pointer = self.access_memory(
+            self.field_const(
+                (compiler_common::abi::OFFSET_HEADER * compiler_common::size::FIELD) as u64,
+            ),
+            address_space,
+            "header_pointer",
+        );
+        self.build_store(header_pointer, header);
+    }
+
+    ///
     /// Writes the error data to the parent memory.
     ///
     pub fn write_error(&self, message: &'static str) {
-        let parent_return_data_size_pointer = self.access_memory(
-            self.field_const(
-                (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD)
-                    as u64,
-            ),
-            compiler_common::AddressSpace::Parent,
-            "parent_return_data_size_pointer",
-        );
-        self.build_store(parent_return_data_size_pointer, self.field_const(1));
+        self.write_header(self.field_const(1), compiler_common::AddressSpace::Parent);
 
         let error_hash = compiler_common::hashes::keccak256(message.as_bytes());
         let error_code = self
@@ -773,8 +801,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         );
         let parent_error_code_pointer = self.access_memory(
             self.field_const(
-                (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD)
-                    as u64,
+                (compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64,
             ),
             compiler_common::AddressSpace::Parent,
             "parent_error_code_pointer",

@@ -13,14 +13,12 @@ use crate::generator::llvm::Context as LLVMContext;
 pub fn size<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let pointer = context.access_memory(
-        context.field_const(
-            (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD) as u64,
-        ),
-        compiler_common::AddressSpace::Child,
-        "return_data_size_pointer",
+    let header = context.read_header(compiler_common::AddressSpace::Child);
+    let value = context.builder.build_and(
+        header,
+        context.field_const(0x00000000ffffffff),
+        "calldata_size",
     );
-    let value = context.build_load(pointer, "return_data_size_value");
 
     Some(value.as_basic_value_enum())
 }
@@ -38,8 +36,7 @@ pub fn copy<'ctx, 'src>(
         "return_data_copy_destination_pointer",
     );
 
-    let source_offset_shift =
-        compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD;
+    let source_offset_shift = compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD;
     let source_offset = context.builder.build_int_add(
         arguments[1].into_int_value(),
         context.field_const(source_offset_shift as u64),

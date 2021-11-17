@@ -23,27 +23,18 @@ pub fn call<'ctx, 'src>(
     let intrinsic = context.get_intrinsic_function(Intrinsic::SwitchContext);
     context.build_call(intrinsic, &[], "contract_call_switch_context");
 
-    let child_pointer_input = context.access_memory(
+    let child_pointer_header = context.access_memory(
         context.field_const(
-            (compiler_common::abi::OFFSET_CALLDATA_SIZE * compiler_common::size::FIELD) as u64,
+            (compiler_common::abi::OFFSET_HEADER * compiler_common::size::FIELD) as u64,
         ),
         compiler_common::AddressSpace::Child,
-        "contract_call_child_pointer_input",
+        "contract_call_child_pointer_header",
     );
-    context.build_store(child_pointer_input, input_size);
-    let child_pointer_output = context.access_memory(
-        context.field_const(
-            (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD) as u64,
-        ),
-        compiler_common::AddressSpace::Child,
-        "contract_call_child_pointer_output",
-    );
-    context.build_store(child_pointer_output, output_size);
+    context.build_store(child_pointer_header, input_size);
 
     let destination = context.access_memory(
-        context.field_const(
-            (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
-        ),
+        context
+            .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
         compiler_common::AddressSpace::Child,
         "contract_call_child_input_destination",
     );
@@ -76,9 +67,8 @@ pub fn call<'ctx, 'src>(
         .expect("Intrinsic always returns a flag");
 
     let source = context.access_memory(
-        context.field_const(
-            (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
-        ),
+        context
+            .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
         compiler_common::AddressSpace::Child,
         "contract_call_output_source",
     );

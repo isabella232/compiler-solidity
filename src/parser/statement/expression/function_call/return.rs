@@ -21,24 +21,15 @@ pub fn r#return<'ctx, 'src>(
     );
 
     let destination = context.access_memory(
-        context.field_const(
-            (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
-        ),
+        context
+            .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
         compiler_common::AddressSpace::Parent,
         "return_destination_pointer",
     );
 
     let size = arguments[1].into_int_value();
 
-    let parent_pointer_return_data_size = context.access_memory(
-        context.field_const(
-            (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD) as u64,
-        ),
-        compiler_common::AddressSpace::Parent,
-        "return_destination_size_pointer",
-    );
-    context.build_store(parent_pointer_return_data_size, size);
-
+    context.write_header(size, compiler_common::AddressSpace::Parent);
     context.build_memcpy(
         Intrinsic::MemoryCopyToParent,
         destination,
@@ -67,24 +58,15 @@ pub fn revert<'ctx, 'src>(
     );
 
     let destination = context.access_memory(
-        context.field_const(
-            (compiler_common::abi::OFFSET_CALL_RETURN_DATA * compiler_common::size::FIELD) as u64,
-        ),
+        context
+            .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
         compiler_common::AddressSpace::Parent,
         "revert_destination_pointer",
     );
 
     let size = arguments[1].into_int_value();
 
-    let parent_pointer_return_data_size = context.access_memory(
-        context.field_const(
-            (compiler_common::abi::OFFSET_RETURN_DATA_SIZE * compiler_common::size::FIELD) as u64,
-        ),
-        compiler_common::AddressSpace::Parent,
-        "revert_parent_pointer_return_data_size",
-    );
-    context.build_store(parent_pointer_return_data_size, size);
-
+    context.write_header(size, compiler_common::AddressSpace::Parent);
     context.build_memcpy(
         Intrinsic::MemoryCopyToParent,
         destination,
