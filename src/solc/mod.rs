@@ -2,19 +2,15 @@
 //! The Solidity compiler.
 //!
 
-pub mod hashes;
-pub mod input;
-pub mod output;
+pub mod combined_json;
+pub mod standard_json;
 
 use std::io::Write;
-use std::path::Path;
 use std::path::PathBuf;
 
-use crate::error::Error;
-
-use self::hashes::Hashes;
-use self::input::Input;
-use self::output::Output;
+use self::combined_json::CombinedJson;
+use self::standard_json::input::Input as StandardJsonInput;
+use self::standard_json::output::Output as StandardJsonOutput;
 
 ///
 /// The Solidity compiler.
@@ -45,11 +41,11 @@ impl Compiler {
     ///
     pub fn standard_json(
         &self,
-        input: Input,
+        input: StandardJsonInput,
         base_path: Option<String>,
         include_paths: Vec<String>,
         allow_paths: Option<String>,
-    ) -> Result<Output, Error> {
+    ) -> Result<StandardJsonOutput, String> {
         let mut solc_command = std::process::Command::new(self.executable.as_str());
         solc_command.stdin(std::process::Stdio::piped());
         solc_command.stdout(std::process::Stdio::piped());
@@ -68,20 +64,23 @@ impl Compiler {
             solc_command.arg(allow_paths);
         }
 
-        let input_json = serde_json::to_vec(&input)?;
+        let input_json = serde_json::to_vec(&input).expect("Always valid");
 
-        let solc_process = solc_command.spawn()?;
+        let solc_process = solc_command
+            .spawn()
+            .map_err(|error| format!("solc subprocess spawning error: {:?}", error))?;
         solc_process
             .stdin
             .as_ref()
-            .unwrap_or_else(|| panic!("Solc stdin getting error"))
-            .write_all(input_json.as_slice())?;
+            .ok_or_else(|| "solc stdin getting error".to_owned())?
+            .write_all(input_json.as_slice())
+            .map_err(|error| format!("solc stdin writing error: {:?}", error))?;
 
-        let solc_output = solc_process.wait_with_output()?;
+        let solc_output = solc_process
+            .wait_with_output()
+            .map_err(|error| format!("solc subprocess output error: {:?}", error))?;
         if !solc_output.status.success() {
-            return Err(Error::Solc(
-                String::from_utf8_lossy(solc_output.stderr.as_slice()).to_string(),
-            ));
+            return Err(String::from_utf8_lossy(solc_output.stderr.as_slice()).to_string());
         }
 
         let output = serde_json::from_slice(solc_output.stdout.as_slice()).expect("Always valid");
@@ -90,21 +89,28 @@ impl Compiler {
     }
 
     ///
-    /// Returns the entry hashes for the contract at `path`.
+    /// The `solc --combined-json abi,hashes...` mirror.
     ///
-    pub fn hashes(&self, path: &Path) -> Result<Hashes, Error> {
-        let solc_pipeline = std::process::Command::new(self.executable.as_str())
-            .arg(&path)
-            .arg("--combined-json")
-            .arg("hashes")
-            .output()?;
+    pub fn combined_json(
+        &self,
+        paths: &[PathBuf],
+        combined_json_argument: &str,
+    ) -> Result<CombinedJson, String> {
+        let mut solc_command = std::process::Command::new(self.executable.as_str());
+        solc_command.args(paths);
+        solc_command.arg("--combined-json");
+        solc_command.arg(combined_json_argument);
+        let solc_pipeline = solc_command
+            .output()
+            .map_err(|error| format!("solc subprocess error: {:?}", error))?;
         if !solc_pipeline.status.success() {
-            return Err(Error::Solc(
-                String::from_utf8_lossy(solc_pipeline.stderr.as_slice()).to_string(),
-            ));
+            return Err(String::from_utf8_lossy(solc_pipeline.stderr.as_slice()).to_string());
         }
 
-        Ok(serde_json::from_slice(solc_pipeline.stdout.as_slice())?)
+        let combined_json =
+            serde_json::from_slice(solc_pipeline.stdout.as_slice()).expect("Always valid");
+
+        Ok(combined_json)
     }
 
     ///
@@ -124,28 +130,6 @@ impl Compiler {
         if output_hashes {
             solc_command.arg("--hashes");
         }
-        let solc_pipeline = solc_command
-            .output()
-            .map_err(|error| format!("solc subprocess error: {:?}", error))?;
-        if !solc_pipeline.status.success() {
-            return Err(String::from_utf8_lossy(solc_pipeline.stderr.as_slice()).to_string());
-        }
-
-        Ok(String::from_utf8_lossy(solc_pipeline.stdout.as_slice()).to_string())
-    }
-
-    ///
-    /// The `solc --combined-json abi,hashes...` mirror.
-    ///
-    pub fn combined_json(
-        &self,
-        paths: &[PathBuf],
-        combined_json_argument: String,
-    ) -> Result<String, String> {
-        let mut solc_command = std::process::Command::new(self.executable.as_str());
-        solc_command.args(paths);
-        solc_command.arg("--combined-json");
-        solc_command.arg(combined_json_argument);
         let solc_pipeline = solc_command
             .output()
             .map_err(|error| format!("solc subprocess error: {:?}", error))?;

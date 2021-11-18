@@ -35,12 +35,12 @@ impl Input {
     /// A shortcut constructor.
     ///
     pub fn try_from_paths(
-        paths: Vec<PathBuf>,
+        paths: &[PathBuf],
         library_map: Vec<String>,
         optimize: bool,
     ) -> Result<Self, Error> {
         let mut sources = HashMap::with_capacity(paths.len());
-        for path in paths.into_iter() {
+        for path in paths.iter() {
             let source = Source::try_from(path.as_path())?;
             sources.insert(path.to_string_lossy().to_string(), source);
         }

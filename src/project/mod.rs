@@ -12,6 +12,7 @@ use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
 use crate::lexer::Lexer;
 use crate::parser::statement::object::Object;
+use crate::solc::combined_json::CombinedJson;
 
 use self::contract::Contract;
 
@@ -66,7 +67,7 @@ impl Project {
                     .contracts
                     .get(contract_path)
                     .cloned()
-                    .ok_or(Error::ContractNotFound)?
+                    .ok_or_else(|| Error::ContractNotFound(contract_path.to_owned()))?
                     .object;
                 (contract_path.to_owned(), object)
             }
@@ -74,10 +75,10 @@ impl Project {
                 .contracts
                 .iter()
                 .last()
-                .ok_or(Error::ContractNotFound)
-                .map(|(path, contract)| (path.to_owned(), contract.object.to_owned()))?,
+                .map(|(path, contract)| (path.to_owned(), contract.object.to_owned()))
+                .expect("Always exists"),
             None if self.contracts.len() > 1 => return Err(Error::ContractNotSpecified),
-            _ => return Err(Error::ContractNotFound),
+            _ => return Err(Error::NoContractsFound),
         };
 
         let (assembly_text, bytecode) = {
@@ -141,33 +142,60 @@ impl Project {
     /// Compiles all contracts, setting their text assembly and binary bytecode.
     ///
     #[allow(clippy::needless_collect)]
-    #[allow(clippy::too_many_arguments)]
-    pub fn compile_all(
-        &mut self,
+    pub fn compile_all(&mut self, optimize: bool, dump_llvm: bool) -> Result<(), Error> {
+        let optimization_level = if optimize {
+            inkwell::OptimizationLevel::Aggressive
+        } else {
+            inkwell::OptimizationLevel::None
+        };
+
+        let contract_paths: Vec<String> = self.contracts.keys().cloned().collect();
+        for contract_path in contract_paths.iter() {
+            self.compile(
+                Some(contract_path.as_str()),
+                optimization_level,
+                optimization_level,
+                dump_llvm,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    ///
+    /// Writes all contracts to the specified directory.
+    ///
+    pub fn write_to_directory(
+        self,
         output_directory: &Path,
-        opt_level_llvm_middle: inkwell::OptimizationLevel,
-        opt_level_llvm_back: inkwell::OptimizationLevel,
-        dump_llvm: bool,
         output_assembly: bool,
         output_binary: bool,
         overwrite: bool,
     ) -> Result<(), Error> {
-        let contract_paths: Vec<String> = self.contracts.keys().cloned().collect();
-
-        for contract_path in contract_paths.iter() {
-            self.compile(
-                Some(contract_path.as_str()),
-                opt_level_llvm_middle,
-                opt_level_llvm_back,
-                dump_llvm,
+        for (_path, contract) in self.contracts.into_iter() {
+            contract.write_to_directory(
+                output_directory,
+                output_assembly,
+                output_binary,
+                overwrite,
             )?;
         }
-        for contract_path in contract_paths.into_iter() {
-            self.contracts
-                .get(contract_path.as_str())
-                .as_ref()
-                .expect("Always exists")
-                .write_to_directory(output_directory, output_assembly, output_binary, overwrite)?;
+
+        Ok(())
+    }
+
+    ///
+    /// Writes all contracts assembly and bytecode to the combined JSON.
+    ///
+    pub fn write_to_combined_json(self, combined_json: &mut CombinedJson) -> Result<(), Error> {
+        for (_path, contract) in self.contracts.into_iter() {
+            let solc_path = contract.get_solc_path();
+            let combined_json_contract = combined_json
+                .contracts
+                .get_mut(solc_path)
+                .ok_or_else(|| Error::ContractNotFound(solc_path.to_owned()))?;
+
+            contract.write_to_combined_json(combined_json_contract)?;
         }
 
         Ok(())

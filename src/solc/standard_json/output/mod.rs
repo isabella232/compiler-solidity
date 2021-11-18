@@ -77,7 +77,7 @@ impl Output {
                 let mut lexer = Lexer::new(contract.ir_optimized.clone());
                 let object = Object::parse(&mut lexer, None)?;
                 let project_contract =
-                    ProjectContract::new(path.clone(), name, contract.ir_optimized, object);
+                    ProjectContract::new(full_path.clone(), name, contract.ir_optimized, object);
                 project_contracts.insert(full_path, project_contract);
             }
         }

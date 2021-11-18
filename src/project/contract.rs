@@ -8,6 +8,7 @@ use std::path::Path;
 
 use crate::error::Error;
 use crate::parser::statement::object::Object;
+use crate::solc::combined_json::contract::Contract as CombinedJsonContract;
 
 ///
 /// The contract data representation.
@@ -44,17 +45,26 @@ impl Contract {
     }
 
     ///
+    /// Returns the part of the path used by `solc`.
+    ///
+    pub fn get_solc_path(&self) -> &str {
+        if let Some(last_slash_position) = self.path.rfind('/') {
+            return &self.path[last_slash_position + 1..];
+        }
+
+        self.path.as_str()
+    }
+
+    ///
     /// Writes the contract text assembly and bytecode to files.
     ///
     pub fn write_to_directory(
-        &self,
+        self,
         path: &Path,
         output_assembly: bool,
         output_binary: bool,
         overwrite: bool,
     ) -> Result<(), Error> {
-        std::fs::create_dir_all(path)?;
-
         let file_name = format!("{}.{}", self.path.replace('/', "."), self.name);
 
         if output_assembly {
@@ -95,6 +105,36 @@ impl Contract {
                     .write_all(self.bytecode.as_ref().expect("Always exists").as_slice())
                     .map_err(Error::FileSystem)?;
             }
+        }
+
+        Ok(())
+    }
+
+    ///
+    /// Writes the contract text assembly and bytecode to the combined JSON.
+    ///
+    pub fn write_to_combined_json(
+        self,
+        combined_json_contract: &mut CombinedJsonContract,
+    ) -> Result<(), Error> {
+        match (
+            combined_json_contract.bin.as_mut(),
+            combined_json_contract.bin_runtime.as_mut(),
+        ) {
+            (Some(bin), Some(bin_runtime)) => {
+                let hexadecimal_bytecode = self.bytecode.map(hex::encode).expect("Always exists");
+                *bin = hexadecimal_bytecode;
+                *bin_runtime = bin.clone();
+            }
+            (Some(bin), None) => {
+                let hexadecimal_bytecode = self.bytecode.map(hex::encode).expect("Always exists");
+                *bin = hexadecimal_bytecode;
+            }
+            (None, Some(bin_runtime)) => {
+                let hexadecimal_bytecode = self.bytecode.map(hex::encode).expect("Always exists");
+                *bin_runtime = hexadecimal_bytecode;
+            }
+            (None, None) => {}
         }
 
         Ok(())

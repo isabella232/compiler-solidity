@@ -19,8 +19,10 @@ pub enum Error {
     Solc(String),
     /// The library input is invalid.
     LibraryInput(String),
-    /// The contract cannot be found.
-    ContractNotFound,
+    /// The input contains no contracts.
+    NoContractsFound,
+    /// The specified contract cannot be found.
+    ContractNotFound(String),
     /// If there is multiple contracts, the main contract name must be specified.
     ContractNotSpecified,
 
