@@ -118,17 +118,6 @@ pub enum Name {
     /// log with topics t1, t2, t3, t4 and data `mem[p…(p+s))`
     Log4,
 
-    /// address of the current contract / execution context
-    Address,
-    /// call sender (excluding `delegatecall`)
-    Caller,
-    /// timestamp of the current block in seconds since the epoch
-    Timestamp,
-    /// current block number
-    Number,
-    /// gas still available to execution
-    Gas,
-
     /// call contract at address a with input `mem[in…(in+insize))` providing `g` gas and `v` wei
     /// and output area `mem[out…(out+outsize))` returning 0 on error (e.g. out of gas)
     /// and 1 on success
@@ -168,30 +157,42 @@ pub enum Name {
     /// `memoryguard` is a stub call
     MemoryGuard,
 
-    /// current position in code
-    Pc,
+    /// address of the current contract / execution context
+    Address,
+    /// call sender (excluding `delegatecall`)
+    Caller,
+    /// timestamp of the current block in seconds since the epoch
+    Timestamp,
+    /// current block number
+    Number,
+    /// gas still available to execution
+    Gas,
+
+    /// block gas limit of the current block
+    GasLimit,
+    /// gas price of the transaction
+    GasPrice,
     /// wei sent together with the current call
     CallValue,
     /// size of memory, i.e. largest accessed memory index
     MSize,
+    /// transaction sender
+    Origin,
+    /// ID of the executing chain (EIP 1344)
+    ChainId,
+
+    /// current position in code
+    Pc,
     /// wei balance at address `a`
     Balance,
     /// equivalent to `balance(address())`, but cheaper
     SelfBalance,
-    /// ID of the executing chain (EIP 1344)
-    ChainId,
-    /// transaction sender
-    Origin,
-    /// gas price of the transaction
-    GasPrice,
     /// hash of block nr b - only for last 256 blocks excluding current
     BlockHash,
     /// current mining beneficiary
     CoinBase,
     /// difficulty of the current block
     Difficulty,
-    /// block gas limit of the current block
-    GasLimit,
     /// like `codecopy(t, f, s)` but take code at address `a`
     ExtCodeCopy,
     /// code hash of address `a`

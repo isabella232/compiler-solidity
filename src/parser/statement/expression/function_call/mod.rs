@@ -401,16 +401,11 @@ impl FunctionCall {
                 None
             }
 
-            Name::Address => context::get(context, compiler_common::ContextValue::Address),
-            Name::Caller => context::get(context, compiler_common::ContextValue::MessageSender),
-            Name::Timestamp => context::get(context, compiler_common::ContextValue::BlockTimestamp),
-            Name::Number => context::get(context, compiler_common::ContextValue::BlockNumber),
-            Name::Gas => context::get(context, compiler_common::ContextValue::GasLeft),
-
             Name::Call => {
                 let arguments = self.pop_arguments_llvm::<7>(context);
 
                 let address = arguments[1].into_int_value();
+                let value = arguments[2].into_int_value();
                 let input_offset = arguments[3].into_int_value();
                 let input_size = arguments[4].into_int_value();
                 let output_offset = arguments[5].into_int_value();
@@ -418,18 +413,20 @@ impl FunctionCall {
 
                 contract::call(
                     context,
+                    Intrinsic::FarCall,
                     address,
+                    Some(value),
                     input_offset,
                     input_size,
                     output_offset,
                     output_size,
-                    Intrinsic::FarCall,
                 )
             }
             Name::CallCode => {
                 let arguments = self.pop_arguments_llvm::<7>(context);
 
                 let address = arguments[1].into_int_value();
+                let value = arguments[2].into_int_value();
                 let input_offset = arguments[3].into_int_value();
                 let input_size = arguments[4].into_int_value();
                 let output_offset = arguments[5].into_int_value();
@@ -437,12 +434,13 @@ impl FunctionCall {
 
                 contract::call(
                     context,
+                    Intrinsic::CallCode,
                     address,
+                    Some(value),
                     input_offset,
                     input_size,
                     output_offset,
                     output_size,
-                    Intrinsic::CallCode,
                 )
             }
             Name::StaticCall => {
@@ -456,12 +454,13 @@ impl FunctionCall {
 
                 contract::call(
                     context,
+                    Intrinsic::StaticCall,
                     address,
+                    None,
                     input_offset,
                     input_size,
                     output_offset,
                     output_size,
-                    Intrinsic::StaticCall,
                 )
             }
             Name::DelegateCall => {
@@ -475,12 +474,13 @@ impl FunctionCall {
 
                 contract::call(
                     context,
+                    Intrinsic::DelegateCall,
                     address,
+                    None,
                     input_offset,
                     input_size,
                     output_offset,
                     output_size,
-                    Intrinsic::DelegateCall,
                 )
             }
             Name::LinkerSymbol => {
@@ -514,26 +514,31 @@ impl FunctionCall {
                 Some(arguments[0])
             }
 
-            Name::Pc => Some(context.field_const(0).as_basic_value_enum()),
-            Name::CallValue => Some(context.field_const(0).as_basic_value_enum()),
-            Name::MSize => Some(context.field_const(0).as_basic_value_enum()),
-            Name::Balance => Some(context.field_const(0).as_basic_value_enum()),
-            Name::SelfBalance => Some(context.field_const(0).as_basic_value_enum()),
-            Name::ChainId => Some(context.field_const(0).as_basic_value_enum()),
-            Name::Origin => Some(context.field_const(0).as_basic_value_enum()),
+            Name::Address => context::get(context, compiler_common::ContextValue::Address),
+            Name::Caller => context::get(context, compiler_common::ContextValue::MessageSender),
+            Name::Timestamp => context::get(context, compiler_common::ContextValue::BlockTimestamp),
+            Name::Number => context::get(context, compiler_common::ContextValue::BlockNumber),
+            Name::Gas => context::get(context, compiler_common::ContextValue::GasLeft),
+
+            Name::GasLimit => Some(context.field_const(u32::MAX as u64).as_basic_value_enum()),
             Name::GasPrice => Some(context.field_const(0).as_basic_value_enum()),
-            Name::BlockHash => Some(context.field_const(0).as_basic_value_enum()),
-            Name::CoinBase => Some(context.field_const(0).as_basic_value_enum()),
-            Name::Difficulty => Some(context.field_const(0).as_basic_value_enum()),
-            Name::GasLimit => Some(context.field_const(0).as_basic_value_enum()),
-            Name::ExtCodeCopy => {
-                let _arguments = self.pop_arguments_llvm::<4>(context);
-                None
-            }
-            Name::ExtCodeHash => {
-                let _arguments = self.pop_arguments_llvm::<1>(context);
-                Some(context.field_const(0).as_basic_value_enum())
-            }
+            Name::CallValue => Some(context.field_const(0).as_basic_value_enum()),
+            Name::MSize => Some(
+                context
+                    .field_const(((1 << 16) * compiler_common::size::FIELD) as u64)
+                    .as_basic_value_enum(),
+            ),
+            Name::Origin => Some(context.field_const(0).as_basic_value_enum()), // TODO
+            Name::ChainId => Some(context.field_const(0).as_basic_value_enum()), // TODO
+            Name::BlockHash => Some(context.field_const(0).as_basic_value_enum()), // TODO
+
+            name @ Name::Pc => panic!("Instruction {:?} is not supported", name),
+            name @ Name::Balance => panic!("Instruction {:?} is not supported", name),
+            name @ Name::SelfBalance => panic!("Instruction {:?} is not supported", name),
+            name @ Name::CoinBase => panic!("Instruction {:?} is not supported", name),
+            name @ Name::Difficulty => panic!("Instruction {:?} is not supported", name),
+            name @ Name::ExtCodeCopy => panic!("Instruction {:?} is not supported", name),
+            name @ Name::ExtCodeHash => panic!("Instruction {:?} is not supported", name),
         }
     }
 
