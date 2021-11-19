@@ -2,6 +2,7 @@
 //! Translates the hash instruction.
 //!
 
+use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 
@@ -22,7 +23,7 @@ pub fn keccak256<'ctx, 'src>(
 
     let pointer = context.access_memory(
         range_start,
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "keccak256_first_value_pointer",
     );
     let value = context.build_load(pointer, "keccak256_first_value");
@@ -76,7 +77,7 @@ pub fn keccak256<'ctx, 'src>(
         .into_int_value();
     let pointer = context.access_memory(
         index_value,
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "keccak256_next_value_pointer",
     );
     let value = context.build_load(pointer, "keccak256_next_value");

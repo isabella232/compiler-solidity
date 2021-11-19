@@ -4,6 +4,7 @@
 
 use inkwell::types::BasicType;
 
+use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::Context as LLVMContext;
 
 ///
@@ -112,66 +113,66 @@ impl Intrinsic {
             Self::MemoryCopy => vec![
                 context
                     .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Stack.into())
+                    .ptr_type(AddressSpace::Stack.into())
                     .as_basic_type_enum(),
                 context
                     .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Stack.into())
+                    .ptr_type(AddressSpace::Stack.into())
                     .as_basic_type_enum(),
                 context.field_type().as_basic_type_enum(),
             ],
             Self::MemoryCopyFromParent => vec![
                 context
                     .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Heap.into())
+                    .ptr_type(AddressSpace::Heap.into())
                     .as_basic_type_enum(),
                 context
                     .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Parent.into())
+                    .ptr_type(AddressSpace::Parent.into())
                     .as_basic_type_enum(),
                 context.field_type().as_basic_type_enum(),
             ],
             Self::MemoryCopyToParent => vec![
                 context
                     .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Parent.into())
+                    .ptr_type(AddressSpace::Parent.into())
                     .as_basic_type_enum(),
                 context
                     .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Heap.into())
+                    .ptr_type(AddressSpace::Heap.into())
                     .as_basic_type_enum(),
                 context.field_type().as_basic_type_enum(),
             ],
             Self::MemoryCopyFromChild => vec![
                 context
                     .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Heap.into())
+                    .ptr_type(AddressSpace::Heap.into())
                     .as_basic_type_enum(),
                 context
                     .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Child.into())
+                    .ptr_type(AddressSpace::Child.into())
                     .as_basic_type_enum(),
                 context.field_type().as_basic_type_enum(),
             ],
             Self::MemoryCopyToChild => vec![
                 context
                     .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Child.into())
+                    .ptr_type(AddressSpace::Child.into())
                     .as_basic_type_enum(),
                 context
                     .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Heap.into())
+                    .ptr_type(AddressSpace::Heap.into())
                     .as_basic_type_enum(),
                 context.field_type().as_basic_type_enum(),
             ],
             Self::MemoryCopyFromChildToParent => vec![
                 context
                     .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Parent.into())
+                    .ptr_type(AddressSpace::Parent.into())
                     .as_basic_type_enum(),
                 context
                     .field_type()
-                    .ptr_type(compiler_common::AddressSpace::Child.into())
+                    .ptr_type(AddressSpace::Child.into())
                     .as_basic_type_enum(),
                 context.field_type().as_basic_type_enum(),
             ],

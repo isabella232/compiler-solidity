@@ -2,6 +2,7 @@
 //! Translates the transaction return operations.
 //!
 
+use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 
@@ -16,20 +17,20 @@ pub fn r#return<'ctx, 'src>(
 
     let source = context.access_memory(
         arguments[0].into_int_value(),
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "return_source_pointer",
     );
 
     let destination = context.access_memory(
         context
             .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
-        compiler_common::AddressSpace::Parent,
+        AddressSpace::Parent,
         "return_destination_pointer",
     );
 
     let size = arguments[1].into_int_value();
 
-    context.write_header(size, compiler_common::AddressSpace::Parent);
+    context.write_header(size, AddressSpace::Parent);
     context.build_memcpy(
         Intrinsic::MemoryCopyToParent,
         destination,
@@ -53,20 +54,20 @@ pub fn revert<'ctx, 'src>(
 
     let source = context.access_memory(
         arguments[0].into_int_value(),
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "revert_source_pointer",
     );
 
     let destination = context.access_memory(
         context
             .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
-        compiler_common::AddressSpace::Parent,
+        AddressSpace::Parent,
         "revert_destination_pointer",
     );
 
     let size = arguments[1].into_int_value();
 
-    context.write_header(size, compiler_common::AddressSpace::Parent);
+    context.write_header(size, AddressSpace::Parent);
     context.build_memcpy(
         Intrinsic::MemoryCopyToParent,
         destination,

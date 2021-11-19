@@ -2,9 +2,11 @@
 //! Translates the calldata instructions.
 //!
 
+use inkwell::values::BasicValue;
+
+use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
-use inkwell::values::BasicValue;
 
 ///
 /// Translates the calldata load.
@@ -20,11 +22,7 @@ pub fn load<'ctx, 'src>(
         "calldata_offset",
     );
 
-    let pointer = context.access_memory(
-        offset,
-        compiler_common::AddressSpace::Parent,
-        "calldata_pointer",
-    );
+    let pointer = context.access_memory(offset, AddressSpace::Parent, "calldata_pointer");
     let value = context.build_load(pointer, "calldata_value");
 
     Some(value)
@@ -36,7 +34,7 @@ pub fn load<'ctx, 'src>(
 pub fn size<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let header = context.read_header(compiler_common::AddressSpace::Parent);
+    let header = context.read_header(AddressSpace::Parent);
     let value = context.builder.build_and(
         header,
         context.field_const(0x00000000ffffffff),
@@ -55,7 +53,7 @@ pub fn copy<'ctx, 'src>(
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let destination = context.access_memory(
         arguments[0].into_int_value(),
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "calldata_copy_destination_pointer",
     );
 
@@ -67,7 +65,7 @@ pub fn copy<'ctx, 'src>(
     );
     let source = context.access_memory(
         source_offset,
-        compiler_common::AddressSpace::Parent,
+        AddressSpace::Parent,
         "calldata_copy_source_pointer",
     );
 
@@ -93,14 +91,14 @@ pub fn codecopy<'ctx, 'src>(
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let destination = context.access_memory(
         arguments[0].into_int_value(),
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "calldata_codecopy_destination_pointer",
     );
 
     let source = context.access_memory(
         context
             .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
-        compiler_common::AddressSpace::Parent,
+        AddressSpace::Parent,
         "calldata_codecopy_source_pointer",
     );
 

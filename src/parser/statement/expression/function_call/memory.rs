@@ -2,6 +2,7 @@
 //! Translates the heap memory operations.
 //!
 
+use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::Context as LLVMContext;
 
 ///
@@ -13,7 +14,7 @@ pub fn load<'ctx, 'src>(
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let pointer = context.access_memory(
         arguments[0].into_int_value(),
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "memory_load_pointer",
     );
     let result = context.build_load(pointer, "memory_load_result");
@@ -28,11 +29,7 @@ pub fn store<'ctx, 'src>(
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let offset = arguments[0].into_int_value();
-    let pointer = context.access_memory(
-        offset,
-        compiler_common::AddressSpace::Heap,
-        "memory_store_pointer",
-    );
+    let pointer = context.access_memory(offset, AddressSpace::Heap, "memory_store_pointer");
     context.build_store(pointer, arguments[1]);
 
     None
@@ -47,7 +44,7 @@ pub fn store_byte<'ctx, 'src>(
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let pointer = context.access_memory(
         arguments[0].into_int_value(),
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "memory_store_byte_original_value_pointer",
     );
 

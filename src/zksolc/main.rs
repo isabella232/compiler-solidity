@@ -73,7 +73,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         }
     };
 
-    compiler_common::vm::initialize_target();
+    compiler_solidity::initialize_target();
     let mut project = solc_output.try_into_project(libraries, arguments.dump_yul, true)?;
     project.compile_all(arguments.optimize, arguments.dump_llvm)?;
 

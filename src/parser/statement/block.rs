@@ -5,6 +5,7 @@
 use inkwell::values::BasicValue;
 
 use crate::error::Error;
+use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
@@ -186,7 +187,7 @@ impl Block {
         for slot_offset in slots_to_zero.into_iter() {
             let slot_pointer = context.access_memory(
                 context.field_const((slot_offset * compiler_common::size::FIELD) as u64),
-                compiler_common::AddressSpace::Heap,
+                AddressSpace::Heap,
                 format!("slot_to_zero_{}_pointer", slot_offset).as_str(),
             );
             context.build_store(slot_pointer, context.field_const(0));
@@ -350,7 +351,7 @@ impl Block {
     fn is_constructor_call<'ctx, 'src>(
         context: &mut LLVMContext<'ctx, 'src>,
     ) -> inkwell::values::IntValue<'ctx> {
-        let header = context.read_header(compiler_common::AddressSpace::Parent);
+        let header = context.read_header(AddressSpace::Parent);
         context.builder.build_right_shift(
             header,
             context.field_const((8 * compiler_common::bitlength::BYTE) as u64),

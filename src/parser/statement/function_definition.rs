@@ -5,6 +5,7 @@
 use inkwell::types::BasicType;
 
 use crate::error::Error;
+use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::function::r#return::Return as FunctionReturn;
 use crate::generator::llvm::Context as LLVMContext;
 use crate::generator::ILLVMWritable;
@@ -138,9 +139,7 @@ impl ILLVMWritable for FunctionDefinition {
                     };
                     let pointer = context.builder.build_pointer_cast(
                         pointer,
-                        context
-                            .field_type()
-                            .ptr_type(compiler_common::AddressSpace::Stack.into()),
+                        context.field_type().ptr_type(AddressSpace::Stack.into()),
                         format!("return_{}_gep_pointer_field", index).as_str(),
                     );
                     context

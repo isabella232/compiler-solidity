@@ -4,6 +4,7 @@
 
 use inkwell::values::BasicValue;
 
+use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 
@@ -52,11 +53,8 @@ pub fn log<'ctx, 'src>(
         );
 
         context.set_basic_block(data_not_empty_block);
-        let pointer = context.access_memory(
-            range_start,
-            compiler_common::AddressSpace::Heap,
-            "event_first_value_pointer",
-        );
+        let pointer =
+            context.access_memory(range_start, AddressSpace::Heap, "event_first_value_pointer");
         let value = context.build_load(pointer, "event_first_value");
         if topics.is_empty() {
             context.build_call(
@@ -212,7 +210,7 @@ pub fn log<'ctx, 'src>(
     context.set_basic_block(two_values_block);
     let value_1_pointer = context.access_memory(
         index_value,
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "event_loop_value_1_pointer",
     );
     let value_1 = context.build_load(value_1_pointer, "event_loop_value_1");
@@ -223,7 +221,7 @@ pub fn log<'ctx, 'src>(
     );
     let value_2_pointer = context.access_memory(
         index_value_next,
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "event_loop_value_2_pointer",
     );
     let value_2 = context.build_load(value_2_pointer, "event_loop_value_2");
@@ -241,7 +239,7 @@ pub fn log<'ctx, 'src>(
     context.set_basic_block(one_value_block);
     let value_1_pointer = context.access_memory(
         index_value,
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "event_loop_value_1_pointer",
     );
     let value_1 = context.build_load(value_1_pointer, "event_loop_value_1");

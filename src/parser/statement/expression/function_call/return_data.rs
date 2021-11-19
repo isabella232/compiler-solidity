@@ -4,6 +4,7 @@
 
 use inkwell::values::BasicValue;
 
+use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
 
@@ -13,7 +14,7 @@ use crate::generator::llvm::Context as LLVMContext;
 pub fn size<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let header = context.read_header(compiler_common::AddressSpace::Child);
+    let header = context.read_header(AddressSpace::Child);
     let value = context.builder.build_and(
         header,
         context.field_const(0x00000000ffffffff),
@@ -32,7 +33,7 @@ pub fn copy<'ctx, 'src>(
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let destination = context.access_memory(
         arguments[0].into_int_value(),
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "return_data_copy_destination_pointer",
     );
 
@@ -44,7 +45,7 @@ pub fn copy<'ctx, 'src>(
     );
     let source = context.access_memory(
         source_offset,
-        compiler_common::AddressSpace::Child,
+        AddressSpace::Child,
         "return_data_copy_source_pointer",
     );
 

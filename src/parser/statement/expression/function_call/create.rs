@@ -4,6 +4,7 @@
 
 use inkwell::values::BasicValue;
 
+use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::argument::Argument;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
@@ -63,7 +64,7 @@ pub fn create2<'ctx, 'src>(
         context.field_const(
             (compiler_common::abi::OFFSET_HEADER * compiler_common::size::FIELD) as u64,
         ),
-        compiler_common::AddressSpace::Child,
+        AddressSpace::Child,
         "create_child_pointer_header",
     );
     context.build_store(child_pointer_header, child_header_data);
@@ -71,12 +72,12 @@ pub fn create2<'ctx, 'src>(
     let destination = context.access_memory(
         context
             .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
-        compiler_common::AddressSpace::Child,
+        AddressSpace::Child,
         "create_child_input_destination",
     );
     let source = context.access_memory(
         input_offset,
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "create_child_input_source",
     );
 
@@ -170,7 +171,7 @@ pub fn datacopy<'ctx, 'src>(
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let pointer = context.access_memory(
         arguments[0].into_int_value(),
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "datacopy_pointer",
     );
     context.build_store(pointer, arguments[1]);

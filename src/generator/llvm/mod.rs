@@ -2,6 +2,7 @@
 //! The LLVM generator context.
 //!
 
+pub mod address_space;
 pub mod argument;
 pub mod function;
 pub mod intrinsic;
@@ -15,6 +16,7 @@ use inkwell::values::BasicValue;
 use crate::parser::identifier::Identifier;
 use crate::project::Project;
 
+use self::address_space::AddressSpace;
 use self::function::r#return::Return as FunctionReturn;
 use self::function::Function;
 use self::intrinsic::Intrinsic;
@@ -130,7 +132,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             llvm.void_type().fn_type(
                 vec![
                     llvm.i8_type()
-                        .ptr_type(compiler_common::AddressSpace::Stack.into())
+                        .ptr_type(AddressSpace::Stack.into())
                         .as_basic_type_enum();
                     3
                 ]
@@ -458,7 +460,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ) {
         let instruction = self.builder.build_store(pointer, value);
 
-        let alignment = if inkwell::AddressSpace::from(compiler_common::AddressSpace::Stack)
+        let alignment = if inkwell::AddressSpace::from(AddressSpace::Stack)
             == pointer.get_type().get_address_space()
         {
             compiler_common::size::FIELD
@@ -483,7 +485,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ) -> inkwell::values::BasicValueEnum<'ctx> {
         let value = self.builder.build_load(pointer, name);
 
-        let alignment = if inkwell::AddressSpace::from(compiler_common::AddressSpace::Stack)
+        let alignment = if inkwell::AddressSpace::from(AddressSpace::Stack)
             == pointer.get_type().get_address_space()
         {
             compiler_common::size::FIELD
@@ -692,7 +694,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     pub fn build_catch_block(&self) -> Option<inkwell::values::AnyValueEnum<'ctx>> {
         let landing_pad_type = self.structure_type(vec![
             self.integer_type(compiler_common::bitlength::BYTE)
-                .ptr_type(compiler_common::AddressSpace::Stack.into())
+                .ptr_type(AddressSpace::Stack.into())
                 .as_basic_type_enum(),
             self.integer_type(compiler_common::bitlength::BYTE * 4)
                 .as_basic_type_enum(),
@@ -702,7 +704,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             self.personality,
             vec![self
                 .integer_type(compiler_common::bitlength::BYTE)
-                .ptr_type(compiler_common::AddressSpace::Stack.into())
+                .ptr_type(AddressSpace::Stack.into())
                 .const_zero()
                 .as_basic_value_enum()],
             "landing",
@@ -712,7 +714,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             self.cxa_throw,
             vec![
                 self.integer_type(compiler_common::bitlength::BYTE)
-                    .ptr_type(compiler_common::AddressSpace::Stack.into())
+                    .ptr_type(AddressSpace::Stack.into())
                     .const_null()
                     .as_basic_value_enum();
                 3
@@ -732,7 +734,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             self.cxa_throw,
             vec![
                 self.integer_type(compiler_common::bitlength::BYTE)
-                    .ptr_type(compiler_common::AddressSpace::Stack.into())
+                    .ptr_type(AddressSpace::Stack.into())
                     .const_null()
                     .as_basic_value_enum();
                 3
@@ -745,10 +747,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ///
     /// Reads the data size from the specified memory.
     ///
-    pub fn read_header(
-        &self,
-        address_space: compiler_common::AddressSpace,
-    ) -> inkwell::values::IntValue<'ctx> {
+    pub fn read_header(&self, address_space: AddressSpace) -> inkwell::values::IntValue<'ctx> {
         let header_pointer = self.access_memory(
             self.field_const(
                 (compiler_common::abi::OFFSET_HEADER * compiler_common::size::FIELD) as u64,
@@ -766,7 +765,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     pub fn write_header(
         &self,
         header: inkwell::values::IntValue<'ctx>,
-        address_space: compiler_common::AddressSpace,
+        address_space: AddressSpace,
     ) {
         let header_pointer = self.access_memory(
             self.field_const(
@@ -782,7 +781,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     /// Writes the error data to the parent memory.
     ///
     pub fn write_error(&self, message: &'static str) {
-        self.write_header(self.field_const(1), compiler_common::AddressSpace::Parent);
+        self.write_header(self.field_const(1), AddressSpace::Parent);
 
         let error_hash = compiler_common::hashes::keccak256(message.as_bytes());
         let error_code = self
@@ -803,7 +802,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             self.field_const(
                 (compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64,
             ),
-            compiler_common::AddressSpace::Parent,
+            AddressSpace::Parent,
             "parent_error_code_pointer",
         );
         self.build_store(parent_error_code_pointer, error_code_shifted);
@@ -880,7 +879,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         let return_type = self
             .llvm
             .struct_type(return_types.as_slice(), false)
-            .ptr_type(compiler_common::AddressSpace::Stack.into());
+            .ptr_type(AddressSpace::Stack.into());
         argument_types.insert(0, return_type.as_basic_type_enum());
         return_type.fn_type(argument_types.as_slice(), false)
     }
@@ -891,7 +890,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     pub fn access_memory(
         &self,
         offset: inkwell::values::IntValue<'ctx>,
-        address_space: compiler_common::AddressSpace,
+        address_space: AddressSpace,
         name: &str,
     ) -> inkwell::values::PointerValue<'ctx> {
         self.builder.build_int_to_ptr(

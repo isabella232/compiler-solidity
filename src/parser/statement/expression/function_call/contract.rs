@@ -4,6 +4,7 @@
 
 use inkwell::values::BasicValue;
 
+use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::argument::Argument;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
@@ -33,7 +34,7 @@ pub fn call<'ctx, 'src>(
         context.field_const(
             (compiler_common::abi::OFFSET_HEADER * compiler_common::size::FIELD) as u64,
         ),
-        compiler_common::AddressSpace::Child,
+        AddressSpace::Child,
         "contract_call_child_pointer_header",
     );
     context.build_store(child_pointer_header, input_size);
@@ -41,12 +42,12 @@ pub fn call<'ctx, 'src>(
     let destination = context.access_memory(
         context
             .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
-        compiler_common::AddressSpace::Child,
+        AddressSpace::Child,
         "contract_call_child_input_destination",
     );
     let source = context.access_memory(
         input_offset,
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "contract_call_child_input_source",
     );
 
@@ -75,12 +76,12 @@ pub fn call<'ctx, 'src>(
     let source = context.access_memory(
         context
             .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
-        compiler_common::AddressSpace::Child,
+        AddressSpace::Child,
         "contract_call_output_source",
     );
     let destination = context.access_memory(
         output_offset,
-        compiler_common::AddressSpace::Heap,
+        AddressSpace::Heap,
         "contract_call_output_pointer",
     );
 

@@ -83,13 +83,12 @@ impl Project {
 
         let (assembly_text, bytecode) = {
             let llvm = inkwell::context::Context::create();
-            let target_machine = compiler_common::vm::target_machine(opt_level_llvm_back)
-                .ok_or_else(|| {
-                    Error::LLVM(format!(
-                        "Target machine `{}` creation error",
-                        compiler_common::vm::TARGET_NAME
-                    ))
-                })?;
+            let target_machine = crate::target_machine(opt_level_llvm_back).ok_or_else(|| {
+                Error::LLVM(format!(
+                    "Target machine `{}` creation error",
+                    compiler_common::vm::TARGET_NAME
+                ))
+            })?;
             let mut context = LLVMContext::new_with_optimizer(
                 &llvm,
                 &target_machine,
