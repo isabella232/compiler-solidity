@@ -318,26 +318,8 @@ impl FunctionCall {
                 let arguments = self.pop_arguments_llvm::<2>(context);
                 r#return::revert(context, arguments)
             }
-            Name::Stop => {
-                let function = context.function().to_owned();
-
-                context.build_unconditional_branch(function.throw_block);
-                None
-            }
-            Name::SelfDestruct => {
-                let _arguments = self.pop_arguments_llvm::<1>(context);
-
-                let function = context.function().to_owned();
-
-                context.build_unconditional_branch(function.throw_block);
-                None
-            }
-            Name::Invalid => {
-                let function = context.function().to_owned();
-
-                context.build_unconditional_branch(function.throw_block);
-                None
-            }
+            Name::Stop => r#return::stop(context),
+            Name::Invalid => r#return::invalid(context),
 
             Name::Log0 => {
                 let arguments = self.pop_arguments_llvm::<2>(context);
@@ -539,6 +521,7 @@ impl FunctionCall {
             name @ Name::CoinBase => panic!("Instruction {:?} is not supported", name),
             name @ Name::ExtCodeCopy => panic!("Instruction {:?} is not supported", name),
             name @ Name::ExtCodeHash => panic!("Instruction {:?} is not supported", name),
+            name @ Name::SelfDestruct => panic!("Instruction {:?} is not supported", name),
         }
     }
 
