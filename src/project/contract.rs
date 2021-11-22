@@ -45,17 +45,6 @@ impl Contract {
     }
 
     ///
-    /// Returns the part of the path used by `solc`.
-    ///
-    pub fn get_solc_path(&self) -> &str {
-        if let Some(last_slash_position) = self.path.rfind('/') {
-            return &self.path[last_slash_position + 1..];
-        }
-
-        self.path.as_str()
-    }
-
-    ///
     /// Writes the contract text assembly and bytecode to files.
     ///
     pub fn write_to_directory(

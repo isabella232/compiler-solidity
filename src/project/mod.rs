@@ -187,12 +187,18 @@ impl Project {
     /// Writes all contracts assembly and bytecode to the combined JSON.
     ///
     pub fn write_to_combined_json(self, combined_json: &mut CombinedJson) -> Result<(), Error> {
-        for (_path, contract) in self.contracts.into_iter() {
-            let solc_path = contract.get_solc_path();
+        for (path, contract) in self.contracts.into_iter() {
             let combined_json_contract = combined_json
                 .contracts
-                .get_mut(solc_path)
-                .ok_or_else(|| Error::ContractNotFound(solc_path.to_owned()))?;
+                .iter_mut()
+                .find_map(|(json_path, contract)| {
+                    if path.ends_with(json_path) {
+                        Some(contract)
+                    } else {
+                        None
+                    }
+                })
+                .ok_or_else(|| Error::ContractNotFound(path.to_owned()))?;
 
             contract.write_to_combined_json(combined_json_contract)?;
         }
