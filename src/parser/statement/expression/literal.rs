@@ -126,9 +126,9 @@ impl Literal {
                         string,
                     );
                 }
-                if string.len() < compiler_common::size::FIELD * 2 {
+                if string.len() < compiler_common::size::FIELD {
                     hex_string.push_str(
-                        "0".repeat((compiler_common::size::FIELD * 2) - string.len())
+                        "00".repeat(compiler_common::size::FIELD - string.len())
                             .as_str(),
                     );
                 }
