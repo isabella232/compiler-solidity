@@ -96,19 +96,42 @@ impl Literal {
                 let r#type = self.yul_type.unwrap_or_default().into_llvm(context);
 
                 let mut hex_string = String::with_capacity(compiler_common::size::FIELD * 2);
-                for byte in string.bytes() {
-                    hex_string.push_str(format!("{:02x}", byte).as_str());
+                let mut index = 0;
+                loop {
+                    if index >= string.len() {
+                        break;
+                    }
+
+                    if string[index..].starts_with("\\x") {
+                        hex_string.push_str(&string[index + 2..index + 4]);
+                        index += 4;
+                    } else if string[index..].starts_with("\\t") {
+                        hex_string.push_str("09");
+                        index += 2;
+                    } else if string[index..].starts_with("\\n") {
+                        hex_string.push_str("0a");
+                        index += 2;
+                    } else if string[index..].starts_with("\\r") {
+                        hex_string.push_str("0d");
+                        index += 2;
+                    } else {
+                        hex_string.push_str(format!("{:02x}", string.as_bytes()[index]).as_str());
+                        index += 1;
+                    }
                 }
+
                 if hex_string.len() > compiler_common::size::FIELD * 2 {
                     return Argument::new_with_original(
                         r#type.const_zero().as_basic_value_enum(),
                         string,
                     );
                 }
-                hex_string.push_str(
-                    "00".repeat(compiler_common::size::FIELD - string.len())
-                        .as_str(),
-                );
+                if string.len() < compiler_common::size::FIELD * 2 {
+                    hex_string.push_str(
+                        "0".repeat((compiler_common::size::FIELD * 2) - string.len())
+                            .as_str(),
+                    );
+                }
 
                 let value = r#type
                     .const_int_from_string(

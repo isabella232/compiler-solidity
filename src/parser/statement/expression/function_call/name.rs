@@ -147,8 +147,6 @@ pub enum Name {
 
     /// stop execution, identical to `return(0, 0)`
     Stop,
-    /// end execution, destroy current contract and send funds to `a`
-    SelfDestruct,
     /// end execution with invalid instruction
     Invalid,
 
@@ -180,6 +178,10 @@ pub enum Name {
     Origin,
     /// ID of the executing chain (EIP 1344)
     ChainId,
+    /// hash of block nr b - only for last 256 blocks excluding current
+    BlockHash,
+    /// difficulty of the current block
+    Difficulty,
 
     /// current position in code
     Pc,
@@ -187,16 +189,14 @@ pub enum Name {
     Balance,
     /// equivalent to `balance(address())`, but cheaper
     SelfBalance,
-    /// hash of block nr b - only for last 256 blocks excluding current
-    BlockHash,
     /// current mining beneficiary
     CoinBase,
-    /// difficulty of the current block
-    Difficulty,
     /// like `codecopy(t, f, s)` but take code at address `a`
     ExtCodeCopy,
     /// code hash of address `a`
     ExtCodeHash,
+    /// end execution, destroy current contract and send funds to `a`
+    SelfDestruct,
 }
 
 impl From<&str> for Name {
@@ -261,12 +261,6 @@ impl From<&str> for Name {
             "log3" => Self::Log3,
             "log4" => Self::Log4,
 
-            "address" => Self::Address,
-            "caller" => Self::Caller,
-            "timestamp" => Self::Timestamp,
-            "number" => Self::Number,
-            "gas" => Self::Gas,
-
             "call" => Self::Call,
             "callcode" => Self::CallCode,
             "delegatecall" => Self::DelegateCall,
@@ -279,26 +273,33 @@ impl From<&str> for Name {
             "datacopy" => Self::DataCopy,
 
             "stop" => Self::Stop,
-            "selfdestruct" => Self::SelfDestruct,
             "invalid" => Self::Invalid,
 
             "linkersymbol" => Self::LinkerSymbol,
             "memoryguard" => Self::MemoryGuard,
 
-            "pc" => Self::Pc,
+            "address" => Self::Address,
+            "caller" => Self::Caller,
+            "timestamp" => Self::Timestamp,
+            "number" => Self::Number,
+            "gas" => Self::Gas,
+
+            "gaslimit" => Self::GasLimit,
+            "gasprice" => Self::GasPrice,
             "callvalue" => Self::CallValue,
             "msize" => Self::MSize,
+            "origin" => Self::Origin,
+            "chainid" => Self::ChainId,
+            "blockhash" => Self::BlockHash,
+            "difficulty" => Self::Difficulty,
+
+            "pc" => Self::Pc,
             "balance" => Self::Balance,
             "selfbalance" => Self::SelfBalance,
-            "chainid" => Self::ChainId,
-            "origin" => Self::Origin,
-            "gasprice" => Self::GasPrice,
-            "blockhash" => Self::BlockHash,
             "coinbase" => Self::CoinBase,
-            "difficulty" => Self::Difficulty,
-            "gaslimit" => Self::GasLimit,
             "extcodecopy" => Self::ExtCodeCopy,
             "extcodehash" => Self::ExtCodeHash,
+            "selfdestruct" => Self::SelfDestruct,
 
             input => Self::UserDefined(input.to_owned()),
         }
