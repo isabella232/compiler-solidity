@@ -25,7 +25,11 @@ fn main() {
 /// The auxiliary `main` function to facilitate the `?` error conversion operator.
 ///
 fn main_inner() -> Result<(), compiler_solidity::Error> {
-    let arguments = Arguments::new();
+    let mut arguments = Arguments::new();
+
+    for path in arguments.input_files.iter_mut() {
+        *path = path.canonicalize()?;
+    }
 
     let solc = compiler_solidity::SolcCompiler::new(
         "solc".to_owned(),
