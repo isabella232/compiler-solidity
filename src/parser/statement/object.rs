@@ -24,6 +24,8 @@ pub struct Object {
     pub code: Code,
     /// The optional inner object.
     pub object: Option<Box<Self>>,
+    /// The dependency objects, usually related to factory dependencies.
+    pub dependencies: Vec<Self>,
 }
 
 impl Object {
@@ -65,23 +67,37 @@ impl Object {
             }
         };
 
-        match lexer.next()? {
-            Lexeme::Symbol(Symbol::BracketCurlyRight) => {}
-            lexeme => return Err(ParserError::expected_one_of(vec!["}"], lexeme, None).into()),
+        let mut dependencies = Vec::new();
+        loop {
+            match lexer.next()? {
+                Lexeme::Symbol(Symbol::BracketCurlyRight) => break,
+                lexeme @ Lexeme::Keyword(Keyword::Object) => {
+                    let dependency = Self::parse(lexer, Some(lexeme))?;
+                    dependencies.push(dependency);
+                }
+                lexeme => {
+                    return Err(
+                        ParserError::expected_one_of(vec!["object", "}"], lexeme, None).into(),
+                    )
+                }
+            }
         }
 
         Ok(Self {
             identifier,
             code,
             object,
+            dependencies,
         })
     }
 }
 
 impl ILLVMWritable for Object {
     fn into_llvm(self, context: &mut LLVMContext) {
-        context.set_object(self.identifier.as_str());
         let is_selector = self.identifier.ends_with("_deployed");
+        if !is_selector {
+            context.set_object(self.identifier.as_str());
+        }
         let is_constructor = !is_selector;
 
         if is_constructor {

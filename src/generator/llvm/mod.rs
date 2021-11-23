@@ -400,7 +400,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ///
     /// Compiles the dependency object.
     ///
-    pub fn compile_dependency(&mut self, identifier: &str) -> Vec<u8> {
+    pub fn compile_dependency(&mut self, identifier: &str) -> String {
         let contract_path = self
             .project
             .contracts
@@ -414,10 +414,10 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             })
             .unwrap_or_else(|| panic!("Dependency `{}` not found", identifier));
 
-        let (_assembly_text, bytecode) = self
+        let hash = self
             .project
             .compile(
-                Some(contract_path.as_str()),
+                contract_path.as_str(),
                 self.optimization_level,
                 self.optimization_level,
                 false,
@@ -426,7 +426,22 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
                 panic!("Dependency `{}` compiling error: {:?}", identifier, error)
             });
 
-        bytecode
+        let current_object = self.object().to_owned();
+        self.project
+            .contracts
+            .iter_mut()
+            .find_map(|(_path, contract)| {
+                if contract.object.identifier == current_object {
+                    Some(contract)
+                } else {
+                    None
+                }
+            })
+            .as_mut()
+            .expect("Always exists")
+            .insert_factory_dependency(hash.clone(), contract_path);
+
+        hash
     }
 
     ///

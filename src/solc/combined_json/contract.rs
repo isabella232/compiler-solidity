@@ -25,6 +25,9 @@ pub struct Contract {
     /// The `solc` hexadecimal binary runtime part output.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bin_runtime: Option<String>,
+    /// The factory dependencies.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub factory_deps: Option<HashMap<String, String>>,
 }
 
 impl Contract {

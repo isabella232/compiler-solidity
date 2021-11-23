@@ -148,17 +148,16 @@ pub fn dataoffset<'ctx, 'src>(
         return Some(context.field_const(0).as_basic_value_enum());
     }
 
-    let dependency_bytecode = context.compile_dependency(literal.as_str());
-    let dependency_hash_str = compiler_common::hashes::keccak256(dependency_bytecode.as_slice());
-    let dependency_hash_value = context
+    let hash_string = context.compile_dependency(literal.as_str());
+    let hash_value = context
         .field_type()
         .const_int_from_string(
-            dependency_hash_str.as_str(),
+            hash_string.as_str(),
             inkwell::types::StringRadix::Hexadecimal,
         )
         .expect("Always valid");
 
-    Some(dependency_hash_value.as_basic_value_enum())
+    Some(hash_value.as_basic_value_enum())
 }
 
 ///

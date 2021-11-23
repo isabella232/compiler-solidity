@@ -46,6 +46,7 @@ impl Code {
             identifier: "Test".to_owned(),
             code: self,
             object: None,
+            dependencies: vec![],
         }
     }
 

@@ -23,8 +23,6 @@ pub enum Error {
     NoContractsFound,
     /// The specified contract cannot be found.
     ContractNotFound(String),
-    /// If there is multiple contracts, the main contract name must be specified.
-    ContractNotSpecified,
 
     /// The lexer error.
     Lexer(LexerError),

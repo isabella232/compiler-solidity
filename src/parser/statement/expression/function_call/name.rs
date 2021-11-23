@@ -180,9 +180,9 @@ pub enum Name {
     ChainId,
     /// hash of block nr b - only for last 256 blocks excluding current
     BlockHash,
+
     /// difficulty of the current block
     Difficulty,
-
     /// current position in code
     Pc,
     /// wei balance at address `a`
@@ -291,8 +291,8 @@ impl From<&str> for Name {
             "origin" => Self::Origin,
             "chainid" => Self::ChainId,
             "blockhash" => Self::BlockHash,
-            "difficulty" => Self::Difficulty,
 
+            "difficulty" => Self::Difficulty,
             "pc" => Self::Pc,
             "balance" => Self::Balance,
             "selfbalance" => Self::SelfBalance,

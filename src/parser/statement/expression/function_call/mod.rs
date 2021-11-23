@@ -513,15 +513,39 @@ impl FunctionCall {
             Name::Origin => Some(context.field_const(0).as_basic_value_enum()), // TODO
             Name::ChainId => Some(context.field_const(0).as_basic_value_enum()), // TODO
             Name::BlockHash => Some(context.field_const(0).as_basic_value_enum()), // TODO
-            Name::Difficulty => Some(context.field_const(0).as_basic_value_enum()), // TODO
 
-            name @ Name::Pc => panic!("Instruction {:?} is not supported", name),
-            name @ Name::Balance => panic!("Instruction {:?} is not supported", name),
-            name @ Name::SelfBalance => panic!("Instruction {:?} is not supported", name),
-            name @ Name::CoinBase => panic!("Instruction {:?} is not supported", name),
-            name @ Name::ExtCodeCopy => panic!("Instruction {:?} is not supported", name),
-            name @ Name::ExtCodeHash => panic!("Instruction {:?} is not supported", name),
-            name @ Name::SelfDestruct => panic!("Instruction {:?} is not supported", name),
+            name @ Name::Difficulty => {
+                eprintln!("Warning: instruction {:?} is not supported", name);
+                Some(context.field_const(0).as_basic_value_enum())
+            }
+            name @ Name::Pc => {
+                eprintln!("Warning: instruction {:?} is not supported", name);
+                Some(context.field_const(0).as_basic_value_enum())
+            }
+            name @ Name::Balance => {
+                eprintln!("Warning: instruction {:?} is not supported", name);
+                Some(context.field_const(0).as_basic_value_enum())
+            }
+            name @ Name::SelfBalance => {
+                eprintln!("Warning: instruction {:?} is not supported", name);
+                Some(context.field_const(0).as_basic_value_enum())
+            }
+            name @ Name::CoinBase => {
+                eprintln!("Warning: instruction {:?} is not supported", name);
+                Some(context.field_const(0).as_basic_value_enum())
+            }
+            name @ Name::ExtCodeCopy => {
+                eprintln!("Warning: instruction {:?} is not supported", name);
+                None
+            }
+            name @ Name::ExtCodeHash => {
+                eprintln!("Warning: instruction {:?} is not supported", name);
+                Some(context.field_const(0).as_basic_value_enum())
+            }
+            name @ Name::SelfDestruct => {
+                eprintln!("Warning: instruction {:?} is not supported", name);
+                None
+            }
         }
     }
 

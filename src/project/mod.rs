@@ -46,40 +46,23 @@ impl Project {
     ///
     pub fn compile(
         &mut self,
-        contract_path: Option<&str>,
+        contract_path: &str,
         opt_level_llvm_middle: inkwell::OptimizationLevel,
         opt_level_llvm_back: inkwell::OptimizationLevel,
         dump_llvm: bool,
-    ) -> Result<(String, Vec<u8>), Error> {
-        if let Some(contract_path) = contract_path {
-            if let Some(contract) = self.contracts.get(contract_path) {
-                if let (Some(assembly_text), Some(bytecode)) =
-                    (contract.assembly.as_deref(), contract.bytecode.as_deref())
-                {
-                    return Ok((assembly_text.to_owned(), bytecode.to_owned()));
-                }
+    ) -> Result<String, Error> {
+        if let Some(contract) = self.contracts.get(contract_path) {
+            if let Some(ref bytecode) = contract.hash {
+                return Ok(bytecode.to_owned());
             }
         }
 
-        let (contract_path, main_object) = match contract_path {
-            Some(contract_path) => {
-                let object = self
-                    .contracts
-                    .get(contract_path)
-                    .cloned()
-                    .ok_or_else(|| Error::ContractNotFound(contract_path.to_owned()))?
-                    .object;
-                (contract_path.to_owned(), object)
-            }
-            None if self.contracts.len() == 1 => self
-                .contracts
-                .iter()
-                .last()
-                .map(|(path, contract)| (path.to_owned(), contract.object.to_owned()))
-                .expect("Always exists"),
-            None if self.contracts.len() > 1 => return Err(Error::ContractNotSpecified),
-            _ => return Err(Error::NoContractsFound),
-        };
+        let object = self
+            .contracts
+            .get(contract_path)
+            .cloned()
+            .ok_or_else(|| Error::ContractNotFound(contract_path.to_owned()))?
+            .object;
 
         let (assembly_text, bytecode) = {
             let llvm = inkwell::context::Context::create();
@@ -93,10 +76,10 @@ impl Project {
                 &llvm,
                 &target_machine,
                 opt_level_llvm_middle,
-                main_object.identifier.as_str(),
+                object.identifier.as_str(),
                 self,
             );
-            main_object.into_llvm(&mut context);
+            object.into_llvm(&mut context);
             context
                 .verify()
                 .map_err(|error| Error::LLVM(error.to_string()))?;
@@ -127,14 +110,17 @@ impl Project {
             (assembly_text, bytecode)
         };
 
+        let hash = compiler_common::hashes::keccak256(bytecode.as_slice());
+
         let contract = self
             .contracts
-            .get_mut(contract_path.as_str())
+            .get_mut(contract_path)
             .expect("Always exists");
-        contract.assembly = Some(assembly_text.clone());
-        contract.bytecode = Some(bytecode.clone());
+        contract.assembly = Some(assembly_text);
+        contract.bytecode = Some(bytecode);
+        contract.hash = Some(hash.clone());
 
-        Ok((assembly_text, bytecode))
+        Ok(hash)
     }
 
     ///
@@ -151,7 +137,7 @@ impl Project {
         let contract_paths: Vec<String> = self.contracts.keys().cloned().collect();
         for contract_path in contract_paths.iter() {
             self.compile(
-                Some(contract_path.as_str()),
+                contract_path.as_str(),
                 optimization_level,
                 optimization_level,
                 dump_llvm,
@@ -213,13 +199,14 @@ impl Project {
     ///
     pub fn try_from_test_yul(yul: &str) -> Result<Self, Error> {
         let mut lexer = Lexer::new(yul.to_owned());
-        let path = "./test.sol".to_owned();
         let name = "Test".to_owned();
-        let full_path = format!("{}:{}", path, name);
         let object = Object::parse(&mut lexer, None)?;
 
         let mut project_contracts = HashMap::with_capacity(1);
-        project_contracts.insert(full_path, Contract::new(path, name, yul.to_owned(), object));
+        project_contracts.insert(
+            name.clone(),
+            Contract::new(name.clone(), name, yul.to_owned(), object),
+        );
         Ok(Self {
             contracts: project_contracts,
             libraries: HashMap::new(),
