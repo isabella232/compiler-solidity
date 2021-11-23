@@ -29,28 +29,44 @@ pub fn log<'ctx, 'src>(
         context
             .builder
             .build_int_add(topics_length, data_length_shifted, "event_initializer");
-    let is_topics_length_odd = topics.len() % 2 == 0;
 
-    let (range_start, length) = if is_topics_length_odd {
+    let (range_start, length) = if topics.len() % 2 == 0 {
         let range_start_pointer =
             context.build_alloca(context.field_type(), "event_range_start_pointer");
         let length_pointer = context.build_alloca(context.field_type(), "event_length_pointer");
 
-        let data_not_empty_block = context.append_basic_block("event_data_not_empty");
         let data_empty_block = context.append_basic_block("event_data_empty");
+        let data_not_empty_block = context.append_basic_block("event_data_not_empty");
         let join_block = context.append_basic_block("event_data_join");
 
-        let data_not_empty_condition = context.builder.build_int_compare(
-            inkwell::IntPredicate::NE,
+        let data_empty_condition = context.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
             length,
             context.field_const(0),
             "event_data_empty_condition",
         );
         context.build_conditional_branch(
-            data_not_empty_condition,
-            data_not_empty_block,
+            data_empty_condition,
             data_empty_block,
+            data_not_empty_block,
         );
+
+        context.set_basic_block(data_empty_block);
+        if topics.is_empty() {
+            context.build_call(
+                intrinsic,
+                &[
+                    event_initializer.as_basic_value_enum(),
+                    context.field_const(0).as_basic_value_enum(),
+                    context.field_const(1).as_basic_value_enum(),
+                ],
+                "event_call_init_with_value",
+            );
+        } else {
+            context.build_store(range_start_pointer, range_start);
+            context.build_store(length_pointer, length);
+        }
+        context.build_unconditional_branch(join_block);
 
         context.set_basic_block(data_not_empty_block);
         let pointer =
@@ -114,11 +130,6 @@ pub fn log<'ctx, 'src>(
                 "event_length_without_first",
             ),
         );
-        context.build_unconditional_branch(join_block);
-
-        context.set_basic_block(data_empty_block);
-        context.build_store(range_start_pointer, range_start);
-        context.build_store(length_pointer, length);
         context.build_unconditional_branch(join_block);
 
         context.set_basic_block(join_block);
