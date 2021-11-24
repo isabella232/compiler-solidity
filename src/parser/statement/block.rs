@@ -356,13 +356,7 @@ impl Block {
         let storage_key_string = compiler_common::keccak256(
             compiler_common::ABI_STORAGE_IS_CONSTRUCTOR_EXECUTED.as_bytes(),
         );
-        let storage_key_value = context
-            .field_type()
-            .const_int_from_string(
-                storage_key_string.as_str(),
-                inkwell::types::StringRadix::Hexadecimal,
-            )
-            .expect("Always valid");
+        let storage_key_value = context.field_const_str(storage_key_string.as_str());
 
         let intrinsic = context.get_intrinsic_function(Intrinsic::StorageLoad);
         context
@@ -385,13 +379,7 @@ impl Block {
         let storage_key_string = compiler_common::keccak256(
             compiler_common::ABI_STORAGE_IS_CONSTRUCTOR_EXECUTED.as_bytes(),
         );
-        let storage_key_value = context
-            .field_type()
-            .const_int_from_string(
-                storage_key_string.as_str(),
-                inkwell::types::StringRadix::Hexadecimal,
-            )
-            .expect("Always valid");
+        let storage_key_value = context.field_const_str(storage_key_string.as_str());
 
         let intrinsic = context.get_intrinsic_function(Intrinsic::StorageStore);
         context.build_call(

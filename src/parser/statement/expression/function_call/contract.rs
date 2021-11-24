@@ -60,6 +60,8 @@ pub fn call<'ctx, 'src>(
         "contract_call_memcpy_to_child",
     );
 
+    let address = map_precompile_address(context, address);
+
     let intrinsic = context.get_intrinsic_function(call_type);
     let call_definition = context.builder.build_left_shift(
         address,
@@ -111,6 +113,64 @@ pub fn linker_symbol<'ctx, 'src>(
         Some(address) => Some(address.as_basic_value_enum()),
         None => panic!("Linker symbol `{}` not found", path),
     }
+}
+
+///
+/// Remaps the precompiled contract addresses. Currently supported:
+/// - keccak256 (eponymous instruction => 0x10)
+/// - ecrecover (0x01 => 0x12)
+/// - sha256 (0x02 => 0x11)
+///
+fn map_precompile_address<'ctx, 'src>(
+    context: &mut LLVMContext<'ctx, 'src>,
+    address: inkwell::values::IntValue<'ctx>,
+) -> inkwell::values::IntValue<'ctx> {
+    let block_ecrecover = context.append_basic_block("contract_call_address_map_ecrecover");
+    let block_sha256 = context.append_basic_block("contract_call_address_map_sha256");
+    let block_default = context.append_basic_block("contract_call_address_map_default");
+    let block_join = context.append_basic_block("contract_call_address_map_join");
+
+    let result_pointer = context.build_alloca(
+        context.field_type(),
+        "contract_call_address_map_result_pointer",
+    );
+    context.builder.build_switch(
+        address,
+        block_default,
+        &[
+            (
+                context.field_const_str(compiler_common::SOLIDITY_ADDRESS_ECRECOVER),
+                block_ecrecover,
+            ),
+            (
+                context.field_const_str(compiler_common::SOLIDITY_ADDRESS_SHA256),
+                block_sha256,
+            ),
+        ],
+    );
+
+    context.set_basic_block(block_ecrecover);
+    context.build_store(
+        result_pointer,
+        context.field_const_str(compiler_common::ABI_ADDRESS_ECRECOVER),
+    );
+    context.build_unconditional_branch(block_join);
+
+    context.set_basic_block(block_sha256);
+    context.build_store(
+        result_pointer,
+        context.field_const_str(compiler_common::ABI_ADDRESS_SHA256),
+    );
+    context.build_unconditional_branch(block_join);
+
+    context.set_basic_block(block_default);
+    context.build_store(result_pointer, address);
+    context.build_unconditional_branch(block_join);
+
+    context.set_basic_block(block_join);
+    context
+        .build_load(result_pointer, "contract_call_address_map_result")
+        .into_int_value()
 }
 
 ///

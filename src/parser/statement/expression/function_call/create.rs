@@ -48,17 +48,11 @@ pub fn create2<'ctx, 'src>(
     let intrinsic = context.get_intrinsic_function(Intrinsic::SwitchContext);
     context.build_call(intrinsic, &[], "create_switch_context");
 
-    let constructor_data = context
-        .field_type()
-        .const_int_from_string(
-            "00000000000000010000000000000000",
-            inkwell::types::StringRadix::Hexadecimal,
-        )
-        .expect("Always valid");
-    let child_header_data =
-        context
-            .builder
-            .build_or(input_size, constructor_data, "child_header_data");
+    let child_header_data = context.builder.build_or(
+        input_size,
+        context.field_const_str("00000000000000010000000000000000"),
+        "child_header_data",
+    );
 
     let child_pointer_header = context.access_memory(
         context.field_const(
@@ -91,13 +85,7 @@ pub fn create2<'ctx, 'src>(
     );
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::FarCall);
-    let address = context
-        .field_type()
-        .const_int_from_string(
-            "1234567812345678123456781234567812345678", // TODO: get from the special event call
-            inkwell::types::StringRadix::Hexadecimal,
-        )
-        .expect("Always valid");
+    let address = context.field_const_str("1234567812345678123456781234567812345678"); // TODO: get from the special event call
     let call_definition = context.builder.build_left_shift(
         address,
         context.field_const((compiler_common::BITLENGTH_X32) as u64),
@@ -150,13 +138,7 @@ pub fn dataoffset<'ctx, 'src>(
     }
 
     let hash_string = context.compile_dependency(literal.as_str());
-    let hash_value = context
-        .field_type()
-        .const_int_from_string(
-            hash_string.as_str(),
-            inkwell::types::StringRadix::Hexadecimal,
-        )
-        .expect("Always valid");
+    let hash_value = context.field_const_str(hash_string.as_str());
 
     Some(hash_value.as_basic_value_enum())
 }

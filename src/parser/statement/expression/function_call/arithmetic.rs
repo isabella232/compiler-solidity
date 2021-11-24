@@ -168,13 +168,7 @@ pub fn division_signed<'ctx, 'src>(
     let condition_is_divided_int_min = context.builder.build_int_compare(
         inkwell::IntPredicate::EQ,
         arguments[0].into_int_value(),
-        context
-            .field_type()
-            .const_int_from_string(
-                "8000000000000000000000000000000000000000000000000000000000000000",
-                inkwell::types::StringRadix::Hexadecimal,
-            )
-            .expect("Always exists"),
+        context.field_const_str("8000000000000000000000000000000000000000000000000000000000000000"),
         "division_signed_is_divided_int_min",
     );
     let condition_is_divider_minus_one = context.builder.build_int_compare(

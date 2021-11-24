@@ -317,17 +317,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             for (contract_name, address) in contracts.iter() {
                 let key = format!("{}:{}", file_path, contract_name);
                 if key.as_str() == path {
-                    return Some(
-                        self.llvm
-                            .custom_width_int_type(compiler_common::BITLENGTH_FIELD as u32)
-                            .const_int_from_string(
-                                &address["0x".len()..],
-                                inkwell::types::StringRadix::Hexadecimal,
-                            )
-                            .unwrap_or_else(|| {
-                                panic!("Library `{}` address `{}` is invalid", key, address)
-                            }),
-                    );
+                    return Some(self.field_const_str(&address["0x".len()..]));
                 }
             }
         }
@@ -799,13 +789,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         self.write_header(self.field_const(1), AddressSpace::Parent);
 
         let error_hash = compiler_common::keccak256(message.as_bytes());
-        let error_code = self
-            .field_type()
-            .const_int_from_string(
-                error_hash.as_str(),
-                inkwell::types::StringRadix::Hexadecimal,
-            )
-            .expect("Always valid");
+        let error_code = self.field_const_str(error_hash.as_str());
         let error_code_shifted = self.builder.build_left_shift(
             error_code,
             self.field_const(
@@ -824,10 +808,19 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     }
 
     ///
-    /// Returns a field type constants.
+    /// Returns a field type constant.
     ///
     pub fn field_const(&self, value: u64) -> inkwell::values::IntValue<'ctx> {
         self.field_type().const_int(value, false)
+    }
+
+    ///
+    /// Returns a field type constants.
+    ///
+    pub fn field_const_str(&self, value: &str) -> inkwell::values::IntValue<'ctx> {
+        self.field_type()
+            .const_int_from_string(value, inkwell::types::StringRadix::Hexadecimal)
+            .unwrap_or_else(|| panic!("Invalid hexadecimal constant string `{}`", value))
     }
 
     ///
