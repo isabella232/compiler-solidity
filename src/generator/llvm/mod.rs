@@ -818,8 +818,13 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     /// Returns a field type constants.
     ///
     pub fn field_const_str(&self, value: &str) -> inkwell::values::IntValue<'ctx> {
+        let value_without_prefix = value.strip_prefix("0x").unwrap_or(value);
+
         self.field_type()
-            .const_int_from_string(value, inkwell::types::StringRadix::Hexadecimal)
+            .const_int_from_string(
+                value_without_prefix,
+                inkwell::types::StringRadix::Hexadecimal,
+            )
             .unwrap_or_else(|| panic!("Invalid hexadecimal constant string `{}`", value))
     }
 
