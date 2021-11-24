@@ -15,7 +15,7 @@ pub fn load<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let offset_shift = compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD;
+    let offset_shift = compiler_common::ABI_MEMORY_OFFSET_DATA * compiler_common::SIZE_FIELD;
     let offset = context.builder.build_int_add(
         arguments[0].into_int_value(),
         context.field_const(offset_shift as u64),
@@ -57,7 +57,7 @@ pub fn copy<'ctx, 'src>(
         "calldata_copy_destination_pointer",
     );
 
-    let source_offset_shift = compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD;
+    let source_offset_shift = compiler_common::ABI_MEMORY_OFFSET_DATA * compiler_common::SIZE_FIELD;
     let source_offset = context.builder.build_int_add(
         arguments[1].into_int_value(),
         context.field_const(source_offset_shift as u64),
@@ -96,8 +96,9 @@ pub fn codecopy<'ctx, 'src>(
     );
 
     let source = context.access_memory(
-        context
-            .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
+        context.field_const(
+            (compiler_common::ABI_MEMORY_OFFSET_DATA * compiler_common::SIZE_FIELD) as u64,
+        ),
         AddressSpace::Parent,
         "calldata_codecopy_source_pointer",
     );

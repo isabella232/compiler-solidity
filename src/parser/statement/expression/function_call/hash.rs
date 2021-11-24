@@ -31,12 +31,12 @@ pub fn keccak256<'ctx, 'src>(
     context.build_call(intrinsic, &[value], "keccak256_call_hash_absorb_reset");
     let range_start = context.builder.build_int_add(
         range_start,
-        context.field_const(compiler_common::size::FIELD as u64),
+        context.field_const(compiler_common::SIZE_FIELD as u64),
         "keccak256_range_start",
     );
     let length = context.builder.build_int_sub(
         length,
-        context.field_const(compiler_common::size::FIELD as u64),
+        context.field_const(compiler_common::SIZE_FIELD as u64),
         "keccak256_range_length",
     );
     let range_end = context
@@ -65,7 +65,7 @@ pub fn keccak256<'ctx, 'src>(
         .into_int_value();
     let incremented = context.builder.build_int_add(
         index_value,
-        context.field_const(compiler_common::size::FIELD as u64),
+        context.field_const(compiler_common::SIZE_FIELD as u64),
         "keccak256_index_value_incremented",
     );
     context.build_store(index_pointer, incremented);

@@ -507,7 +507,7 @@ impl FunctionCall {
             Name::CallValue => Some(context.field_const(0).as_basic_value_enum()),
             Name::MSize => Some(
                 context
-                    .field_const(((1 << 16) * compiler_common::size::FIELD) as u64)
+                    .field_const(((1 << 16) * compiler_common::SIZE_FIELD) as u64)
                     .as_basic_value_enum(),
             ),
             Name::Origin => Some(context.field_const(0).as_basic_value_enum()), // TODO

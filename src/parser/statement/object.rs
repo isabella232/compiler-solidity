@@ -102,7 +102,7 @@ impl ILLVMWritable for Object {
 
         if is_constructor {
             context.add_function(
-                compiler_common::identifier::FUNCTION_SELECTOR,
+                compiler_common::LLVM_FUNCTION_SELECTOR,
                 context.void_type().fn_type(&[], false),
                 Some(inkwell::module::Linkage::External),
                 false,

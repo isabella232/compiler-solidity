@@ -36,12 +36,12 @@ pub fn create2<'ctx, 'src>(
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let input_offset = context.builder.build_int_add(
         arguments[1].into_int_value(),
-        context.field_const(compiler_common::size::FIELD as u64),
+        context.field_const(compiler_common::SIZE_FIELD as u64),
         "create_input_offset",
     );
     let input_size = context.builder.build_int_sub(
         arguments[2].into_int_value(),
-        context.field_const(compiler_common::size::FIELD as u64),
+        context.field_const(compiler_common::SIZE_FIELD as u64),
         "create_input_size",
     );
 
@@ -62,7 +62,7 @@ pub fn create2<'ctx, 'src>(
 
     let child_pointer_header = context.access_memory(
         context.field_const(
-            (compiler_common::abi::OFFSET_HEADER * compiler_common::size::FIELD) as u64,
+            (compiler_common::ABI_MEMORY_OFFSET_HEADER * compiler_common::SIZE_FIELD) as u64,
         ),
         AddressSpace::Child,
         "create_child_pointer_header",
@@ -70,8 +70,9 @@ pub fn create2<'ctx, 'src>(
     context.build_store(child_pointer_header, child_header_data);
 
     let destination = context.access_memory(
-        context
-            .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
+        context.field_const(
+            (compiler_common::ABI_MEMORY_OFFSET_DATA * compiler_common::SIZE_FIELD) as u64,
+        ),
         AddressSpace::Child,
         "create_child_input_destination",
     );
@@ -99,7 +100,7 @@ pub fn create2<'ctx, 'src>(
         .expect("Always valid");
     let call_definition = context.builder.build_left_shift(
         address,
-        context.field_const((compiler_common::bitlength::BYTE * 4) as u64),
+        context.field_const((compiler_common::BITLENGTH_X32) as u64),
         "",
     );
     let is_call_successful = context
@@ -129,7 +130,7 @@ pub fn datasize<'ctx, 'src>(
 
     Some(
         context
-            .field_const(compiler_common::size::FIELD as u64)
+            .field_const(compiler_common::SIZE_FIELD as u64)
             .as_basic_value_enum(),
     )
 }

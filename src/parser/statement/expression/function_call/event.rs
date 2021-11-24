@@ -22,7 +22,7 @@ pub fn log<'ctx, 'src>(
     let topics_length = context.field_const(topics.len() as u64);
     let data_length_shifted = context.builder.build_left_shift(
         length,
-        context.field_const((compiler_common::bitlength::BYTE * 4) as u64),
+        context.field_const((compiler_common::BITLENGTH_X32) as u64),
         "event_data_length_shifted",
     );
     let event_initializer =
@@ -118,7 +118,7 @@ pub fn log<'ctx, 'src>(
             range_start_pointer,
             context.builder.build_int_add(
                 range_start,
-                context.field_const(compiler_common::size::FIELD as u64),
+                context.field_const(compiler_common::SIZE_FIELD as u64),
                 "event_range_start_after_first",
             ),
         );
@@ -126,7 +126,7 @@ pub fn log<'ctx, 'src>(
             length_pointer,
             context.builder.build_int_sub(
                 length,
-                context.field_const(compiler_common::size::FIELD as u64),
+                context.field_const(compiler_common::SIZE_FIELD as u64),
                 "event_length_without_first",
             ),
         );
@@ -194,7 +194,7 @@ pub fn log<'ctx, 'src>(
         .into_int_value();
     let incremented = context.builder.build_int_add(
         index_value,
-        context.field_const((compiler_common::size::FIELD * 2) as u64),
+        context.field_const((compiler_common::SIZE_FIELD * 2) as u64),
         "event_loop_index_value_incremented",
     );
     context.build_store(index_pointer, incremented);
@@ -213,7 +213,7 @@ pub fn log<'ctx, 'src>(
     let has_two_values = context.builder.build_int_compare(
         inkwell::IntPredicate::UGE,
         values_remaining,
-        context.field_const((compiler_common::size::FIELD * 2) as u64),
+        context.field_const((compiler_common::SIZE_FIELD * 2) as u64),
         "event_loop_has_two_values",
     );
     context.build_conditional_branch(has_two_values, two_values_block, one_value_block);
@@ -227,7 +227,7 @@ pub fn log<'ctx, 'src>(
     let value_1 = context.build_load(value_1_pointer, "event_loop_value_1");
     let index_value_next = context.builder.build_int_add(
         index_value,
-        context.field_const(compiler_common::size::FIELD as u64),
+        context.field_const(compiler_common::SIZE_FIELD as u64),
         "event_loop_index_value_next",
     );
     let value_2_pointer = context.access_memory(

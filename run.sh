@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -Cex
+set -Ce
 
 # Logging level: 'error' | 'warn' | 'info' | 'debug' | 'trace' (default is 'warn')
 case "${1}" in
@@ -32,6 +32,9 @@ esac
 if [[ "${3}" == '--clean' ]]; then
     rm -rfv ./target/release/build/llvm-sys-*
 fi
+
+# Prevents the stack overflow when running some unit tests
+export RUST_MIN_STACK=$(( 64 * 1024 * 1024 ))
 
 cargo fmt --all
 cargo clippy

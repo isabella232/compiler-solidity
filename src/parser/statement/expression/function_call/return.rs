@@ -22,8 +22,9 @@ pub fn r#return<'ctx, 'src>(
     );
 
     let destination = context.access_memory(
-        context
-            .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
+        context.field_const(
+            (compiler_common::ABI_MEMORY_OFFSET_DATA * compiler_common::SIZE_FIELD) as u64,
+        ),
         AddressSpace::Parent,
         "return_destination_pointer",
     );
@@ -59,8 +60,9 @@ pub fn revert<'ctx, 'src>(
     );
 
     let destination = context.access_memory(
-        context
-            .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
+        context.field_const(
+            (compiler_common::ABI_MEMORY_OFFSET_DATA * compiler_common::SIZE_FIELD) as u64,
+        ),
         AddressSpace::Parent,
         "revert_destination_pointer",
     );

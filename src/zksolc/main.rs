@@ -13,10 +13,10 @@ use self::arguments::Arguments;
 ///
 fn main() {
     std::process::exit(match main_inner() {
-        Ok(()) => compiler_common::exit_code::SUCCESS,
+        Ok(()) => compiler_common::EXIT_CODE_SUCCESS,
         Err(error) => {
             eprintln!("{:?}", error);
-            compiler_common::exit_code::FAILURE
+            compiler_common::EXIT_CODE_FAILURE
         }
     })
 }
@@ -53,7 +53,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
             }
             Err(stderr) => {
                 eprint!("{}", stderr);
-                std::process::exit(compiler_common::exit_code::FAILURE);
+                std::process::exit(compiler_common::EXIT_CODE_FAILURE);
             }
         }
     }
@@ -73,7 +73,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         Ok(standard_json) => standard_json,
         Err(stderr) => {
             eprint!("{}", stderr);
-            std::process::exit(compiler_common::exit_code::FAILURE);
+            std::process::exit(compiler_common::EXIT_CODE_FAILURE);
         }
     };
 
@@ -86,7 +86,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
             Ok(combined_json) => Some(combined_json),
             Err(stderr) => {
                 eprint!("{}", stderr);
-                std::process::exit(compiler_common::exit_code::FAILURE);
+                std::process::exit(compiler_common::EXIT_CODE_FAILURE);
             }
         }
     } else {

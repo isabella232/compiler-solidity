@@ -67,7 +67,7 @@ impl CombinedJson {
     ///
     pub fn write_to_directory(self, output_directory: &Path, overwrite: bool) -> Result<(), Error> {
         let mut file_path = output_directory.to_owned();
-        file_path.push(format!("combined.{}", compiler_common::extension::JSON));
+        file_path.push(format!("combined.{}", compiler_common::EXTENSION_JSON));
 
         if file_path.exists() && !overwrite {
             eprintln!(

@@ -69,7 +69,7 @@ impl Project {
             let target_machine = crate::target_machine(opt_level_llvm_back).ok_or_else(|| {
                 Error::LLVM(format!(
                     "Target machine `{}` creation error",
-                    compiler_common::vm::TARGET_NAME
+                    compiler_common::VM_TARGET_NAME
                 ))
             })?;
             let mut context = LLVMContext::new_with_optimizer(
@@ -110,7 +110,7 @@ impl Project {
             (assembly_text, bytecode)
         };
 
-        let hash = compiler_common::hashes::keccak256(bytecode.as_slice());
+        let hash = compiler_common::keccak256(bytecode.as_slice());
 
         let contract = self
             .contracts

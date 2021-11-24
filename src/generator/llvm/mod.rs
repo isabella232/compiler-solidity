@@ -122,13 +122,13 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         pass_manager_builder.populate_function_pass_manager(&pass_manager_function);
 
         let personality = module.add_function(
-            compiler_common::identifier::FUNCTION_PERSONALITY,
+            compiler_common::LLVM_FUNCTION_PERSONALITY,
             llvm.i32_type().fn_type(&[], false),
             None,
         );
 
         let cxa_throw = module.add_function(
-            compiler_common::identifier::FUNCTION_CXA_THROW,
+            compiler_common::LLVM_FUNCTION_CXA_THROW,
             llvm.void_type().fn_type(
                 vec![
                     llvm.i8_type()
@@ -236,7 +236,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
                 .map(|argument| argument.get_type().is_pointer_type())
                 .unwrap_or_default()
             {
-                value.set_param_alignment(index, compiler_common::size::FIELD as u32);
+                value.set_param_alignment(index, compiler_common::SIZE_FIELD as u32);
             }
         }
 
@@ -319,7 +319,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
                 if key.as_str() == path {
                     return Some(
                         self.llvm
-                            .custom_width_int_type(compiler_common::bitlength::FIELD as u32)
+                            .custom_width_int_type(compiler_common::BITLENGTH_FIELD as u32)
                             .const_int_from_string(
                                 &address["0x".len()..],
                                 inkwell::types::StringRadix::Hexadecimal,
@@ -458,7 +458,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         self.basic_block()
             .get_last_instruction()
             .expect("Always exists")
-            .set_alignment(compiler_common::size::FIELD as u32)
+            .set_alignment(compiler_common::SIZE_FIELD as u32)
             .expect("Alignment is valid");
         pointer
     }
@@ -478,7 +478,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         let alignment = if inkwell::AddressSpace::from(AddressSpace::Stack)
             == pointer.get_type().get_address_space()
         {
-            compiler_common::size::FIELD
+            compiler_common::SIZE_FIELD
         } else {
             1
         };
@@ -503,7 +503,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         let alignment = if inkwell::AddressSpace::from(AddressSpace::Stack)
             == pointer.get_type().get_address_space()
         {
-            compiler_common::size::FIELD
+            compiler_common::SIZE_FIELD
         } else {
             1
         };
@@ -564,7 +564,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
         let call_site_value = self.builder.build_call(function, args, name);
 
-        if name == compiler_common::identifier::FUNCTION_CXA_THROW {
+        if name == compiler_common::LLVM_FUNCTION_CXA_THROW {
             return call_site_value.try_as_basic_value().left();
         }
 
@@ -576,7 +576,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             {
                 call_site_value.set_alignment_attribute(
                     inkwell::attributes::AttributeLoc::Param(index),
-                    compiler_common::size::FIELD as u32,
+                    compiler_common::SIZE_FIELD as u32,
                 );
             }
         }
@@ -588,7 +588,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         {
             call_site_value.set_alignment_attribute(
                 inkwell::attributes::AttributeLoc::Return,
-                compiler_common::size::FIELD as u32,
+                compiler_common::SIZE_FIELD as u32,
             );
         }
 
@@ -624,7 +624,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             {
                 call_site_value.set_alignment_attribute(
                     inkwell::attributes::AttributeLoc::Param(index),
-                    compiler_common::size::FIELD as u32,
+                    compiler_common::SIZE_FIELD as u32,
                 );
             }
         }
@@ -636,7 +636,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         {
             call_site_value.set_alignment_attribute(
                 inkwell::attributes::AttributeLoc::Return,
-                compiler_common::size::FIELD as u32,
+                compiler_common::SIZE_FIELD as u32,
             );
         }
 
@@ -666,7 +666,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
                 destination.as_basic_value_enum(),
                 source.as_basic_value_enum(),
                 size.as_basic_value_enum(),
-                self.integer_type(compiler_common::bitlength::BOOLEAN)
+                self.integer_type(compiler_common::BITLENGTH_BOOLEAN)
                     .const_zero()
                     .as_basic_value_enum(),
             ],
@@ -708,17 +708,17 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ///
     pub fn build_catch_block(&self) -> Option<inkwell::values::AnyValueEnum<'ctx>> {
         let landing_pad_type = self.structure_type(vec![
-            self.integer_type(compiler_common::bitlength::BYTE)
+            self.integer_type(compiler_common::BITLENGTH_BYTE)
                 .ptr_type(AddressSpace::Stack.into())
                 .as_basic_type_enum(),
-            self.integer_type(compiler_common::bitlength::BYTE * 4)
+            self.integer_type(compiler_common::BITLENGTH_X32)
                 .as_basic_type_enum(),
         ]);
         let landing_pad = self.builder.build_landing_pad(
             landing_pad_type,
             self.personality,
             vec![self
-                .integer_type(compiler_common::bitlength::BYTE)
+                .integer_type(compiler_common::BITLENGTH_BYTE)
                 .ptr_type(AddressSpace::Stack.into())
                 .const_zero()
                 .as_basic_value_enum()],
@@ -728,14 +728,14 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         self.build_call(
             self.cxa_throw,
             vec![
-                self.integer_type(compiler_common::bitlength::BYTE)
+                self.integer_type(compiler_common::BITLENGTH_BYTE)
                     .ptr_type(AddressSpace::Stack.into())
                     .const_null()
                     .as_basic_value_enum();
                 3
             ]
             .as_slice(),
-            compiler_common::identifier::FUNCTION_CXA_THROW,
+            compiler_common::LLVM_FUNCTION_CXA_THROW,
         );
 
         Some(landing_pad)
@@ -748,14 +748,14 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         self.build_call(
             self.cxa_throw,
             vec![
-                self.integer_type(compiler_common::bitlength::BYTE)
+                self.integer_type(compiler_common::BITLENGTH_BYTE)
                     .ptr_type(AddressSpace::Stack.into())
                     .const_null()
                     .as_basic_value_enum();
                 3
             ]
             .as_slice(),
-            compiler_common::identifier::FUNCTION_CXA_THROW,
+            compiler_common::LLVM_FUNCTION_CXA_THROW,
         );
     }
 
@@ -765,7 +765,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     pub fn read_header(&self, address_space: AddressSpace) -> inkwell::values::IntValue<'ctx> {
         let header_pointer = self.access_memory(
             self.field_const(
-                (compiler_common::abi::OFFSET_HEADER * compiler_common::size::FIELD) as u64,
+                (compiler_common::ABI_MEMORY_OFFSET_HEADER * compiler_common::SIZE_FIELD) as u64,
             ),
             address_space,
             "header_pointer",
@@ -784,7 +784,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ) {
         let header_pointer = self.access_memory(
             self.field_const(
-                (compiler_common::abi::OFFSET_HEADER * compiler_common::size::FIELD) as u64,
+                (compiler_common::ABI_MEMORY_OFFSET_HEADER * compiler_common::SIZE_FIELD) as u64,
             ),
             address_space,
             "header_pointer",
@@ -798,7 +798,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     pub fn write_error(&self, message: &'static str) {
         self.write_header(self.field_const(1), AddressSpace::Parent);
 
-        let error_hash = compiler_common::hashes::keccak256(message.as_bytes());
+        let error_hash = compiler_common::keccak256(message.as_bytes());
         let error_code = self
             .field_type()
             .const_int_from_string(
@@ -809,13 +809,13 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         let error_code_shifted = self.builder.build_left_shift(
             error_code,
             self.field_const(
-                (compiler_common::bitlength::BYTE * (compiler_common::size::FIELD - 4)) as u64,
+                (compiler_common::BITLENGTH_BYTE * (compiler_common::SIZE_FIELD - 4)) as u64,
             ),
             "error_code_shifted",
         );
         let parent_error_code_pointer = self.access_memory(
             self.field_const(
-                (compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64,
+                (compiler_common::ABI_MEMORY_OFFSET_DATA * compiler_common::SIZE_FIELD) as u64,
             ),
             AddressSpace::Parent,
             "parent_error_code_pointer",
@@ -849,7 +849,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ///
     pub fn field_type(&self) -> inkwell::types::IntType<'ctx> {
         self.llvm
-            .custom_width_int_type(compiler_common::bitlength::FIELD as u32)
+            .custom_width_int_type(compiler_common::BITLENGTH_FIELD as u32)
     }
 
     ///

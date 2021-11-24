@@ -53,12 +53,12 @@ pub fn store_byte<'ctx, 'src>(
         .into_int_value();
     let original_value_shifted_left = context.builder.build_left_shift(
         original_value,
-        context.field_const(compiler_common::bitlength::BYTE as u64),
+        context.field_const(compiler_common::BITLENGTH_BYTE as u64),
         "memory_store_byte_original_value_shifted_left",
     );
     let original_value_shifted_right = context.builder.build_right_shift(
         original_value_shifted_left,
-        context.field_const(compiler_common::bitlength::BYTE as u64),
+        context.field_const(compiler_common::BITLENGTH_BYTE as u64),
         false,
         "memory_store_byte_original_value_shifted_right",
     );
@@ -66,7 +66,7 @@ pub fn store_byte<'ctx, 'src>(
     let value_shifted = context.builder.build_left_shift(
         arguments[1].into_int_value(),
         context.field_const(
-            ((compiler_common::size::FIELD - 1) * compiler_common::bitlength::BYTE) as u64,
+            ((compiler_common::SIZE_FIELD - 1) * compiler_common::BITLENGTH_BYTE) as u64,
         ),
         "memory_store_byte_value_shifted",
     );

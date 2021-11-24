@@ -32,7 +32,7 @@ pub fn call<'ctx, 'src>(
 
     let child_pointer_header = context.access_memory(
         context.field_const(
-            (compiler_common::abi::OFFSET_HEADER * compiler_common::size::FIELD) as u64,
+            (compiler_common::ABI_MEMORY_OFFSET_HEADER * compiler_common::SIZE_FIELD) as u64,
         ),
         AddressSpace::Child,
         "contract_call_child_pointer_header",
@@ -40,8 +40,9 @@ pub fn call<'ctx, 'src>(
     context.build_store(child_pointer_header, input_size);
 
     let destination = context.access_memory(
-        context
-            .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
+        context.field_const(
+            (compiler_common::ABI_MEMORY_OFFSET_DATA * compiler_common::SIZE_FIELD) as u64,
+        ),
         AddressSpace::Child,
         "contract_call_child_input_destination",
     );
@@ -62,7 +63,7 @@ pub fn call<'ctx, 'src>(
     let intrinsic = context.get_intrinsic_function(call_type);
     let call_definition = context.builder.build_left_shift(
         address,
-        context.field_const((compiler_common::bitlength::BYTE * 4) as u64),
+        context.field_const((compiler_common::BITLENGTH_X32) as u64),
         "",
     );
     let is_call_successful = context
@@ -74,8 +75,9 @@ pub fn call<'ctx, 'src>(
         .expect("Intrinsic always returns a flag");
 
     let source = context.access_memory(
-        context
-            .field_const((compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD) as u64),
+        context.field_const(
+            (compiler_common::ABI_MEMORY_OFFSET_DATA * compiler_common::SIZE_FIELD) as u64,
+        ),
         AddressSpace::Child,
         "contract_call_output_source",
     );
@@ -133,7 +135,7 @@ fn check_value_zero<'ctx, 'src>(
     context.build_conditional_branch(is_value_zero, value_zero_block, value_non_zero_block);
 
     context.set_basic_block(value_non_zero_block);
-    context.write_error(compiler_common::abi::ERROR_FORBIDDEN_SEND_TRANSFER);
+    context.write_error(compiler_common::ABI_ERROR_FORBIDDEN_SEND_TRANSFER);
     context.build_unconditional_branch(context.function().throw_block);
 
     context.set_basic_block(value_zero_block);

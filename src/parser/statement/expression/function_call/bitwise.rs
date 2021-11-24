@@ -154,13 +154,13 @@ pub fn byte<'ctx, 'src>(
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let byte_index = context.builder.build_int_sub(
-        context.field_const((compiler_common::size::FIELD - 1) as u64),
+        context.field_const((compiler_common::SIZE_FIELD - 1) as u64),
         arguments[0].into_int_value(),
         "byte_index",
     );
     let byte_bits_offset = context.builder.build_int_mul(
         byte_index,
-        context.field_const(compiler_common::bitlength::BYTE as u64),
+        context.field_const(compiler_common::BITLENGTH_BYTE as u64),
         "byte_bits_offset",
     );
     let value_shifted = context.builder.build_right_shift(
@@ -207,7 +207,7 @@ pub fn or_loop<'ctx, 'src>(
     let condition = context.builder.build_int_compare(
         inkwell::IntPredicate::ULT,
         index_value,
-        context.field_const(compiler_common::bitlength::FIELD as u64),
+        context.field_const(compiler_common::BITLENGTH_FIELD as u64),
         "or_loop_condition",
     );
     context.build_conditional_branch(condition, body_block, join_block);
@@ -325,7 +325,7 @@ pub fn xor_loop<'ctx, 'src>(
     let condition = context.builder.build_int_compare(
         inkwell::IntPredicate::ULT,
         index_value,
-        context.field_const(compiler_common::bitlength::FIELD as u64),
+        context.field_const(compiler_common::BITLENGTH_FIELD as u64),
         "xor_loop_condition",
     );
     context.build_conditional_branch(condition, body_block, join_block);
@@ -441,7 +441,7 @@ pub fn and_loop<'ctx, 'src>(
     let condition = context.builder.build_int_compare(
         inkwell::IntPredicate::ULT,
         index_value,
-        context.field_const(compiler_common::bitlength::FIELD as u64),
+        context.field_const(compiler_common::BITLENGTH_FIELD as u64),
         "and_loop_condition",
     );
     context.build_conditional_branch(condition, body_block, join_block);

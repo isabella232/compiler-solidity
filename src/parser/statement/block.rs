@@ -98,7 +98,7 @@ impl Block {
 
         let function_type = context.function_type(&[], vec![]);
         context.add_function(
-            compiler_common::identifier::FUNCTION_CONSTRUCTOR,
+            compiler_common::LLVM_FUNCTION_CONSTRUCTOR,
             function_type,
             Some(inkwell::module::Linkage::Private),
             true,
@@ -116,10 +116,10 @@ impl Block {
 
         let function = context
             .functions
-            .get(compiler_common::identifier::FUNCTION_CONSTRUCTOR)
+            .get(compiler_common::LLVM_FUNCTION_CONSTRUCTOR)
             .cloned()
             .expect("Function always exists");
-        context.set_function(compiler_common::identifier::FUNCTION_CONSTRUCTOR);
+        context.set_function(compiler_common::LLVM_FUNCTION_CONSTRUCTOR);
         context.set_basic_block(function.entry_block);
         context.update_function(FunctionReturn::none());
 
@@ -160,7 +160,7 @@ impl Block {
     pub fn into_llvm_selector(mut self, context: &mut LLVMContext) {
         let function = context
             .functions
-            .get(compiler_common::identifier::FUNCTION_SELECTOR)
+            .get(compiler_common::LLVM_FUNCTION_SELECTOR)
             .cloned()
             .expect("Always exists");
 
@@ -177,21 +177,8 @@ impl Block {
             }
         }
 
-        context.set_function(compiler_common::identifier::FUNCTION_SELECTOR);
+        context.set_function(compiler_common::LLVM_FUNCTION_SELECTOR);
         context.set_basic_block(function.entry_block);
-        let slots_to_zero = vec![
-            compiler_common::abi::OFFSET_SOLIDITY_HASH_SLOT_FIRST,
-            compiler_common::abi::OFFSET_SOLIDITY_HASH_SLOT_SECOND,
-            compiler_common::abi::OFFSET_SOLIDITY_ZERO_SLOT,
-        ];
-        for slot_offset in slots_to_zero.into_iter() {
-            let slot_pointer = context.access_memory(
-                context.field_const((slot_offset * compiler_common::size::FIELD) as u64),
-                AddressSpace::Heap,
-                format!("slot_to_zero_{}_pointer", slot_offset).as_str(),
-            );
-            context.build_store(slot_pointer, context.field_const(0));
-        }
 
         let return_pointer = context.build_alloca(context.field_type(), "return_pointer");
         let r#return = FunctionReturn::primitive(return_pointer);
@@ -253,7 +240,7 @@ impl Block {
     fn constructor_call(&self, context: &mut LLVMContext) {
         let constructor = match context
             .functions
-            .get(compiler_common::identifier::FUNCTION_CONSTRUCTOR)
+            .get(compiler_common::LLVM_FUNCTION_CONSTRUCTOR)
             .cloned()
         {
             Some(constructor) => constructor,
@@ -320,7 +307,7 @@ impl Block {
         );
 
         context.set_basic_block(double_constructor_call_block);
-        context.write_error(compiler_common::abi::ERROR_DOUBLE_CONSTRUCTOR_CALL);
+        context.write_error(compiler_common::ABI_ERROR_DOUBLE_CONSTRUCTOR_CALL);
         context.build_unconditional_branch(context.function().throw_block);
 
         context.set_basic_block(expected_constructor_call_check_block);
@@ -331,7 +318,7 @@ impl Block {
         );
 
         context.set_basic_block(expected_constructor_call_block);
-        context.write_error(compiler_common::abi::ERROR_EXPECTED_CONSTRUCTOR_CALL);
+        context.write_error(compiler_common::ABI_ERROR_EXPECTED_CONSTRUCTOR_CALL);
         context.build_unconditional_branch(context.function().throw_block);
 
         context.set_basic_block(constructor_call_check_block);
@@ -354,7 +341,7 @@ impl Block {
         let header = context.read_header(AddressSpace::Parent);
         context.builder.build_right_shift(
             header,
-            context.field_const((8 * compiler_common::bitlength::BYTE) as u64),
+            context.field_const((8 * compiler_common::BITLENGTH_BYTE) as u64),
             false,
             "header_constructor_bit",
         )
@@ -366,8 +353,8 @@ impl Block {
     fn is_executed_flag<'ctx, 'src>(
         context: &mut LLVMContext<'ctx, 'src>,
     ) -> inkwell::values::IntValue<'ctx> {
-        let storage_key_string = compiler_common::hashes::keccak256(
-            compiler_common::abi::CONSTRUCTOR_EXECUTED_FLAG_KEY_PREIMAGE.as_bytes(),
+        let storage_key_string = compiler_common::keccak256(
+            compiler_common::ABI_STORAGE_IS_CONSTRUCTOR_EXECUTED.as_bytes(),
         );
         let storage_key_value = context
             .field_type()
@@ -395,8 +382,8 @@ impl Block {
     /// Sets the contract constructor executed flag.
     ///
     fn set_is_executed_flag(context: &mut LLVMContext) {
-        let storage_key_string = compiler_common::hashes::keccak256(
-            compiler_common::abi::CONSTRUCTOR_EXECUTED_FLAG_KEY_PREIMAGE.as_bytes(),
+        let storage_key_string = compiler_common::keccak256(
+            compiler_common::ABI_STORAGE_IS_CONSTRUCTOR_EXECUTED.as_bytes(),
         );
         let storage_key_value = context
             .field_type()

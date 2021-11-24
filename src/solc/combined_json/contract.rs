@@ -45,7 +45,7 @@ impl Contract {
             .find_map(|(contract_entry, hash)| {
                 if contract_entry.starts_with(&(entry.to_owned() + "(")) {
                     Some(
-                        u32::from_str_radix(hash.as_str(), compiler_common::base::HEXADECIMAL)
+                        u32::from_str_radix(hash.as_str(), compiler_common::BASE_HEXADECIMAL)
                             .expect("Test hash is always valid"),
                     )
                 } else {

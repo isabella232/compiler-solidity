@@ -165,12 +165,12 @@ pub fn sign_extend<'ctx, 'src>(
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let bitlength = context.builder.build_int_mul(
         arguments[0].into_int_value(),
-        context.field_const(compiler_common::bitlength::BYTE as u64),
+        context.field_const(compiler_common::BITLENGTH_BYTE as u64),
         "sign_extend_bitlength_multiplied",
     );
     let bitlength = context.builder.build_int_add(
         bitlength,
-        context.field_const((compiler_common::bitlength::BYTE - 1) as u64),
+        context.field_const((compiler_common::BITLENGTH_BYTE - 1) as u64),
         "sign_extend_bitlength",
     );
     let sign_mask = context.builder.build_left_shift(

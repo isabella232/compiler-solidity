@@ -37,7 +37,7 @@ pub fn copy<'ctx, 'src>(
         "return_data_copy_destination_pointer",
     );
 
-    let source_offset_shift = compiler_common::abi::OFFSET_DATA * compiler_common::size::FIELD;
+    let source_offset_shift = compiler_common::ABI_MEMORY_OFFSET_DATA * compiler_common::SIZE_FIELD;
     let source_offset = context.builder.build_int_add(
         arguments[1].into_int_value(),
         context.field_const(source_offset_shift as u64),

@@ -95,7 +95,7 @@ impl Literal {
                 let string = inner.to_string();
                 let r#type = self.yul_type.unwrap_or_default().into_llvm(context);
 
-                let mut hex_string = String::with_capacity(compiler_common::size::FIELD * 2);
+                let mut hex_string = String::with_capacity(compiler_common::SIZE_FIELD * 2);
                 let mut index = 0;
                 loop {
                     if index >= string.len() {
@@ -120,15 +120,15 @@ impl Literal {
                     }
                 }
 
-                if hex_string.len() > compiler_common::size::FIELD * 2 {
+                if hex_string.len() > compiler_common::SIZE_FIELD * 2 {
                     return Argument::new_with_original(
                         r#type.const_zero().as_basic_value_enum(),
                         string,
                     );
                 }
-                if string.len() < compiler_common::size::FIELD {
+                if string.len() < compiler_common::SIZE_FIELD {
                     hex_string.push_str(
-                        "00".repeat(compiler_common::size::FIELD - string.len())
+                        "00".repeat(compiler_common::SIZE_FIELD - string.len())
                             .as_str(),
                     );
                 }

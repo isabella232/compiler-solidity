@@ -75,7 +75,7 @@ impl Contract {
             let file_name = format!(
                 "{}.{}",
                 file_name,
-                compiler_common::extension::ZKEVM_ASSEMBLY
+                compiler_common::EXTENSION_ZKEVM_ASSEMBLY
             );
             let mut file_path = path.to_owned();
             file_path.push(file_name);
@@ -94,7 +94,7 @@ impl Contract {
         }
 
         if output_binary {
-            let file_name = format!("{}.{}", file_name, compiler_common::extension::ZKEVM_BINARY);
+            let file_name = format!("{}.{}", file_name, compiler_common::EXTENSION_ZKEVM_BINARY);
             let mut file_path = path.to_owned();
             file_path.push(file_name);
 

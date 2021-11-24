@@ -131,7 +131,7 @@ impl ILLVMWritable for FunctionDefinition {
                             &[
                                 context.field_const(0),
                                 context
-                                    .integer_type(compiler_common::bitlength::BYTE * 4)
+                                    .integer_type(compiler_common::BITLENGTH_X32)
                                     .const_int(index as u64, false),
                             ],
                             format!("return_{}_gep_pointer", index).as_str(),

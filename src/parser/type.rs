@@ -26,7 +26,7 @@ pub enum Type {
 
 impl Default for Type {
     fn default() -> Self {
-        Self::UInt(compiler_common::bitlength::FIELD)
+        Self::UInt(compiler_common::BITLENGTH_FIELD)
     }
 }
 
@@ -54,7 +54,7 @@ impl Type {
         context: &LLVMContext<'ctx, 'src>,
     ) -> inkwell::types::IntType<'ctx> {
         match self {
-            Self::Bool => context.integer_type(compiler_common::bitlength::BOOLEAN),
+            Self::Bool => context.integer_type(compiler_common::BITLENGTH_BOOLEAN),
             Self::Int(bitlength) => context.integer_type(bitlength),
             Self::UInt(bitlength) => context.integer_type(bitlength),
             Self::Custom(_) => context.field_type(),
