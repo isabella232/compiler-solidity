@@ -2,6 +2,8 @@
 //! Translates the hash instruction.
 //!
 
+use inkwell::values::BasicValue;
+
 use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
@@ -11,85 +13,55 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 pub fn keccak256<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
-    arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
+    input_offset: inkwell::values::IntValue<'ctx>,
+    input_size: inkwell::values::IntValue<'ctx>,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let range_start = arguments[0].into_int_value();
-    let length = arguments[1].into_int_value();
+    let intrinsic = context.get_intrinsic_function(Intrinsic::SwitchContext);
+    context.build_call(intrinsic, &[], "keccak256_switch_context");
 
-    let condition_block = context.append_basic_block("keccak256_condition");
-    let body_block = context.append_basic_block("keccak256_body");
-    let increment_block = context.append_basic_block("keccak256_increment");
-    let join_block = context.append_basic_block("keccak256_join");
+    let child_pointer_header = context.access_memory(
+        context.field_const(
+            (compiler_common::ABI_MEMORY_OFFSET_HEADER * compiler_common::SIZE_FIELD) as u64,
+        ),
+        AddressSpace::Child,
+        "keccak256_child_pointer_header",
+    );
+    context.build_store(child_pointer_header, input_size);
 
-    let pointer = context.access_memory(
-        range_start,
+    let child_pointer_data = context.access_memory(
+        context.field_const(
+            (compiler_common::ABI_MEMORY_OFFSET_DATA * compiler_common::SIZE_FIELD) as u64,
+        ),
+        AddressSpace::Child,
+        "keccak256_child_input_destination",
+    );
+    let heap_pointer = context.access_memory(
+        input_offset,
         AddressSpace::Heap,
-        "keccak256_first_value_pointer",
+        "keccak256_child_input_source",
     );
-    let value = context.build_load(pointer, "keccak256_first_value");
-    let intrinsic = context.get_intrinsic_function(Intrinsic::HashAbsorbReset);
-    context.build_call(intrinsic, &[value], "keccak256_call_hash_absorb_reset");
-    let range_start = context.builder.build_int_add(
-        range_start,
-        context.field_const(compiler_common::SIZE_FIELD as u64),
-        "keccak256_range_start",
-    );
-    let length = context.builder.build_int_sub(
-        length,
-        context.field_const(compiler_common::SIZE_FIELD as u64),
-        "keccak256_range_length",
-    );
-    let range_end = context
-        .builder
-        .build_int_add(range_start, length, "keccak256_range_end");
-    let index_pointer = context.build_alloca(context.field_type(), "keccak256_index_pointer");
-    context.build_store(index_pointer, range_start);
 
-    context.build_unconditional_branch(condition_block);
-
-    context.set_basic_block(condition_block);
-    let index_value = context
-        .build_load(index_pointer, "keccak256_index_value_condition")
-        .into_int_value();
-    let condition = context.builder.build_int_compare(
-        inkwell::IntPredicate::ULT,
-        index_value,
-        range_end,
-        "keccak256_condition_comparison",
+    context.build_memcpy(
+        Intrinsic::MemoryCopyToChild,
+        child_pointer_data,
+        heap_pointer,
+        input_size,
+        "keccak256_memcpy_to_child",
     );
-    context.build_conditional_branch(condition, body_block, join_block);
 
-    context.set_basic_block(increment_block);
-    let index_value = context
-        .build_load(index_pointer, "keccak256_index_value")
-        .into_int_value();
-    let incremented = context.builder.build_int_add(
-        index_value,
-        context.field_const(compiler_common::SIZE_FIELD as u64),
-        "keccak256_index_value_incremented",
+    let intrinsic = context.get_intrinsic_function(Intrinsic::DelegateCall);
+    let call_definition = context.builder.build_left_shift(
+        context.field_const_str(compiler_common::ABI_ADDRESS_KECCAK256),
+        context.field_const((compiler_common::BITLENGTH_X32) as u64),
+        "",
     );
-    context.build_store(index_pointer, incremented);
-    context.build_unconditional_branch(condition_block);
-
-    context.set_basic_block(body_block);
-    let index_value = context
-        .build_load(index_pointer, "keccak256_body_index_value")
-        .into_int_value();
-    let pointer = context.access_memory(
-        index_value,
-        AddressSpace::Heap,
-        "keccak256_next_value_pointer",
+    context.build_call(
+        intrinsic,
+        &[call_definition.as_basic_value_enum()],
+        "keccak256_call_external",
     );
-    let value = context.build_load(pointer, "keccak256_next_value");
-    let intrinsic = context.get_intrinsic_function(Intrinsic::HashAbsorb);
-    context.build_call(intrinsic, &[value], "keccak256_call_hash_absorb");
-    context.build_unconditional_branch(increment_block);
 
-    context.set_basic_block(join_block);
-    let intrinsic = context.get_intrinsic_function(Intrinsic::HashOutput);
-    let result = context
-        .build_call(intrinsic, &[], "keccak256_call_hash_output")
-        .expect("Hash output function always returns a value");
+    let result = context.build_load(child_pointer_data, "keccak256_result");
 
     Some(result)
 }

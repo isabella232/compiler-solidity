@@ -34,13 +34,6 @@ pub enum Intrinsic {
     /// The external contract static call.
     StaticCall,
 
-    /// The hash absorbing.
-    HashAbsorb,
-    /// The hash absorbing with reset.
-    HashAbsorbReset,
-    /// The hash output.
-    HashOutput,
-
     /// The memory copy.
     MemoryCopy,
     /// The memory copy from parent.
@@ -73,10 +66,6 @@ impl Intrinsic {
             Intrinsic::DelegateCall => "llvm.syncvm.delegatecall.rc",
             Intrinsic::StaticCall => "llvm.syncvm.staticcall.rc",
 
-            Intrinsic::HashAbsorb => "llvm.syncvm.habs",
-            Intrinsic::HashAbsorbReset => "llvm.syncvm.habsr",
-            Intrinsic::HashOutput => "llvm.syncvm.hout",
-
             Intrinsic::MemoryCopy => "llvm.memcpy",
             Intrinsic::MemoryCopyFromParent => "llvm.memcpy",
             Intrinsic::MemoryCopyToParent => "llvm.memcpy",
@@ -105,10 +94,6 @@ impl Intrinsic {
             Self::CallCode => vec![],
             Self::DelegateCall => vec![],
             Self::StaticCall => vec![],
-
-            Self::HashAbsorb => vec![],
-            Self::HashAbsorbReset => vec![],
-            Self::HashOutput => vec![],
 
             Self::MemoryCopy => vec![
                 context

@@ -61,7 +61,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     let solc_input = compiler_solidity::SolcStandardJsonInput::try_from_paths(
         arguments.input_files.as_slice(),
         arguments.libraries,
-        false,
+        true,
     )?;
     let libraries = solc_input.settings.libraries.clone();
     let solc_output = match solc.standard_json(

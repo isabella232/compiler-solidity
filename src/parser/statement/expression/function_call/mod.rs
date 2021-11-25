@@ -253,7 +253,11 @@ impl FunctionCall {
 
             Name::Keccak256 => {
                 let arguments = self.pop_arguments_llvm::<2>(context);
-                hash::keccak256(context, arguments)
+                hash::keccak256(
+                    context,
+                    arguments[0].into_int_value(),
+                    arguments[1].into_int_value(),
+                )
             }
 
             Name::MLoad => {
@@ -278,11 +282,11 @@ impl FunctionCall {
                 storage::store(context, arguments)
             }
             Name::LoadImmutable => {
-                let arguments = self.pop_arguments_llvm::<1>(context);
+                let arguments = self.pop_arguments::<1>(context);
                 storage::load_immutable(context, arguments)
             }
             Name::SetImmutable => {
-                let arguments = self.pop_arguments_llvm::<3>(context);
+                let arguments = self.pop_arguments::<3>(context);
                 storage::set_immutable(context, arguments)
             }
 
