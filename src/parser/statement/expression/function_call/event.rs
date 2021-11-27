@@ -15,7 +15,7 @@ pub fn log<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     range_start: inkwell::values::IntValue<'ctx>,
     length: inkwell::values::IntValue<'ctx>,
-    mut topics: Vec<inkwell::values::IntValue<'ctx>>,
+    topics: Vec<inkwell::values::IntValue<'ctx>>,
 ) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
     let intrinsic = context.get_intrinsic_function(Intrinsic::Event);
 
@@ -32,18 +32,18 @@ pub fn log<'ctx, 'src>(
 
     let (range_start, length) = if topics.len() % 2 == 0 {
         let range_start_pointer =
-            context.build_alloca(context.field_type(), "event_range_start_pointer");
-        let length_pointer = context.build_alloca(context.field_type(), "event_length_pointer");
+            context.build_alloca(context.field_type(), "event_odd_range_start_pointer");
+        let length_pointer = context.build_alloca(context.field_type(), "event_odd_length_pointer");
 
-        let data_empty_block = context.append_basic_block("event_data_empty");
-        let data_not_empty_block = context.append_basic_block("event_data_not_empty");
-        let join_block = context.append_basic_block("event_data_join");
+        let data_empty_block = context.append_basic_block("event_odd_data_empty");
+        let data_not_empty_block = context.append_basic_block("event_odd_data_not_empty");
+        let join_block = context.append_basic_block("event_odd_data_join");
 
         let data_empty_condition = context.builder.build_int_compare(
             inkwell::IntPredicate::EQ,
             length,
             context.field_const(0),
-            "event_data_empty_condition",
+            "event_odd_data_empty_condition",
         );
         context.build_conditional_branch(
             data_empty_condition,
@@ -60,18 +60,53 @@ pub fn log<'ctx, 'src>(
                     context.field_const(0).as_basic_value_enum(),
                     context.field_const(1).as_basic_value_enum(),
                 ],
-                "event_call_init_with_value",
+                "event_odd_data_empty_init_with_no_topics",
             );
         } else {
+            let mut topic_index = 0;
+            context.build_call(
+                intrinsic,
+                &[
+                    event_initializer.as_basic_value_enum(),
+                    topics[topic_index].as_basic_value_enum(),
+                    context.field_const(1).as_basic_value_enum(),
+                ],
+                "event_odd_data_empty_init_with_first_topic",
+            );
+            topic_index += 1;
+            while topics.len() - topic_index >= 2 {
+                context.build_call(
+                    intrinsic,
+                    &[
+                        topics[topic_index].as_basic_value_enum(),
+                        topics[topic_index + 1].as_basic_value_enum(),
+                        context.field_const(0).as_basic_value_enum(),
+                    ],
+                    "event_odd_data_empty_next_two_topics",
+                );
+                topic_index += 2;
+            }
+            context.build_call(
+                intrinsic,
+                &[
+                    topics[topic_index].as_basic_value_enum(),
+                    context.field_const(0).as_basic_value_enum(),
+                    context.field_const(0).as_basic_value_enum(),
+                ],
+                "event_odd_data_empty_last_topic",
+            );
             context.build_store(range_start_pointer, range_start);
             context.build_store(length_pointer, length);
         }
         context.build_unconditional_branch(join_block);
 
         context.set_basic_block(data_not_empty_block);
-        let pointer =
-            context.access_memory(range_start, AddressSpace::Heap, "event_first_value_pointer");
-        let value = context.build_load(pointer, "event_first_value");
+        let pointer = context.access_memory(
+            range_start,
+            AddressSpace::Heap,
+            "event_odd_first_value_pointer",
+        );
+        let value = context.build_load(pointer, "event_odd_first_value");
         if topics.is_empty() {
             context.build_call(
                 intrinsic,
@@ -80,37 +115,40 @@ pub fn log<'ctx, 'src>(
                     value,
                     context.field_const(1).as_basic_value_enum(),
                 ],
-                "event_call_init_with_value",
+                "event_odd_data_not_empty_init_with_value",
             );
         } else {
+            let mut topic_index = 0;
             context.build_call(
                 intrinsic,
                 &[
                     event_initializer.as_basic_value_enum(),
-                    topics.remove(0).as_basic_value_enum(),
+                    topics[topic_index].as_basic_value_enum(),
                     context.field_const(1).as_basic_value_enum(),
                 ],
-                "event_call_init_with_topic",
+                "event_odd_data_not_empty_init_with_topic",
             );
-            while topics.len() >= 2 {
+            topic_index += 1;
+            while topics.len() - topic_index >= 2 {
                 context.build_call(
                     intrinsic,
                     &[
-                        topics.remove(0).as_basic_value_enum(),
-                        topics.remove(0).as_basic_value_enum(),
+                        topics[topic_index].as_basic_value_enum(),
+                        topics[topic_index + 1].as_basic_value_enum(),
                         context.field_const(0).as_basic_value_enum(),
                     ],
-                    "event_call_with_two_topics",
+                    "event_odd_data_not_empty_next_two_topics",
                 );
+                topic_index += 2;
             }
             context.build_call(
                 intrinsic,
                 &[
-                    topics.remove(0).as_basic_value_enum(),
+                    topics[topic_index].as_basic_value_enum(),
                     value,
                     context.field_const(0).as_basic_value_enum(),
                 ],
-                "event_call_init_with_topic_and_value",
+                "event_odd_data_not_empty_last_topic",
             );
         }
 
@@ -119,7 +157,7 @@ pub fn log<'ctx, 'src>(
             context.builder.build_int_add(
                 range_start,
                 context.field_const(compiler_common::SIZE_FIELD as u64),
-                "event_range_start_after_first",
+                "event_odd_range_start_after_first",
             ),
         );
         context.build_store(
@@ -127,39 +165,42 @@ pub fn log<'ctx, 'src>(
             context.builder.build_int_sub(
                 length,
                 context.field_const(compiler_common::SIZE_FIELD as u64),
-                "event_length_without_first",
+                "event_odd_length_without_first",
             ),
         );
         context.build_unconditional_branch(join_block);
 
         context.set_basic_block(join_block);
         let range_start = context
-            .build_load(range_start_pointer, "event_range_start_joined")
+            .build_load(range_start_pointer, "event_odd_range_start_joined")
             .into_int_value();
         let length = context
-            .build_load(length_pointer, "event_length_joined")
+            .build_load(length_pointer, "event_odd_length_joined")
             .into_int_value();
         (range_start, length)
     } else {
+        let mut topic_index = 0;
         context.build_call(
             intrinsic,
             &[
                 event_initializer.as_basic_value_enum(),
-                topics.remove(0).as_basic_value_enum(),
+                topics[topic_index].as_basic_value_enum(),
                 context.field_const(1).as_basic_value_enum(),
             ],
-            "event_call_init_with_topic",
+            "event_even_init_with_topic",
         );
-        while topics.len() >= 2 {
+        topic_index += 1;
+        while topics.len() - topic_index >= 2 {
             context.build_call(
                 intrinsic,
                 &[
-                    topics.remove(0).as_basic_value_enum(),
-                    topics.remove(0).as_basic_value_enum(),
+                    topics[topic_index].as_basic_value_enum(),
+                    topics[topic_index + 1].as_basic_value_enum(),
                     context.field_const(0).as_basic_value_enum(),
                 ],
-                "event_call_with_two_topics",
+                "event_even_next_two_topics",
             );
+            topic_index += 2;
         }
         (range_start, length)
     };
