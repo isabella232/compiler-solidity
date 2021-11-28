@@ -786,14 +786,19 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     /// Writes the error data to the parent memory.
     ///
     pub fn write_error(&self, message: &'static str) {
-        self.write_header(self.field_const(1), AddressSpace::Parent);
+        self.write_header(
+            self.field_const(compiler_common::SIZE_X32 as u64),
+            AddressSpace::Parent,
+        );
 
         let error_hash = compiler_common::keccak256(message.as_bytes());
         let error_code = self.field_const_str(error_hash.as_str());
         let error_code_shifted = self.builder.build_left_shift(
             error_code,
             self.field_const(
-                (compiler_common::BITLENGTH_BYTE * (compiler_common::SIZE_FIELD - 4)) as u64,
+                (compiler_common::BITLENGTH_BYTE
+                    * (compiler_common::SIZE_FIELD - compiler_common::SIZE_X32))
+                    as u64,
             ),
             "error_code_shifted",
         );
