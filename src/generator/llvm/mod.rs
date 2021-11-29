@@ -55,11 +55,6 @@ pub struct Context<'ctx, 'src> {
     pass_manager_module: inkwell::passes::PassManager<inkwell::module::Module<'ctx>>,
     /// The function optimization pass manager.
     pass_manager_function: inkwell::passes::PassManager<inkwell::values::FunctionValue<'ctx>>,
-
-    /// Whether the native bitwise operations are supported by the back-end.
-    pub is_native_bitwise_supported: bool,
-    /// Whether the unaligned memory access is supported by the back-end.
-    pub is_unaligned_memory_access_supported: bool,
 }
 
 impl<'ctx, 'src> Context<'ctx, 'src> {
@@ -163,9 +158,6 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             optimization_level,
             pass_manager_module,
             pass_manager_function,
-
-            is_native_bitwise_supported: true,
-            is_unaligned_memory_access_supported: false,
         }
     }
 
