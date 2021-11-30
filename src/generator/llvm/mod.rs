@@ -274,31 +274,21 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     /// # Panics
     /// If the function with `name` does not exist.
     ///
-    pub fn set_function(&mut self, name: &str) {
-        self.function = Some(
-            self.functions
-                .get(name)
-                .cloned()
-                .expect("Must be declared before use"),
-        );
+    pub fn set_function(&mut self, function: Function<'ctx>) {
+        self.function = Some(function);
     }
 
     ///
-    /// Updates the current function, setting the return entity.
+    /// Sets the return entity for the current function.
     ///
-    /// # Panics
-    /// If the function with `name` does not exist.
-    ///
-    pub fn update_function(&mut self, r#return: FunctionReturn<'ctx>) -> Function<'ctx> {
+    pub fn set_function_return(&mut self, r#return: FunctionReturn<'ctx>) {
         let name = self.function().name.clone();
 
         self.functions
             .get_mut(name.as_str())
             .expect("Always exists")
-            .r#return = Some(r#return.clone());
-        self.function_mut().r#return = Some(r#return);
-
-        self.function().to_owned()
+            .set_return(r#return.clone());
+        self.function_mut().set_return(r#return);
     }
 
     ///

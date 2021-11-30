@@ -106,7 +106,7 @@ impl FunctionDefinition {
                 .get_first_param()
                 .expect("Always exists")
                 .into_pointer_value();
-            context.update_function(FunctionReturn::compound(pointer, self.result.len()));
+            context.set_function_return(FunctionReturn::compound(pointer, self.result.len()));
         }
     }
 }
@@ -118,7 +118,7 @@ impl ILLVMWritable for FunctionDefinition {
             .get(self.name.as_str())
             .cloned()
             .expect("Function always exists");
-        context.set_function(self.name.as_str());
+        context.set_function(function.clone());
 
         context.set_basic_block(function.entry_block);
         let r#return = match function.r#return {
@@ -165,7 +165,6 @@ impl ILLVMWritable for FunctionDefinition {
                 }
             }
         };
-        let function = context.update_function(r#return.clone());
 
         let argument_types: Vec<_> = self
             .arguments
@@ -181,12 +180,13 @@ impl ILLVMWritable for FunctionDefinition {
                 .function_mut()
                 .stack
                 .insert(argument.name.clone(), pointer);
-            if let Some(FunctionReturn::Compound { .. }) = function.r#return {
+            if let Some(FunctionReturn::Compound { .. }) = context.function().r#return {
                 index += 1;
             }
             context.build_store(
                 pointer,
-                function
+                context
+                    .function()
                     .value
                     .get_nth_param(index as u32)
                     .expect("Always exists"),
@@ -200,37 +200,37 @@ impl ILLVMWritable for FunctionDefinition {
                 inkwell::values::InstructionOpcode::Br => {}
                 inkwell::values::InstructionOpcode::Switch => {}
                 _ => {
-                    context.build_unconditional_branch(function.return_block);
+                    context.build_unconditional_branch(context.function().return_block);
                 }
             },
             None => {
-                context.build_unconditional_branch(function.return_block);
+                context.build_unconditional_branch(context.function().return_block);
             }
         };
 
         match r#return {
             FunctionReturn::None => {
-                context.set_basic_block(function.catch_block);
+                context.set_basic_block(context.function().catch_block);
                 context.build_catch_block();
                 context.build_unreachable();
 
-                context.set_basic_block(function.throw_block);
+                context.set_basic_block(context.function().throw_block);
                 context.build_throw_block();
                 context.build_unreachable();
 
-                context.set_basic_block(function.return_block);
+                context.set_basic_block(context.function().return_block);
                 context.build_return(None);
             }
             FunctionReturn::Primitive { pointer } => {
-                context.set_basic_block(function.catch_block);
+                context.set_basic_block(context.function().catch_block);
                 context.build_catch_block();
                 context.build_unreachable();
 
-                context.set_basic_block(function.throw_block);
+                context.set_basic_block(context.function().throw_block);
                 context.build_throw_block();
                 context.build_unreachable();
 
-                context.set_basic_block(function.return_block);
+                context.set_basic_block(context.function().return_block);
                 let return_value = context.build_load(pointer, "return_value");
                 context.build_return(Some(&return_value));
             }
@@ -238,15 +238,15 @@ impl ILLVMWritable for FunctionDefinition {
                 pointer: return_pointer,
                 ..
             } => {
-                context.set_basic_block(function.catch_block);
+                context.set_basic_block(context.function().catch_block);
                 context.build_catch_block();
                 context.build_unreachable();
 
-                context.set_basic_block(function.throw_block);
+                context.set_basic_block(context.function().throw_block);
                 context.build_throw_block();
                 context.build_unreachable();
 
-                context.set_basic_block(function.return_block);
+                context.set_basic_block(context.function().return_block);
                 context.build_return(Some(&return_pointer));
             }
         }

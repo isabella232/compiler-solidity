@@ -60,6 +60,13 @@ impl<'ctx> Function<'ctx> {
     }
 
     ///
+    /// Sets the function return data.
+    ///
+    pub fn set_return(&mut self, r#return: Return<'ctx>) {
+        self.r#return = Some(r#return);
+    }
+
+    ///
     /// Returns the pointer to the function return value.
     ///
     /// # Panics

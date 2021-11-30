@@ -92,10 +92,7 @@ impl Block {
     ///
     /// Translates the constructor code block into LLVM.
     ///
-    pub fn into_llvm_constructor(mut self, context: &mut LLVMContext) {
-        let mut functions = Vec::with_capacity(self.statements.len());
-        let mut local_statements = Vec::with_capacity(self.statements.len());
-
+    pub fn into_llvm_constructor(self, context: &mut LLVMContext) {
         let function_type = context.function_type(&[], vec![]);
         context.add_function(
             compiler_common::LLVM_FUNCTION_CONSTRUCTOR,
@@ -104,65 +101,80 @@ impl Block {
             true,
         );
 
-        for statement in self.statements.into_iter() {
-            match statement {
-                Statement::FunctionDefinition(mut statement) => {
-                    statement.declare(context);
-                    functions.push(statement);
-                }
-                statement => local_statements.push(statement),
-            }
-        }
-
         let function = context
             .functions
             .get(compiler_common::LLVM_FUNCTION_CONSTRUCTOR)
             .cloned()
             .expect("Function always exists");
-        context.set_function(compiler_common::LLVM_FUNCTION_CONSTRUCTOR);
-        context.set_basic_block(function.entry_block);
-        context.update_function(FunctionReturn::none());
+        context.set_function(function);
+        context.set_basic_block(context.function().entry_block);
+        context.set_function_return(FunctionReturn::none());
 
-        self.statements = local_statements;
         self.into_llvm_local(context);
         match context.basic_block().get_last_instruction() {
             Some(instruction) => match instruction.get_opcode() {
                 inkwell::values::InstructionOpcode::Br => {}
                 inkwell::values::InstructionOpcode::Switch => {}
                 _ => {
-                    context.build_unconditional_branch(function.return_block);
+                    context.build_unconditional_branch(context.function().return_block);
                 }
             },
             None => {
-                context.build_unconditional_branch(function.return_block);
+                context.build_unconditional_branch(context.function().return_block);
             }
         };
 
-        context.set_basic_block(function.catch_block);
+        context.set_basic_block(context.function().catch_block);
         context.build_catch_block();
         context.build_unreachable();
 
-        context.set_basic_block(function.throw_block);
+        context.set_basic_block(context.function().throw_block);
         context.build_throw_block();
         context.build_unreachable();
 
-        context.set_basic_block(function.return_block);
+        context.set_basic_block(context.function().return_block);
         context.build_return(None);
-
-        for function in functions.into_iter() {
-            function.into_llvm(context);
-        }
     }
 
     ///
     /// Translates the main deployed code block into LLVM.
     ///
-    pub fn into_llvm_selector(mut self, context: &mut LLVMContext) {
+    pub fn into_llvm_selector(self, context: &mut LLVMContext) {
         let function = context
             .functions
             .get(compiler_common::LLVM_FUNCTION_SELECTOR)
             .cloned()
             .expect("Always exists");
+
+        context.set_function(function);
+        context.set_basic_block(context.function().entry_block);
+
+        let return_pointer = context.build_alloca(context.field_type(), "return_pointer");
+        let r#return = FunctionReturn::primitive(return_pointer);
+        context.set_function_return(r#return);
+
+        self.constructor_call(context);
+        self.into_llvm_local(context);
+        context.build_unconditional_branch(context.function().return_block);
+
+        context.set_basic_block(context.function().throw_block);
+        context.build_throw_block();
+        context.build_unreachable();
+
+        context.set_basic_block(context.function().catch_block);
+        context.build_catch_block();
+        context.build_unreachable();
+
+        context.set_basic_block(context.function().return_block);
+        context.build_return(None);
+    }
+
+    ///
+    /// Translates a function or ordinary block into LLVM.
+    ///
+    pub fn into_llvm_local(self, context: &mut LLVMContext) {
+        let current_function = context.function().to_owned();
+        let current_block = context.basic_block();
 
         let mut functions = Vec::with_capacity(self.statements.len());
         let mut local_statements = Vec::with_capacity(self.statements.len());
@@ -177,41 +189,17 @@ impl Block {
             }
         }
 
-        context.set_function(compiler_common::LLVM_FUNCTION_SELECTOR);
-        context.set_basic_block(function.entry_block);
-
-        let return_pointer = context.build_alloca(context.field_type(), "return_pointer");
-        let r#return = FunctionReturn::primitive(return_pointer);
-        let function = context.update_function(r#return);
-
-        self.statements = local_statements;
-        self.constructor_call(context);
-        self.into_llvm_local(context);
-        context.build_unconditional_branch(function.return_block);
-
-        context.set_basic_block(function.throw_block);
-        context.build_throw_block();
-        context.build_unreachable();
-
-        context.set_basic_block(function.catch_block);
-        context.build_catch_block();
-        context.build_unreachable();
-
-        context.set_basic_block(function.return_block);
-        context.build_return(None);
-
         for function in functions.into_iter() {
             function.into_llvm(context);
         }
-    }
 
-    ///
-    /// Translates a function or ordinary block into LLVM.
-    ///
-    pub fn into_llvm_local(self, context: &mut LLVMContext) {
-        for statement in self.statements.into_iter() {
+        context.set_function(current_function.clone());
+        context.set_basic_block(current_block);
+        for statement in local_statements.into_iter() {
             match statement {
-                Statement::Block(block) => block.into_llvm_local(context),
+                Statement::Block(block) => {
+                    block.into_llvm_local(context);
+                }
                 Statement::Expression(expression) => {
                     expression.into_llvm(context);
                 }
