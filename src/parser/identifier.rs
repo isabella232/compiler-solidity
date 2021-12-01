@@ -29,14 +29,18 @@ impl Identifier {
     ) -> Result<(Vec<String>, Option<Lexeme>), Error> {
         let mut result = Vec::new();
 
+        let mut expected_comma = false;
         loop {
             let lexeme = crate::parser::take_or_next(initial.take(), lexer)?;
 
             match lexeme {
-                Lexeme::Identifier(identifier) => {
+                Lexeme::Identifier(identifier) if !expected_comma => {
                     result.push(identifier);
+                    expected_comma = true;
                 }
-                Lexeme::Symbol(Symbol::Comma) => {}
+                Lexeme::Symbol(Symbol::Comma) if expected_comma => {
+                    expected_comma = false;
+                }
                 lexeme => return Ok((result, Some(lexeme))),
             }
         }
@@ -51,11 +55,12 @@ impl Identifier {
     ) -> Result<(Vec<Self>, Option<Lexeme>), Error> {
         let mut result = Vec::new();
 
+        let mut expected_comma = false;
         loop {
             let lexeme = crate::parser::take_or_next(initial.take(), lexer)?;
 
             match lexeme {
-                Lexeme::Identifier(identifier) => {
+                Lexeme::Identifier(identifier) if !expected_comma => {
                     let yul_type = match lexer.peek()? {
                         Lexeme::Symbol(Symbol::Colon) => {
                             lexer.next()?;
@@ -67,8 +72,11 @@ impl Identifier {
                         name: identifier,
                         yul_type,
                     });
+                    expected_comma = true;
                 }
-                Lexeme::Symbol(Symbol::Comma) => {}
+                Lexeme::Symbol(Symbol::Comma) if expected_comma => {
+                    expected_comma = false;
+                }
                 lexeme => return Ok((result, Some(lexeme))),
             }
         }

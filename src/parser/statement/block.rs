@@ -124,12 +124,12 @@ impl Block {
             }
         };
 
-        context.set_basic_block(context.function().catch_block);
-        context.build_catch_block();
-        context.build_unreachable();
-
         context.set_basic_block(context.function().throw_block);
         context.build_throw_block();
+        context.build_unreachable();
+
+        context.set_basic_block(context.function().catch_block);
+        context.build_catch_block();
         context.build_unreachable();
 
         context.set_basic_block(context.function().return_block);
