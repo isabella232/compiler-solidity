@@ -13,7 +13,7 @@ use crate::generator::llvm::Context as LLVMContext;
 pub fn get<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     context_value: compiler_common::ContextValue,
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let intrinsic = context.get_intrinsic_function(Intrinsic::GetFromContext);
     let value = context
         .build_call(
@@ -24,5 +24,5 @@ pub fn get<'ctx, 'src>(
             "context_get_call",
         )
         .expect("Contract context always returns a value");
-    Some(value)
+    Ok(Some(value))
 }

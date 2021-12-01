@@ -12,7 +12,7 @@ use crate::generator::llvm::Context as LLVMContext;
 pub fn r#return<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let function = context.function().to_owned();
 
     let source = context.access_memory(
@@ -40,8 +40,15 @@ pub fn r#return<'ctx, 'src>(
         "return_memcpy_to_parent",
     );
 
-    context.build_unconditional_branch(function.return_block);
-    None
+    if context.function().name == compiler_common::LLVM_FUNCTION_SELECTOR
+        || context.function().name == compiler_common::LLVM_FUNCTION_CONSTRUCTOR
+    {
+        context.build_unconditional_branch(function.return_block);
+    } else {
+        context.build_unconditional_branch(function.throw_block);
+    }
+
+    Ok(None)
 }
 
 ///
@@ -50,7 +57,7 @@ pub fn r#return<'ctx, 'src>(
 pub fn revert<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let function = context.function().to_owned();
 
     let source = context.access_memory(
@@ -79,7 +86,7 @@ pub fn revert<'ctx, 'src>(
     );
 
     context.build_unconditional_branch(function.throw_block);
-    None
+    Ok(None)
 }
 
 ///
@@ -87,13 +94,13 @@ pub fn revert<'ctx, 'src>(
 ///
 pub fn stop<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let function = context.function().to_owned();
 
     context.write_header(context.field_const(0), AddressSpace::Parent);
 
     context.build_unconditional_branch(function.return_block);
-    None
+    Ok(None)
 }
 
 ///
@@ -101,11 +108,11 @@ pub fn stop<'ctx, 'src>(
 ///
 pub fn invalid<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let function = context.function().to_owned();
 
     context.write_header(context.field_const(0), AddressSpace::Parent);
 
     context.build_unconditional_branch(function.throw_block);
-    None
+    Ok(None)
 }

@@ -92,7 +92,7 @@ impl Block {
     ///
     /// Translates the constructor code block into LLVM.
     ///
-    pub fn into_llvm_constructor(self, context: &mut LLVMContext) {
+    pub fn into_llvm_constructor(self, context: &mut LLVMContext) -> anyhow::Result<()> {
         let function_type = context.function_type(&[], vec![]);
         context.add_function(
             compiler_common::LLVM_FUNCTION_CONSTRUCTOR,
@@ -105,12 +105,12 @@ impl Block {
             .functions
             .get(compiler_common::LLVM_FUNCTION_CONSTRUCTOR)
             .cloned()
-            .expect("Function always exists");
+            .ok_or_else(|| anyhow::anyhow!("Constructor not found"))?;
         context.set_function(function);
         context.set_basic_block(context.function().entry_block);
         context.set_function_return(FunctionReturn::none());
 
-        self.into_llvm_local(context);
+        self.into_llvm_local(context)?;
         match context.basic_block().get_last_instruction() {
             Some(instruction) => match instruction.get_opcode() {
                 inkwell::values::InstructionOpcode::Br => {}
@@ -134,17 +134,19 @@ impl Block {
 
         context.set_basic_block(context.function().return_block);
         context.build_return(None);
+
+        Ok(())
     }
 
     ///
     /// Translates the main deployed code block into LLVM.
     ///
-    pub fn into_llvm_selector(self, context: &mut LLVMContext) {
+    pub fn into_llvm_selector(self, context: &mut LLVMContext) -> anyhow::Result<()> {
         let function = context
             .functions
             .get(compiler_common::LLVM_FUNCTION_SELECTOR)
             .cloned()
-            .expect("Always exists");
+            .ok_or_else(|| anyhow::anyhow!("Selector not found"))?;
 
         context.set_function(function);
         context.set_basic_block(context.function().entry_block);
@@ -153,9 +155,20 @@ impl Block {
         let r#return = FunctionReturn::primitive(return_pointer);
         context.set_function_return(r#return);
 
-        self.constructor_call(context);
-        self.into_llvm_local(context);
-        context.build_unconditional_branch(context.function().return_block);
+        self.constructor_call(context)?;
+        self.into_llvm_local(context)?;
+        match context.basic_block().get_last_instruction() {
+            Some(instruction) => match instruction.get_opcode() {
+                inkwell::values::InstructionOpcode::Br => {}
+                inkwell::values::InstructionOpcode::Switch => {}
+                _ => {
+                    context.build_unconditional_branch(context.function().return_block);
+                }
+            },
+            None => {
+                context.build_unconditional_branch(context.function().return_block);
+            }
+        };
 
         context.set_basic_block(context.function().throw_block);
         context.build_throw_block();
@@ -167,12 +180,14 @@ impl Block {
 
         context.set_basic_block(context.function().return_block);
         context.build_return(None);
+
+        Ok(())
     }
 
     ///
     /// Translates a function or ordinary block into LLVM.
     ///
-    pub fn into_llvm_local(self, context: &mut LLVMContext) {
+    pub fn into_llvm_local(self, context: &mut LLVMContext) -> anyhow::Result<()> {
         let current_function = context.function().to_owned();
         let current_block = context.basic_block();
 
@@ -190,7 +205,7 @@ impl Block {
         }
 
         for function in functions.into_iter() {
-            function.into_llvm(context);
+            function.into_llvm(context)?;
         }
 
         context.set_function(current_function.clone());
@@ -198,42 +213,44 @@ impl Block {
         for statement in local_statements.into_iter() {
             match statement {
                 Statement::Block(block) => {
-                    block.into_llvm_local(context);
+                    block.into_llvm_local(context)?;
                 }
                 Statement::Expression(expression) => {
-                    expression.into_llvm(context);
+                    expression.into_llvm(context)?;
                 }
-                Statement::VariableDeclaration(statement) => statement.into_llvm(context),
-                Statement::Assignment(statement) => statement.into_llvm(context),
-                Statement::IfConditional(statement) => statement.into_llvm(context),
-                Statement::Switch(statement) => statement.into_llvm(context),
-                Statement::ForLoop(statement) => statement.into_llvm(context),
+                Statement::VariableDeclaration(statement) => statement.into_llvm(context)?,
+                Statement::Assignment(statement) => statement.into_llvm(context)?,
+                Statement::IfConditional(statement) => statement.into_llvm(context)?,
+                Statement::Switch(statement) => statement.into_llvm(context)?,
+                Statement::ForLoop(statement) => statement.into_llvm(context)?,
                 Statement::Continue => {
                     context.build_unconditional_branch(context.r#loop().continue_block);
+                    break;
                 }
                 Statement::Break => {
                     context.build_unconditional_branch(context.r#loop().join_block);
+                    break;
                 }
                 Statement::Leave => {
                     context.build_unconditional_branch(context.function().return_block);
+                    break;
                 }
-                statement => panic!("Unexpected local statement: {:?}", statement),
+                statement => anyhow::bail!("Unexpected local statement: {:?}", statement),
             }
         }
+
+        Ok(())
     }
 
     ///
     /// Writes a conditional constructor call at the beginning of the selector.
     ///
-    fn constructor_call(&self, context: &mut LLVMContext) {
-        let constructor = match context
+    fn constructor_call(&self, context: &mut LLVMContext) -> anyhow::Result<()> {
+        let constructor = context
             .functions
             .get(compiler_common::LLVM_FUNCTION_CONSTRUCTOR)
             .cloned()
-        {
-            Some(constructor) => constructor,
-            None => return,
-        };
+            .ok_or_else(|| anyhow::anyhow!("Constructor not found"))?;
 
         let is_executed_flag = Self::is_executed_flag(context);
         let is_executed_flag_zero = context.builder.build_int_compare(
@@ -314,10 +331,12 @@ impl Block {
 
         context.set_basic_block(constructor_call_block);
         context.build_invoke(constructor.value, &[], "constructor_call");
-        Self::set_is_executed_flag(context);
+        Self::write_is_executed_flag(context);
         context.build_unconditional_branch(context.function().return_block);
 
         context.set_basic_block(join_block);
+
+        Ok(())
     }
 
     ///
@@ -361,9 +380,9 @@ impl Block {
     }
 
     ///
-    /// Sets the contract constructor executed flag.
+    /// Writes the contract constructor executed flag.
     ///
-    fn set_is_executed_flag(context: &mut LLVMContext) {
+    fn write_is_executed_flag(context: &mut LLVMContext) {
         let storage_key_string = compiler_common::keccak256(
             compiler_common::ABI_STORAGE_IS_CONSTRUCTOR_EXECUTED.as_bytes(),
         );

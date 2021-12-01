@@ -68,16 +68,16 @@ impl Assignment {
 }
 
 impl ILLVMWritable for Assignment {
-    fn into_llvm(mut self, context: &mut LLVMContext) {
-        let value = match self.initializer.into_llvm(context) {
+    fn into_llvm(mut self, context: &mut LLVMContext) -> anyhow::Result<()> {
+        let value = match self.initializer.into_llvm(context)? {
             Some(value) => value,
-            None => return,
+            None => return Ok(()),
         };
 
         if self.bindings.len() == 1 {
             let name = self.bindings.remove(0);
             context.build_store(context.function().stack[name.as_str()], value.to_llvm());
-            return;
+            return Ok(());
         }
 
         let llvm_type = value.to_llvm().into_struct_value().get_type();
@@ -105,6 +105,8 @@ impl ILLVMWritable for Assignment {
 
             context.build_store(context.function().stack[binding.as_str()], value);
         }
+
+        Ok(())
     }
 }
 

@@ -50,8 +50,8 @@ impl ForLoop {
 }
 
 impl ILLVMWritable for ForLoop {
-    fn into_llvm(self, context: &mut LLVMContext) {
-        self.initializer.into_llvm_local(context);
+    fn into_llvm(self, context: &mut LLVMContext) -> anyhow::Result<()> {
+        self.initializer.into_llvm_local(context)?;
 
         let condition_block = context.append_basic_block("for_condition");
         let body_block = context.append_basic_block("for_body");
@@ -62,7 +62,7 @@ impl ILLVMWritable for ForLoop {
         context.set_basic_block(condition_block);
         let condition = self
             .condition
-            .into_llvm(context)
+            .into_llvm(context)?
             .expect("Always exists")
             .to_llvm()
             .into_int_value();
@@ -82,15 +82,17 @@ impl ILLVMWritable for ForLoop {
         context.push_loop(body_block, increment_block, join_block);
 
         context.set_basic_block(body_block);
-        self.body.into_llvm_local(context);
+        self.body.into_llvm_local(context)?;
         context.build_unconditional_branch(increment_block);
 
         context.set_basic_block(increment_block);
-        self.finalizer.into_llvm_local(context);
+        self.finalizer.into_llvm_local(context)?;
         context.build_unconditional_branch(condition_block);
 
         context.pop_loop();
         context.set_basic_block(join_block);
+
+        Ok(())
     }
 }
 

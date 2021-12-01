@@ -43,9 +43,9 @@ pub struct Context<'ctx, 'src> {
     loop_stack: Vec<Loop<'ctx>>,
 
     /// The personality function, used for exception handling.
-    personality: inkwell::values::FunctionValue<'ctx>,
+    pub personality: inkwell::values::FunctionValue<'ctx>,
     /// The exception throwing function.
-    cxa_throw: inkwell::values::FunctionValue<'ctx>,
+    pub cxa_throw: inkwell::values::FunctionValue<'ctx>,
 
     /// The project source data.
     project: &'src mut Project,
@@ -173,11 +173,19 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ///
     /// Should be only run when the entire module has been translated.
     ///
-    pub fn optimize(&self) {
+    pub fn optimize(&self) -> anyhow::Result<()> {
         for (_, function) in self.functions.iter() {
-            function.optimize(&self.pass_manager_function);
+            function.optimize(&self.pass_manager_function)?;
         }
-        self.pass_manager_module.run_on(self.module());
+
+        if !self.pass_manager_module.run_on(self.module()) {
+            anyhow::bail!(
+                "Module `{}` optimization error",
+                self.object.as_ref().expect("Always exists")
+            );
+        }
+
+        Ok(())
     }
 
     ///
@@ -186,8 +194,10 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     /// # Panics
     /// If verification fails.
     ///
-    pub fn verify(&self) -> Result<(), inkwell::support::LLVMString> {
-        self.module().verify()
+    pub fn verify(&self) -> anyhow::Result<()> {
+        self.module()
+            .verify()
+            .map_err(|error| anyhow::anyhow!(error.to_string()))
     }
 
     ///

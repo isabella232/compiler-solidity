@@ -12,7 +12,7 @@ use crate::generator::llvm::Context as LLVMContext;
 pub fn add_mod<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let zero_block = context.append_basic_block("add_mod_if_zero");
     let non_zero_block = context.append_basic_block("add_mod_if_not_zero");
     let join_block = context.append_basic_block("add_mod_if_join");
@@ -47,7 +47,7 @@ pub fn add_mod<'ctx, 'src>(
     context.set_basic_block(join_block);
     let result = context.build_load(result_pointer, "add_mod_result");
 
-    Some(result)
+    Ok(Some(result))
 }
 
 ///
@@ -56,7 +56,7 @@ pub fn add_mod<'ctx, 'src>(
 pub fn mul_mod<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let zero_block = context.append_basic_block("mul_mod_if_zero");
     let non_zero_block = context.append_basic_block("mul_mod_if_not_zero");
     let join_block = context.append_basic_block("mul_mod_if_join");
@@ -91,7 +91,7 @@ pub fn mul_mod<'ctx, 'src>(
     context.set_basic_block(join_block);
     let result = context.build_load(result_pointer, "mul_mod_result");
 
-    Some(result)
+    Ok(Some(result))
 }
 
 ///
@@ -100,7 +100,7 @@ pub fn mul_mod<'ctx, 'src>(
 pub fn exponent<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let result_pointer = context.build_alloca(context.field_type(), "exponent_result");
     context.build_store(result_pointer, context.field_const(1));
 
@@ -153,7 +153,7 @@ pub fn exponent<'ctx, 'src>(
     context.set_basic_block(join_block);
     let result = context.build_load(result_pointer, "exponent_result");
 
-    Some(result)
+    Ok(Some(result))
 }
 
 ///
@@ -162,7 +162,7 @@ pub fn exponent<'ctx, 'src>(
 pub fn sign_extend<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let bitlength = context.builder.build_int_mul(
         arguments[0].into_int_value(),
         context.field_const(compiler_common::BITLENGTH_BYTE as u64),
@@ -213,5 +213,5 @@ pub fn sign_extend<'ctx, 'src>(
         .builder
         .build_int_add(value, sign_fill_bits_checked, "sign_extend_result");
 
-    Some(result.as_basic_value_enum())
+    Ok(Some(result.as_basic_value_enum()))
 }

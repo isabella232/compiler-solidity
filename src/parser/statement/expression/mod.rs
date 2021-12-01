@@ -67,15 +67,15 @@ impl Expression {
     pub fn into_llvm<'ctx, 'src>(
         self,
         context: &mut LLVMContext<'ctx, 'src>,
-    ) -> Option<Argument<'ctx>> {
+    ) -> anyhow::Result<Option<Argument<'ctx>>> {
         match self {
-            Self::Literal(inner) => Some(inner.into_llvm(context)),
-            Self::Identifier(inner) => Some(
+            Self::Literal(inner) => Ok(Some(inner.into_llvm(context))),
+            Self::Identifier(inner) => Ok(Some(
                 context
                     .build_load(context.function().stack[inner.as_str()], inner.as_str())
                     .into(),
-            ),
-            Self::FunctionCall(inner) => inner.into_llvm(context).map(Argument::new),
+            )),
+            Self::FunctionCall(inner) => Ok(inner.into_llvm(context)?.map(Argument::new)),
         }
     }
 }

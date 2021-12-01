@@ -53,20 +53,23 @@ impl Code {
     ///
     /// Translates the constructor code block into LLVM.
     ///
-    pub fn into_llvm_constructor(self, context: &mut LLVMContext) {
-        self.block.into_llvm_constructor(context);
+    pub fn into_llvm_constructor(self, context: &mut LLVMContext) -> anyhow::Result<()> {
+        self.block.into_llvm_constructor(context)?;
+        Ok(())
     }
 
     ///
     /// Translates the main deployed code block into LLVM.
     ///
-    pub fn into_llvm_selector(self, context: &mut LLVMContext) {
-        self.block.into_llvm_selector(context);
+    pub fn into_llvm_selector(self, context: &mut LLVMContext) -> anyhow::Result<()> {
+        self.block.into_llvm_selector(context)?;
+        Ok(())
     }
 }
 
 impl ILLVMWritable for Code {
-    fn into_llvm(self, context: &mut LLVMContext) {
-        self.block.into_llvm_selector(context);
+    fn into_llvm(self, context: &mut LLVMContext) -> anyhow::Result<()> {
+        self.block.into_llvm_selector(context)?;
+        Ok(())
     }
 }

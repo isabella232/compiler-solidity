@@ -15,7 +15,7 @@ use crate::generator::llvm::Context as LLVMContext;
 pub fn create<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     create2(
         context,
         [
@@ -33,7 +33,7 @@ pub fn create<'ctx, 'src>(
 pub fn create2<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 4],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let input_offset = context.builder.build_int_add(
         arguments[1].into_int_value(),
         context.field_const(compiler_common::SIZE_FIELD as u64),
@@ -99,7 +99,7 @@ pub fn create2<'ctx, 'src>(
         )
         .expect("Intrinsic always returns a flag");
 
-    Some(is_call_successful)
+    Ok(Some(is_call_successful))
 }
 
 ///
@@ -109,18 +109,21 @@ pub fn create2<'ctx, 'src>(
 pub fn datasize<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     mut arguments: [Argument<'ctx>; 1],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let literal = arguments[0].original.take().expect("Always exists");
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+    let literal = arguments[0]
+        .original
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("`datasize` object identifier is missing"))?;
 
     if literal.ends_with("_deployed") || literal.as_str() == context.object() {
-        return Some(context.field_const(0).as_basic_value_enum());
+        return Ok(Some(context.field_const(0).as_basic_value_enum()));
     }
 
-    Some(
+    Ok(Some(
         context
             .field_const(compiler_common::SIZE_FIELD as u64)
             .as_basic_value_enum(),
-    )
+    ))
 }
 
 ///
@@ -130,17 +133,20 @@ pub fn datasize<'ctx, 'src>(
 pub fn dataoffset<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     mut arguments: [Argument<'ctx>; 1],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let literal = arguments[0].original.take().expect("Always exists");
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+    let literal = arguments[0]
+        .original
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("`dataoffset` object identifier is missing"))?;
 
     if literal.ends_with("_deployed") {
-        return Some(context.field_const(0).as_basic_value_enum());
+        return Ok(Some(context.field_const(0).as_basic_value_enum()));
     }
 
     let hash_string = context.compile_dependency(literal.as_str());
     let hash_value = context.field_const_str(hash_string.as_str());
 
-    Some(hash_value.as_basic_value_enum())
+    Ok(Some(hash_value.as_basic_value_enum()))
 }
 
 ///
@@ -150,7 +156,7 @@ pub fn dataoffset<'ctx, 'src>(
 pub fn datacopy<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let pointer = context.access_memory(
         arguments[0].into_int_value(),
         AddressSpace::Heap,
@@ -158,5 +164,5 @@ pub fn datacopy<'ctx, 'src>(
     );
     context.build_store(pointer, arguments[1]);
 
-    None
+    Ok(None)
 }

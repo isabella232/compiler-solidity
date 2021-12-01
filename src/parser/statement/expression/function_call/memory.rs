@@ -11,14 +11,14 @@ use crate::generator::llvm::Context as LLVMContext;
 pub fn load<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let pointer = context.access_memory(
         arguments[0].into_int_value(),
         AddressSpace::Heap,
         "memory_load_pointer",
     );
     let result = context.build_load(pointer, "memory_load_result");
-    Some(result)
+    Ok(Some(result))
 }
 
 ///
@@ -27,12 +27,12 @@ pub fn load<'ctx, 'src>(
 pub fn store<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let offset = arguments[0].into_int_value();
     let pointer = context.access_memory(offset, AddressSpace::Heap, "memory_store_pointer");
     context.build_store(pointer, arguments[1]);
 
-    None
+    Ok(None)
 }
 
 ///
@@ -41,7 +41,7 @@ pub fn store<'ctx, 'src>(
 pub fn store_byte<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let pointer = context.access_memory(
         arguments[0].into_int_value(),
         AddressSpace::Heap,
@@ -78,5 +78,5 @@ pub fn store_byte<'ctx, 'src>(
 
     context.build_store(pointer, result);
 
-    None
+    Ok(None)
 }

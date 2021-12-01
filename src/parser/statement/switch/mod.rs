@@ -86,12 +86,12 @@ impl Switch {
 }
 
 impl ILLVMWritable for Switch {
-    fn into_llvm(self, context: &mut LLVMContext) {
+    fn into_llvm(self, context: &mut LLVMContext) -> anyhow::Result<()> {
         if self.cases.is_empty() {
             if let Some(block) = self.default {
-                block.into_llvm_local(context);
+                block.into_llvm_local(context)?;
             }
-            return;
+            return Ok(());
         }
 
         let join_block = context.append_basic_block("switch_join");
@@ -103,14 +103,14 @@ impl ILLVMWritable for Switch {
             let expression_block =
                 context.append_basic_block(format!("switch_case_branch_{}", index + 1).as_str());
             context.set_basic_block(expression_block);
-            case.block.into_llvm_local(context);
+            case.block.into_llvm_local(context)?;
             context.build_unconditional_branch(join_block);
 
             context.set_basic_block(current_block);
             let scrutinee = self
                 .expression
                 .clone()
-                .into_llvm(context)
+                .into_llvm(context)?
                 .expect("Always exists");
             let constant = case.literal.into_llvm(context);
             let comparison = context.builder.build_int_compare(
@@ -128,11 +128,13 @@ impl ILLVMWritable for Switch {
 
         context.set_basic_block(current_block);
         if let Some(block) = self.default {
-            block.into_llvm_local(context);
+            block.into_llvm_local(context)?;
         }
         context.build_unconditional_branch(join_block);
 
         context.set_basic_block(join_block);
+
+        Ok(())
     }
 }
 

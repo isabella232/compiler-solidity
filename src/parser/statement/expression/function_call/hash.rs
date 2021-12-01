@@ -15,7 +15,7 @@ pub fn keccak256<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     input_offset: inkwell::values::IntValue<'ctx>,
     input_size: inkwell::values::IntValue<'ctx>,
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let intrinsic = context.get_intrinsic_function(Intrinsic::SwitchContext);
     context.build_call(intrinsic, &[], "keccak256_switch_context");
 
@@ -63,5 +63,5 @@ pub fn keccak256<'ctx, 'src>(
 
     let result = context.build_load(child_pointer_data, "keccak256_result");
 
-    Some(result)
+    Ok(Some(result))
 }

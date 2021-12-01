@@ -12,8 +12,8 @@ use crate::generator::llvm::Context as LLVMContext;
 pub fn addition<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    Some(
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+    Ok(Some(
         context
             .builder
             .build_int_add(
@@ -22,7 +22,7 @@ pub fn addition<'ctx, 'src>(
                 "addition_result",
             )
             .as_basic_value_enum(),
-    )
+    ))
 }
 
 ///
@@ -31,8 +31,8 @@ pub fn addition<'ctx, 'src>(
 pub fn subtraction<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    Some(
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+    Ok(Some(
         context
             .builder
             .build_int_sub(
@@ -41,7 +41,7 @@ pub fn subtraction<'ctx, 'src>(
                 "subtraction_result",
             )
             .as_basic_value_enum(),
-    )
+    ))
 }
 
 ///
@@ -50,8 +50,8 @@ pub fn subtraction<'ctx, 'src>(
 pub fn multiplication<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    Some(
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+    Ok(Some(
         context
             .builder
             .build_int_mul(
@@ -60,7 +60,7 @@ pub fn multiplication<'ctx, 'src>(
                 "multiplication_result",
             )
             .as_basic_value_enum(),
-    )
+    ))
 }
 
 ///
@@ -69,7 +69,7 @@ pub fn multiplication<'ctx, 'src>(
 pub fn division<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let zero_block = context.append_basic_block("division_zero");
     let non_zero_block = context.append_basic_block("division_non_zero");
     let join_block = context.append_basic_block("division_join");
@@ -99,7 +99,7 @@ pub fn division<'ctx, 'src>(
     context.set_basic_block(join_block);
     let result = context.build_load(result_pointer, "division_result");
 
-    Some(result)
+    Ok(Some(result))
 }
 
 ///
@@ -108,7 +108,7 @@ pub fn division<'ctx, 'src>(
 pub fn remainder<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let zero_block = context.append_basic_block("remainder_zero");
     let non_zero_block = context.append_basic_block("remainder_non_zero");
     let join_block = context.append_basic_block("remainder_join");
@@ -138,7 +138,7 @@ pub fn remainder<'ctx, 'src>(
     context.set_basic_block(join_block);
     let result = context.build_load(result_pointer, "remainder_result");
 
-    Some(result)
+    Ok(Some(result))
 }
 
 ///
@@ -147,7 +147,7 @@ pub fn remainder<'ctx, 'src>(
 pub fn division_signed<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let zero_block = context.append_basic_block("division_signed_zero");
     let non_zero_block = context.append_basic_block("division_signed_non_zero");
     let overflow_block = context.append_basic_block("division_signed_overflow");
@@ -204,7 +204,7 @@ pub fn division_signed<'ctx, 'src>(
     context.set_basic_block(join_block);
     let result = context.build_load(result_pointer, "division_signed_result");
 
-    Some(result)
+    Ok(Some(result))
 }
 
 ///
@@ -213,7 +213,7 @@ pub fn division_signed<'ctx, 'src>(
 pub fn remainder_signed<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let zero_block = context.append_basic_block("remainder_signed_zero");
     let non_zero_block = context.append_basic_block("remainder_signed_non_zero");
     let join_block = context.append_basic_block("remainder_signed_join");
@@ -244,5 +244,5 @@ pub fn remainder_signed<'ctx, 'src>(
     context.set_basic_block(join_block);
     let result = context.build_load(result_pointer, "remainder_signed_result");
 
-    Some(result)
+    Ok(Some(result))
 }

@@ -112,7 +112,7 @@ impl FunctionDefinition {
 }
 
 impl ILLVMWritable for FunctionDefinition {
-    fn into_llvm(mut self, context: &mut LLVMContext) {
+    fn into_llvm(mut self, context: &mut LLVMContext) -> anyhow::Result<()> {
         let function = context
             .functions
             .get(self.name.as_str())
@@ -193,7 +193,7 @@ impl ILLVMWritable for FunctionDefinition {
             );
         }
 
-        self.body.into_llvm_local(context);
+        self.body.into_llvm_local(context)?;
 
         match context.basic_block().get_last_instruction() {
             Some(instruction) => match instruction.get_opcode() {
@@ -250,6 +250,8 @@ impl ILLVMWritable for FunctionDefinition {
                 context.build_return(Some(&return_pointer));
             }
         }
+
+        Ok(())
     }
 }
 

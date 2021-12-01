@@ -13,7 +13,7 @@ use crate::generator::llvm::Context as LLVMContext;
 ///
 pub fn size<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let header = context.read_header(AddressSpace::Child);
     let value = context.builder.build_and(
         header,
@@ -21,7 +21,7 @@ pub fn size<'ctx, 'src>(
         "calldata_size",
     );
 
-    Some(value.as_basic_value_enum())
+    Ok(Some(value.as_basic_value_enum()))
 }
 
 ///
@@ -30,7 +30,7 @@ pub fn size<'ctx, 'src>(
 pub fn copy<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let destination = context.access_memory(
         arguments[0].into_int_value(),
         AddressSpace::Heap,
@@ -59,5 +59,5 @@ pub fn copy<'ctx, 'src>(
         "return_data_copy_memcpy_from_child",
     );
 
-    None
+    Ok(None)
 }

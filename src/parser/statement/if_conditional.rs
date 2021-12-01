@@ -37,10 +37,10 @@ impl IfConditional {
 }
 
 impl ILLVMWritable for IfConditional {
-    fn into_llvm(self, context: &mut LLVMContext) {
+    fn into_llvm(self, context: &mut LLVMContext) -> anyhow::Result<()> {
         let condition = self
             .condition
-            .into_llvm(context)
+            .into_llvm(context)?
             .expect("Always exists")
             .to_llvm()
             .into_int_value();
@@ -59,9 +59,11 @@ impl ILLVMWritable for IfConditional {
         let join_block = context.append_basic_block("if_join");
         context.build_conditional_branch(condition, main_block, join_block);
         context.set_basic_block(main_block);
-        self.block.into_llvm_local(context);
+        self.block.into_llvm_local(context)?;
         context.build_unconditional_branch(join_block);
         context.set_basic_block(join_block);
+
+        Ok(())
     }
 }
 

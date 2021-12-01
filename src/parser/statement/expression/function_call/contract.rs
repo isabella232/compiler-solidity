@@ -22,7 +22,7 @@ pub fn call<'ctx, 'src>(
     input_size: inkwell::values::IntValue<'ctx>,
     output_offset: inkwell::values::IntValue<'ctx>,
     output_size: inkwell::values::IntValue<'ctx>,
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     if let Some(value) = value {
         check_value_zero(context, value);
     }
@@ -97,7 +97,7 @@ pub fn call<'ctx, 'src>(
         "contract_call_memcpy_from_child",
     );
 
-    Some(is_call_successful)
+    Ok(Some(is_call_successful))
 }
 
 ///
@@ -106,12 +106,15 @@ pub fn call<'ctx, 'src>(
 pub fn linker_symbol<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     mut arguments: [Argument<'ctx>; 1],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let path = arguments[0].original.take().expect("Always exists");
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+    let path = arguments[0]
+        .original
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("Linker symbol literal is missing"))?;
 
     match context.get_library_address(path.as_str()) {
-        Some(address) => Some(address.as_basic_value_enum()),
-        None => panic!("Linker symbol `{}` not found", path),
+        Some(address) => Ok(Some(address.as_basic_value_enum())),
+        None => anyhow::bail!("Linker symbol `{}` not found", path),
     }
 }
 

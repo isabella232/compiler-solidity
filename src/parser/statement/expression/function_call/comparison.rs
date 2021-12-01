@@ -13,7 +13,7 @@ pub fn compare<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
     operation: inkwell::IntPredicate,
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let result = context.builder.build_int_compare(
         operation,
         arguments[0].into_int_value(),
@@ -25,5 +25,5 @@ pub fn compare<'ctx, 'src>(
         context.field_type(),
         "comparison_result_extended",
     );
-    Some(result.as_basic_value_enum())
+    Ok(Some(result.as_basic_value_enum()))
 }

@@ -63,7 +63,7 @@ impl VariableDeclaration {
 }
 
 impl ILLVMWritable for VariableDeclaration {
-    fn into_llvm(mut self, context: &mut LLVMContext) {
+    fn into_llvm(mut self, context: &mut LLVMContext) -> anyhow::Result<()> {
         if self.bindings.len() == 1 {
             let identifier = self.bindings.remove(0);
             let r#type = identifier.yul_type.unwrap_or_default().into_llvm(context);
@@ -73,7 +73,7 @@ impl ILLVMWritable for VariableDeclaration {
                 .stack
                 .insert(identifier.name, pointer);
             let value = if let Some(expression) = self.expression {
-                match expression.into_llvm(context) {
+                match expression.into_llvm(context)? {
                     Some(value) => value.to_llvm(),
                     None => r#type.const_zero().as_basic_value_enum(),
                 }
@@ -81,7 +81,7 @@ impl ILLVMWritable for VariableDeclaration {
                 r#type.const_zero().as_basic_value_enum()
             };
             context.build_store(pointer, value);
-            return;
+            return Ok(());
         }
 
         let llvm_type = context.structure_type(
@@ -116,7 +116,7 @@ impl ILLVMWritable for VariableDeclaration {
 
         match self.expression.take() {
             Some(expression) => {
-                if let Some(value) = expression.into_llvm(context) {
+                if let Some(value) = expression.into_llvm(context)? {
                     context.build_store(pointer, value.to_llvm());
 
                     for (index, binding) in self.bindings.into_iter().enumerate() {
@@ -149,6 +149,8 @@ impl ILLVMWritable for VariableDeclaration {
                 context.build_store(pointer, llvm_type.const_zero());
             }
         }
+
+        Ok(())
     }
 }
 

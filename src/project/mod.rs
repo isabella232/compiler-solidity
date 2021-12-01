@@ -79,11 +79,15 @@ impl Project {
                 object.identifier.as_str(),
                 self,
             );
-            object.into_llvm(&mut context);
+            object
+                .into_llvm(&mut context)
+                .map_err(|error| Error::LLVM(error.to_string()))?;
             context
                 .verify()
                 .map_err(|error| Error::LLVM(error.to_string()))?;
-            context.optimize();
+            context
+                .optimize()
+                .map_err(|error| Error::LLVM(error.to_string()))?;
             context
                 .verify()
                 .map_err(|error| Error::LLVM(error.to_string()))?;

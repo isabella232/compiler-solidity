@@ -63,7 +63,7 @@ impl Literal {
             LexicalLiteral::Boolean(inner) => {
                 let value = self
                     .yul_type
-                    .unwrap_or(Type::Bool)
+                    .unwrap_or_default()
                     .into_llvm(context)
                     .const_int(
                         match inner {

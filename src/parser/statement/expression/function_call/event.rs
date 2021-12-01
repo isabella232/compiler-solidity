@@ -16,7 +16,7 @@ pub fn log<'ctx, 'src>(
     range_start: inkwell::values::IntValue<'ctx>,
     length: inkwell::values::IntValue<'ctx>,
     topics: Vec<inkwell::values::IntValue<'ctx>>,
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let intrinsic = context.get_intrinsic_function(Intrinsic::Event);
 
     let topics_length = context.field_const(topics.len() as u64);
@@ -308,5 +308,5 @@ pub fn log<'ctx, 'src>(
 
     context.set_basic_block(join_block);
 
-    None
+    Ok(None)
 }

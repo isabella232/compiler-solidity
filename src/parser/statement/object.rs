@@ -93,7 +93,7 @@ impl Object {
 }
 
 impl ILLVMWritable for Object {
-    fn into_llvm(self, context: &mut LLVMContext) {
+    fn into_llvm(self, context: &mut LLVMContext) -> anyhow::Result<()> {
         let is_selector = self.identifier.ends_with("_deployed");
         if !is_selector {
             context.set_object(self.identifier.as_str());
@@ -108,13 +108,15 @@ impl ILLVMWritable for Object {
                 false,
             );
 
-            self.code.into_llvm_constructor(context);
+            self.code.into_llvm_constructor(context)?;
         } else if is_selector {
-            self.code.into_llvm_selector(context);
+            self.code.into_llvm_selector(context)?;
         }
 
         if let Some(object) = self.object {
-            object.into_llvm(context);
+            object.into_llvm(context)?;
         }
+
+        Ok(())
     }
 }

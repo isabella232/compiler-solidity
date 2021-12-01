@@ -14,7 +14,7 @@ use crate::generator::llvm::Context as LLVMContext;
 pub fn load<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let intrinsic = context.get_intrinsic_function(Intrinsic::StorageLoad);
     let position = arguments[0];
     let is_external_storage = context.field_const(0);
@@ -25,7 +25,7 @@ pub fn load<'ctx, 'src>(
             "storage_value",
         )
         .expect("Contract storage always returns a value");
-    Some(value)
+    Ok(Some(value))
 }
 
 ///
@@ -34,7 +34,7 @@ pub fn load<'ctx, 'src>(
 pub fn store<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     let intrinsic = context.get_intrinsic_function(Intrinsic::StorageStore);
     let position = arguments[0];
     let value = arguments[1];
@@ -44,7 +44,7 @@ pub fn store<'ctx, 'src>(
         &[value, position, is_external_storage.as_basic_value_enum()],
         "storage_store",
     );
-    None
+    Ok(None)
 }
 
 ///
@@ -52,18 +52,14 @@ pub fn store<'ctx, 'src>(
 ///
 pub fn load_immutable<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
-    arguments: [Argument<'ctx>; 1],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let position = context.field_const_str(
-        compiler_common::keccak256(
-            arguments[0]
-                .original
-                .as_deref()
-                .expect("load_immutable expected a string literal")
-                .as_bytes(),
-        )
-        .as_str(),
-    );
+    mut arguments: [Argument<'ctx>; 1],
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+    let literal = arguments[0]
+        .original
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("`load_immutable` literal is missing"))?;
+
+    let position = context.field_const_str(compiler_common::keccak256(literal.as_bytes()).as_str());
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::StorageLoad);
     let is_external_storage = context.field_const(0);
@@ -77,7 +73,7 @@ pub fn load_immutable<'ctx, 'src>(
             "load_immutable_storage_load",
         )
         .expect("Contract storage always returns a value");
-    Some(value)
+    Ok(Some(value))
 }
 
 ///
@@ -85,18 +81,14 @@ pub fn load_immutable<'ctx, 'src>(
 ///
 pub fn set_immutable<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
-    arguments: [Argument<'ctx>; 3],
-) -> Option<inkwell::values::BasicValueEnum<'ctx>> {
-    let position = context.field_const_str(
-        compiler_common::keccak256(
-            arguments[1]
-                .original
-                .as_deref()
-                .expect("load_immutable expected a string literal")
-                .as_bytes(),
-        )
-        .as_str(),
-    );
+    mut arguments: [Argument<'ctx>; 3],
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+    let literal = arguments[1]
+        .original
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("`set_immutable` literal is missing"))?;
+
+    let position = context.field_const_str(compiler_common::keccak256(literal.as_bytes()).as_str());
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::StorageStore);
     let value = arguments[2].value;
@@ -110,5 +102,5 @@ pub fn set_immutable<'ctx, 'src>(
         ],
         "set_immutable_storage_store",
     );
-    None
+    Ok(None)
 }

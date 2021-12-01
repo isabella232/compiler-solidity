@@ -14,5 +14,5 @@ pub trait ILLVMWritable {
     ///
     /// Translates the entity into LLVM IR.
     ///
-    fn into_llvm(self, context: &mut LLVMContext);
+    fn into_llvm(self, context: &mut LLVMContext) -> anyhow::Result<()>;
 }
