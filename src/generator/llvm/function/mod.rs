@@ -85,11 +85,7 @@ impl<'ctx> Function<'ctx> {
     pub fn optimize(
         &self,
         pass_manager: &inkwell::passes::PassManager<inkwell::values::FunctionValue<'ctx>>,
-    ) -> anyhow::Result<()> {
-        if !pass_manager.run_on(&self.value) {
-            anyhow::bail!("Function `{}` optimization error", self.name);
-        }
-
-        Ok(())
+    ) {
+        pass_manager.run_on(&self.value);
     }
 }

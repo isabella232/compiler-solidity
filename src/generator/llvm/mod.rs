@@ -173,19 +173,12 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ///
     /// Should be only run when the entire module has been translated.
     ///
-    pub fn optimize(&self) -> anyhow::Result<()> {
+    pub fn optimize(&self) {
         for (_, function) in self.functions.iter() {
-            function.optimize(&self.pass_manager_function)?;
+            function.optimize(&self.pass_manager_function);
         }
 
-        if !self.pass_manager_module.run_on(self.module()) {
-            anyhow::bail!(
-                "Module `{}` optimization error",
-                self.object.as_ref().expect("Always exists")
-            );
-        }
-
-        Ok(())
+        self.pass_manager_module.run_on(self.module());
     }
 
     ///

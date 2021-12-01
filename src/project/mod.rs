@@ -85,9 +85,7 @@ impl Project {
             context
                 .verify()
                 .map_err(|error| Error::LLVM(error.to_string()))?;
-            context
-                .optimize()
-                .map_err(|error| Error::LLVM(error.to_string()))?;
+            context.optimize();
             context
                 .verify()
                 .map_err(|error| Error::LLVM(error.to_string()))?;
