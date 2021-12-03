@@ -681,7 +681,9 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ///
     /// Builds an exception catching block sequence.
     ///
-    pub fn build_catch_block(&self) -> Option<inkwell::values::AnyValueEnum<'ctx>> {
+    pub fn build_catch_block(&self, is_upper_level: bool) {
+        self.set_basic_block(self.function().catch_block);
+
         let landing_pad_type = self.structure_type(vec![
             self.integer_type(compiler_common::BITLENGTH_BYTE)
                 .ptr_type(AddressSpace::Stack.into())
@@ -689,7 +691,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             self.integer_type(compiler_common::BITLENGTH_X32)
                 .as_basic_type_enum(),
         ]);
-        let landing_pad = self.builder.build_landing_pad(
+        self.builder.build_landing_pad(
             landing_pad_type,
             self.personality,
             vec![self
@@ -700,6 +702,28 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             "landing",
         );
 
+        if is_upper_level {
+            let no_long_return_block = self.append_basic_block("no_long_return_block");
+            let long_return_flag_pointer = self.access_memory(
+                self.field_const(compiler_common::SOLIDITY_MEMORY_OFFSET_EMPTY_SLOT as u64),
+                AddressSpace::Heap,
+                "long_return_flag_pointer",
+            );
+            let long_return_flag = self.build_load(long_return_flag_pointer, "long_return_flag");
+            let is_long_return_flag_set = self.builder.build_int_compare(
+                inkwell::IntPredicate::EQ,
+                long_return_flag.into_int_value(),
+                self.field_const(1),
+                "is_long_return_flag_set",
+            );
+            self.build_conditional_branch(
+                is_long_return_flag_set,
+                self.function().return_block,
+                no_long_return_block,
+            );
+            self.set_basic_block(no_long_return_block);
+        }
+
         self.build_call(
             self.cxa_throw,
             vec![
@@ -712,14 +736,37 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             .as_slice(),
             compiler_common::LLVM_FUNCTION_CXA_THROW,
         );
-
-        Some(landing_pad)
+        self.build_unreachable();
     }
 
     ///
     /// Builds an error throwing block sequence.
     ///
-    pub fn build_throw_block(&self) {
+    pub fn build_throw_block(&self, is_upper_level: bool) {
+        self.set_basic_block(self.function().throw_block);
+
+        if is_upper_level {
+            let no_long_return_block = self.append_basic_block("no_long_return_block");
+            let long_return_flag_pointer = self.access_memory(
+                self.field_const(compiler_common::SOLIDITY_MEMORY_OFFSET_EMPTY_SLOT as u64),
+                AddressSpace::Heap,
+                "long_return_flag_pointer",
+            );
+            let long_return_flag = self.build_load(long_return_flag_pointer, "long_return_flag");
+            let is_long_return_flag_set = self.builder.build_int_compare(
+                inkwell::IntPredicate::EQ,
+                long_return_flag.into_int_value(),
+                self.field_const(1),
+                "is_long_return_flag_set",
+            );
+            self.build_conditional_branch(
+                is_long_return_flag_set,
+                self.function().return_block,
+                no_long_return_block,
+            );
+            self.set_basic_block(no_long_return_block);
+        }
+
         self.build_call(
             self.cxa_throw,
             vec![
@@ -732,6 +779,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             .as_slice(),
             compiler_common::LLVM_FUNCTION_CXA_THROW,
         );
+        self.build_unreachable();
     }
 
     ///

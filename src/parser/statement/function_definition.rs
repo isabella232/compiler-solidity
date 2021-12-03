@@ -194,41 +194,27 @@ impl ILLVMWritable for FunctionDefinition {
         }
 
         self.body.into_llvm_local(context)?;
-
-        match context.basic_block().get_last_instruction() {
-            Some(instruction) => match instruction.get_opcode() {
-                inkwell::values::InstructionOpcode::Br => {}
-                inkwell::values::InstructionOpcode::Switch => {}
-                _ => {
-                    context.build_unconditional_branch(context.function().return_block);
-                }
-            },
-            None => {
-                context.build_unconditional_branch(context.function().return_block);
-            }
-        };
+        match context
+            .basic_block()
+            .get_last_instruction()
+            .map(|instruction| instruction.get_opcode())
+        {
+            Some(inkwell::values::InstructionOpcode::Br) => {}
+            Some(inkwell::values::InstructionOpcode::Switch) => {}
+            _ => context.build_unconditional_branch(context.function().return_block),
+        }
 
         match r#return {
             FunctionReturn::None => {
-                context.set_basic_block(context.function().catch_block);
-                context.build_catch_block();
-                context.build_unreachable();
-
-                context.set_basic_block(context.function().throw_block);
-                context.build_throw_block();
-                context.build_unreachable();
+                context.build_throw_block(false);
+                context.build_catch_block(false);
 
                 context.set_basic_block(context.function().return_block);
                 context.build_return(None);
             }
             FunctionReturn::Primitive { pointer } => {
-                context.set_basic_block(context.function().catch_block);
-                context.build_catch_block();
-                context.build_unreachable();
-
-                context.set_basic_block(context.function().throw_block);
-                context.build_throw_block();
-                context.build_unreachable();
+                context.build_throw_block(false);
+                context.build_catch_block(false);
 
                 context.set_basic_block(context.function().return_block);
                 let return_value = context.build_load(pointer, "return_value");
@@ -238,13 +224,8 @@ impl ILLVMWritable for FunctionDefinition {
                 pointer: return_pointer,
                 ..
             } => {
-                context.set_basic_block(context.function().catch_block);
-                context.build_catch_block();
-                context.build_unreachable();
-
-                context.set_basic_block(context.function().throw_block);
-                context.build_throw_block();
-                context.build_unreachable();
+                context.build_throw_block(false);
+                context.build_catch_block(false);
 
                 context.set_basic_block(context.function().return_block);
                 context.build_return(Some(&return_pointer));
