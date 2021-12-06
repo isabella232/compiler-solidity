@@ -705,7 +705,10 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         if is_upper_level {
             let no_long_return_block = self.append_basic_block("no_long_return_block");
             let long_return_flag_pointer = self.access_memory(
-                self.field_const(compiler_common::SOLIDITY_MEMORY_OFFSET_EMPTY_SLOT as u64),
+                self.field_const(
+                    (compiler_common::SOLIDITY_MEMORY_OFFSET_EMPTY_SLOT
+                        * compiler_common::SIZE_FIELD) as u64,
+                ),
                 AddressSpace::Heap,
                 "long_return_flag_pointer",
             );
@@ -748,7 +751,10 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         if is_upper_level {
             let no_long_return_block = self.append_basic_block("no_long_return_block");
             let long_return_flag_pointer = self.access_memory(
-                self.field_const(compiler_common::SOLIDITY_MEMORY_OFFSET_EMPTY_SLOT as u64),
+                self.field_const(
+                    (compiler_common::SOLIDITY_MEMORY_OFFSET_EMPTY_SLOT
+                        * compiler_common::SIZE_FIELD) as u64,
+                ),
                 AddressSpace::Heap,
                 "long_return_flag_pointer",
             );
