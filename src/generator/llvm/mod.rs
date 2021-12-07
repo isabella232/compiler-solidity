@@ -46,6 +46,10 @@ pub struct Context<'ctx, 'src> {
     pub personality: inkwell::values::FunctionValue<'ctx>,
     /// The exception throwing function.
     pub cxa_throw: inkwell::values::FunctionValue<'ctx>,
+    /// The `__addmod` runtime function.
+    pub addmod: inkwell::values::FunctionValue<'ctx>,
+    /// The `__mulmod` runtime function.
+    pub mulmod: inkwell::values::FunctionValue<'ctx>,
 
     /// The project source data.
     project: &'src mut Project,
@@ -141,6 +145,35 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             llvm.create_enum_attribute(27, 0),
         );
 
+        let addmod = module.add_function(
+            compiler_common::LLVM_FUNCTION_ADDMOD,
+            llvm.custom_width_int_type(compiler_common::BITLENGTH_FIELD as u32)
+                .fn_type(
+                    vec![
+                        llvm.custom_width_int_type(compiler_common::BITLENGTH_FIELD as u32)
+                            .as_basic_type_enum();
+                        3
+                    ]
+                    .as_slice(),
+                    false,
+                ),
+            Some(inkwell::module::Linkage::External),
+        );
+        let mulmod = module.add_function(
+            compiler_common::LLVM_FUNCTION_MULMOD,
+            llvm.custom_width_int_type(compiler_common::BITLENGTH_FIELD as u32)
+                .fn_type(
+                    vec![
+                        llvm.custom_width_int_type(compiler_common::BITLENGTH_FIELD as u32)
+                            .as_basic_type_enum();
+                        3
+                    ]
+                    .as_slice(),
+                    false,
+                ),
+            Some(inkwell::module::Linkage::External),
+        );
+
         Self {
             builder: llvm.create_builder(),
             functions: HashMap::with_capacity(Self::FUNCTION_HASHMAP_INITIAL_CAPACITY),
@@ -153,6 +186,8 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
 
             personality,
             cxa_throw,
+            addmod,
+            mulmod,
 
             project,
             optimization_level,

@@ -13,41 +13,11 @@ pub fn add_mod<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
-    let zero_block = context.append_basic_block("add_mod_if_zero");
-    let non_zero_block = context.append_basic_block("add_mod_if_not_zero");
-    let join_block = context.append_basic_block("add_mod_if_join");
-
-    let result_pointer = context.build_alloca(context.field_type(), "add_mod_result_pointer");
-    let condition = context.builder.build_int_compare(
-        inkwell::IntPredicate::EQ,
-        arguments[2].into_int_value(),
-        context.field_const(0),
-        "add_mod_if_condition",
-    );
-    context.build_conditional_branch(condition, zero_block, non_zero_block);
-
-    context.set_basic_block(non_zero_block);
-    let result = context.builder.build_int_add(
-        arguments[0].into_int_value(),
-        arguments[1].into_int_value(),
-        "add_mod_addition",
-    );
-    let result = context.builder.build_int_unsigned_rem(
-        result,
-        arguments[2].into_int_value(),
-        "add_mod_modulo",
-    );
-    context.build_store(result_pointer, result);
-    context.build_unconditional_branch(join_block);
-
-    context.set_basic_block(zero_block);
-    context.build_store(result_pointer, context.field_const(0));
-    context.build_unconditional_branch(join_block);
-
-    context.set_basic_block(join_block);
-    let result = context.build_load(result_pointer, "add_mod_result");
-
-    Ok(Some(result))
+    Ok(context.build_invoke(
+        context.addmod,
+        &[arguments[0], arguments[1], arguments[2]],
+        "add_mod_call",
+    ))
 }
 
 ///
@@ -57,41 +27,11 @@ pub fn mul_mod<'ctx, 'src>(
     context: &mut LLVMContext<'ctx, 'src>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
-    let zero_block = context.append_basic_block("mul_mod_if_zero");
-    let non_zero_block = context.append_basic_block("mul_mod_if_not_zero");
-    let join_block = context.append_basic_block("mul_mod_if_join");
-
-    let result_pointer = context.build_alloca(context.field_type(), "mul_mod_result_pointer");
-    let condition = context.builder.build_int_compare(
-        inkwell::IntPredicate::EQ,
-        arguments[2].into_int_value(),
-        context.field_const(0),
-        "mul_mod_if_condition",
-    );
-    context.build_conditional_branch(condition, zero_block, non_zero_block);
-
-    context.set_basic_block(non_zero_block);
-    let result = context.builder.build_int_mul(
-        arguments[0].into_int_value(),
-        arguments[1].into_int_value(),
-        "mul_mod_mulition",
-    );
-    let result = context.builder.build_int_unsigned_rem(
-        result,
-        arguments[2].into_int_value(),
-        "mul_mod_modulo",
-    );
-    context.build_store(result_pointer, result);
-    context.build_unconditional_branch(join_block);
-
-    context.set_basic_block(zero_block);
-    context.build_store(result_pointer, context.field_const(0));
-    context.build_unconditional_branch(join_block);
-
-    context.set_basic_block(join_block);
-    let result = context.build_load(result_pointer, "mul_mod_result");
-
-    Ok(Some(result))
+    Ok(context.build_invoke(
+        context.mulmod,
+        &[arguments[0], arguments[1], arguments[2]],
+        "mul_mod_call",
+    ))
 }
 
 ///
