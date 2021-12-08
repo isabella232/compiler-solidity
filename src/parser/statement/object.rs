@@ -95,10 +95,11 @@ impl Object {
 impl ILLVMWritable for Object {
     fn into_llvm(self, context: &mut LLVMContext) -> anyhow::Result<()> {
         let is_selector = self.identifier.ends_with("_deployed");
-        if !is_selector {
+        let is_constructor = !is_selector;
+
+        if is_constructor {
             context.set_object(self.identifier.as_str());
         }
-        let is_constructor = !is_selector;
 
         if is_constructor {
             context.add_function(

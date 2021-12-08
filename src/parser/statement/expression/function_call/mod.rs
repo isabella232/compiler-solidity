@@ -471,11 +471,22 @@ impl FunctionCall {
 
             Name::Create => {
                 let arguments = self.pop_arguments_llvm::<3>(context)?;
-                create::create(context, arguments)
+
+                let value = arguments[0].into_int_value();
+                let input_offset = arguments[1].into_int_value();
+                let input_size = arguments[2].into_int_value();
+
+                create::create(context, value, input_offset, input_size)
             }
             Name::Create2 => {
                 let arguments = self.pop_arguments_llvm::<4>(context)?;
-                create::create2(context, arguments)
+
+                let value = arguments[0].into_int_value();
+                let input_offset = arguments[1].into_int_value();
+                let input_size = arguments[2].into_int_value();
+                let salt = arguments[3].into_int_value();
+
+                create::create2(context, value, input_offset, input_size, Some(salt))
             }
             Name::DataSize => {
                 let arguments = self.pop_arguments::<1>(context)?;
@@ -548,6 +559,34 @@ impl FunctionCall {
                 Ok(None)
             }
         }
+    }
+
+    ///
+    /// Throws an exception if the call is a send/transfer.
+    ///
+    /// Sends and transfers have their `value` non-zero.
+    ///
+    pub fn check_value_zero<'ctx, 'src>(
+        context: &mut LLVMContext<'ctx, 'src>,
+        value: inkwell::values::IntValue<'ctx>,
+    ) {
+        let value_zero_block = context.append_basic_block("contract_call_value_zero_block");
+        let value_non_zero_block = context.append_basic_block("contract_call_value_non_zero_block");
+
+        let is_value_zero = context.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            value,
+            context.field_const(0),
+            "contract_call_is_value_zero",
+        );
+
+        context.build_conditional_branch(is_value_zero, value_zero_block, value_non_zero_block);
+
+        context.set_basic_block(value_non_zero_block);
+        context.write_error(compiler_common::ABI_ERROR_FORBIDDEN_SEND_TRANSFER);
+        context.build_unconditional_branch(context.function().throw_block);
+
+        context.set_basic_block(value_zero_block);
     }
 
     ///

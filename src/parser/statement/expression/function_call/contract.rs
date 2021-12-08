@@ -8,6 +8,7 @@ use crate::generator::llvm::address_space::AddressSpace;
 use crate::generator::llvm::argument::Argument;
 use crate::generator::llvm::intrinsic::Intrinsic;
 use crate::generator::llvm::Context as LLVMContext;
+use crate::parser::statement::expression::FunctionCall;
 
 ///
 /// Translates a contract call.
@@ -24,7 +25,7 @@ pub fn call<'ctx, 'src>(
     output_size: inkwell::values::IntValue<'ctx>,
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
     if let Some(value) = value {
-        check_value_zero(context, value);
+        FunctionCall::check_value_zero(context, value);
     }
 
     let intrinsic = context.get_intrinsic_function(Intrinsic::SwitchContext);
@@ -114,32 +115,4 @@ pub fn linker_symbol<'ctx, 'src>(
         Some(address) => Ok(Some(address.as_basic_value_enum())),
         None => anyhow::bail!("Linker symbol `{}` not found", path),
     }
-}
-
-///
-/// Throws an exception if the call is a send/transfer.
-///
-/// Sends and transfers have their `value` non-zero.
-///
-fn check_value_zero<'ctx, 'src>(
-    context: &mut LLVMContext<'ctx, 'src>,
-    value: inkwell::values::IntValue<'ctx>,
-) {
-    let value_zero_block = context.append_basic_block("contract_call_value_zero_block");
-    let value_non_zero_block = context.append_basic_block("contract_call_value_non_zero_block");
-
-    let is_value_zero = context.builder.build_int_compare(
-        inkwell::IntPredicate::EQ,
-        value,
-        context.field_const(0),
-        "contract_call_is_value_zero",
-    );
-
-    context.build_conditional_branch(is_value_zero, value_zero_block, value_non_zero_block);
-
-    context.set_basic_block(value_non_zero_block);
-    context.write_error(compiler_common::ABI_ERROR_FORBIDDEN_SEND_TRANSFER);
-    context.build_unconditional_branch(context.function().throw_block);
-
-    context.set_basic_block(value_zero_block);
 }

@@ -87,7 +87,7 @@ dependencies = [
 [[package]]
 name = "compiler-common"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-common#1dae4b3e889dbadca02b14d57e3ad2d47f19f3f9"
+source = "git+ssh://git@github.com/matter-labs/compiler-common#f98253708c079a6835774397e4115b69c1c4809d"
 dependencies = [
  "sha3",
 ]

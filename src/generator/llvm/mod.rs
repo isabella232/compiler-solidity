@@ -410,7 +410,7 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
     ///
     /// Compiles the dependency object.
     ///
-    pub fn compile_dependency(&mut self, identifier: &str) -> String {
+    pub fn compile_dependency(&mut self, identifier: &str) -> Option<String> {
         let contract_path = self
             .project
             .contracts
@@ -447,11 +447,10 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
                     None
                 }
             })
-            .as_mut()
-            .expect("Always exists")
+            .as_mut()?
             .insert_factory_dependency(hash.clone(), contract_path);
 
-        hash
+        Some(hash)
     }
 
     ///

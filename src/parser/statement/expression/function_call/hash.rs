@@ -49,7 +49,7 @@ pub fn keccak256<'ctx, 'src>(
         "keccak256_memcpy_to_child",
     );
 
-    let intrinsic = context.get_intrinsic_function(Intrinsic::DelegateCall);
+    let intrinsic = context.get_intrinsic_function(Intrinsic::StaticCall);
     let call_definition = context.builder.build_left_shift(
         context.field_const_str(compiler_common::ABI_ADDRESS_KECCAK256),
         context.field_const((compiler_common::BITLENGTH_X32) as u64),
