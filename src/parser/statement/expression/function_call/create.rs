@@ -90,8 +90,8 @@ pub fn create2<'ctx, 'src>(
     context.build_call(
         context.get_intrinsic_function(Intrinsic::StorageStore),
         &[
-            counter_value_key.as_basic_value_enum(),
             counter_value_incremented.as_basic_value_enum(),
+            counter_value_key.as_basic_value_enum(),
             context.field_const(0).as_basic_value_enum(),
         ],
         "create_counter_store",
