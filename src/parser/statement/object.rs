@@ -75,6 +75,10 @@ impl Object {
                     let dependency = Self::parse(lexer, Some(lexeme))?;
                     dependencies.push(dependency);
                 }
+                Lexeme::Identifier(identifier) if identifier.as_str() == "data" => {
+                    let _identifier = lexer.next()?;
+                    let _metadata = lexer.next()?;
+                }
                 lexeme => {
                     return Err(
                         ParserError::expected_one_of(vec!["object", "}"], lexeme, None).into(),
