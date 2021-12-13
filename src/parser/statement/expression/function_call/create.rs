@@ -252,7 +252,7 @@ fn call_address_precompile<'ctx, 'src>(
     );
     context.build_store(child_pointer_salt, salt);
 
-    let intrinsic = context.get_intrinsic_function(Intrinsic::StaticCall);
+    let intrinsic = context.get_intrinsic_function(Intrinsic::FarCall);
     let call_definition = context.builder.build_left_shift(
         context.field_const_str(compiler_common::ABI_ADDRESS_CREATE),
         context.field_const((compiler_common::BITLENGTH_X32) as u64),
