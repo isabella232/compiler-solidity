@@ -522,67 +522,25 @@ impl FunctionCall {
                     .field_const(((1 << 16) * compiler_common::SIZE_FIELD) as u64)
                     .as_basic_value_enum(),
             )),
-            Name::Origin => Ok(Some(context.field_const(0).as_basic_value_enum())), // TODO
-            Name::ChainId => Ok(Some(context.field_const(0).as_basic_value_enum())), // TODO
-            Name::BlockHash => Ok(Some(context.field_const(0).as_basic_value_enum())), // TODO
+            Name::Origin => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            Name::ChainId => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            Name::BlockHash => Ok(Some(context.field_const(0).as_basic_value_enum())),
 
-            name @ Name::Difficulty => {
-                eprintln!(
-                    "Warning: instruction {:?} is not supported. Returns 0",
-                    name
-                );
-                Ok(Some(context.field_const(0).as_basic_value_enum()))
-            }
-            name @ Name::Pc => {
-                eprintln!(
-                    "Warning: instruction {:?} is not supported. Returns 0",
-                    name
-                );
-                Ok(Some(context.field_const(0).as_basic_value_enum()))
-            }
-            name @ Name::Balance => {
-                eprintln!(
-                    "Warning: instruction {:?} is not supported. Returns 0",
-                    name
-                );
-                Ok(Some(context.field_const(0).as_basic_value_enum()))
-            }
-            name @ Name::SelfBalance => {
-                eprintln!(
-                    "Warning: instruction {:?} is not supported. Returns 0",
-                    name
-                );
-                Ok(Some(context.field_const(0).as_basic_value_enum()))
-            }
-            name @ Name::CoinBase => {
-                eprintln!(
-                    "Warning: instruction {:?} is not supported. Returns 0",
-                    name
-                );
-                Ok(Some(context.field_const(0).as_basic_value_enum()))
-            }
+            Name::Difficulty => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            Name::Pc => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            Name::Balance => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            Name::SelfBalance => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            Name::CoinBase => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::ExtCodeCopy => {
                 let _arguments = self.pop_arguments_llvm::<4>(context)?;
-                eprintln!(
-                    "Warning: instruction {:?} is not supported. Does nothing",
-                    self.name
-                );
                 Ok(None)
             }
             Name::ExtCodeHash => {
                 let _arguments = self.pop_arguments_llvm::<1>(context)?;
-                eprintln!(
-                    "Warning: instruction {:?} is not supported. Returns 0",
-                    self.name
-                );
                 Ok(Some(context.field_const(0).as_basic_value_enum()))
             }
             Name::SelfDestruct => {
                 let _arguments = self.pop_arguments_llvm::<1>(context)?;
-                eprintln!(
-                    "Warning: instruction {:?} is not supported. Does nothing",
-                    self.name
-                );
                 Ok(None)
             }
         }
