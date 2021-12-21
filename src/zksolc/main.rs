@@ -36,28 +36,6 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         semver::Version::from_str(env!("CARGO_PKG_VERSION")).expect("Always valid"),
     );
 
-    let is_output_requested = arguments.combined_json.is_some()
-        || arguments.output_assembly
-        || arguments.output_binary
-        || arguments.output_hashes
-        || arguments.output_abi;
-
-    if arguments.output_abi || arguments.output_hashes {
-        match solc.extra_output(
-            arguments.input_files.as_slice(),
-            arguments.output_abi,
-            arguments.output_hashes,
-        ) {
-            Ok(stdout) => {
-                print!("{}", stdout);
-            }
-            Err(stderr) => {
-                eprint!("{}", stderr);
-                std::process::exit(compiler_common::EXIT_CODE_FAILURE);
-            }
-        }
-    }
-
     let solc_input = compiler_solidity::SolcStandardJsonInput::try_from_paths(
         arguments.input_files.as_slice(),
         arguments.libraries,
@@ -118,7 +96,21 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
             "{}",
             serde_json::to_string(&combined_json).expect("Always valid")
         );
-    } else if !is_output_requested {
+    } else if arguments.output_hashes || arguments.output_abi {
+        match solc.extra_output(
+            arguments.input_files.as_slice(),
+            arguments.output_abi,
+            arguments.output_hashes,
+        ) {
+            Ok(stdout) => {
+                print!("{}", stdout);
+            }
+            Err(stderr) => {
+                eprint!("{}", stderr);
+                std::process::exit(compiler_common::EXIT_CODE_FAILURE);
+            }
+        }
+    } else {
         eprintln!("Compiler run successful. No output requested. Use --asm and --bin flags.");
     }
 
