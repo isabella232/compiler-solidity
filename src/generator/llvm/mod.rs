@@ -59,6 +59,11 @@ pub struct Context<'ctx, 'src> {
     pass_manager_module: inkwell::passes::PassManager<inkwell::module::Module<'ctx>>,
     /// The function optimization pass manager.
     pass_manager_function: inkwell::passes::PassManager<inkwell::values::FunctionValue<'ctx>>,
+
+    /// Whether to dump the dependencies' LLVM IR.
+    dump_llvm: bool,
+    /// Whether to dump the dependencies' assembly.
+    dump_asm: bool,
 }
 
 impl<'ctx, 'src> Context<'ctx, 'src> {
@@ -75,6 +80,8 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         machine: &inkwell::targets::TargetMachine,
         identifier: &str,
         project: &'src mut Project,
+        dump_llvm: bool,
+        dump_asm: bool,
     ) -> Self {
         Self::new_with_optimizer(
             llvm,
@@ -82,6 +89,8 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             inkwell::OptimizationLevel::None,
             identifier,
             project,
+            dump_llvm,
+            dump_asm,
         )
     }
 
@@ -94,6 +103,8 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
         optimization_level: inkwell::OptimizationLevel,
         identifier: &str,
         project: &'src mut Project,
+        dump_llvm: bool,
+        dump_asm: bool,
     ) -> Self {
         let module = llvm.create_module(identifier);
         module.set_triple(&machine.get_triple());
@@ -193,6 +204,9 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
             optimization_level,
             pass_manager_module,
             pass_manager_function,
+
+            dump_llvm,
+            dump_asm,
         }
     }
 
@@ -430,7 +444,8 @@ impl<'ctx, 'src> Context<'ctx, 'src> {
                 contract_path.as_str(),
                 self.optimization_level,
                 self.optimization_level,
-                false,
+                self.dump_llvm,
+                self.dump_asm,
             )
             .unwrap_or_else(|error| {
                 panic!("Dependency `{}` compiling error: {:?}", identifier, error)

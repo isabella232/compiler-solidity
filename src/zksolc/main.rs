@@ -79,7 +79,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
 
     compiler_solidity::initialize_target();
     let mut project = solc_output.try_into_project(libraries, arguments.dump_yul, true)?;
-    project.compile_all(arguments.optimize, arguments.dump_llvm)?;
+    project.compile_all(arguments.optimize, arguments.dump_llvm, arguments.dump_asm)?;
 
     let combined_json = if let Some(combined_json) = arguments.combined_json {
         match solc.combined_json(arguments.input_files.as_slice(), combined_json.as_str()) {

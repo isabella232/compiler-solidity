@@ -50,10 +50,11 @@ impl Project {
         opt_level_llvm_middle: inkwell::OptimizationLevel,
         opt_level_llvm_back: inkwell::OptimizationLevel,
         dump_llvm: bool,
+        dump_asm: bool,
     ) -> Result<String, Error> {
         if let Some(contract) = self.contracts.get(contract_path) {
-            if let Some(ref bytecode) = contract.hash {
-                return Ok(bytecode.to_owned());
+            if let Some(ref hash) = contract.hash {
+                return Ok(hash.to_owned());
             }
         }
 
@@ -78,6 +79,8 @@ impl Project {
                 opt_level_llvm_middle,
                 object.identifier.as_str(),
                 self,
+                dump_llvm,
+                dump_asm,
             );
             object
                 .into_llvm(&mut context)
@@ -99,6 +102,10 @@ impl Project {
                 .write_to_memory_buffer(context.module(), inkwell::targets::FileType::Assembly)
                 .map_err(|error| Error::LLVM(format!("Code compiling error: {}", error)))?;
             let assembly_text = String::from_utf8_lossy(buffer.as_slice()).to_string();
+            if dump_asm {
+                eprintln!("Contract `{}` assembly:\n", contract_path);
+                println!("{}", assembly_text);
+            }
 
             let assembly = zkevm_assembly::Assembly::try_from(assembly_text.clone())
                 .unwrap_or_else(|error| {
@@ -129,7 +136,12 @@ impl Project {
     /// Compiles all contracts, setting their text assembly and binary bytecode.
     ///
     #[allow(clippy::needless_collect)]
-    pub fn compile_all(&mut self, optimize: bool, dump_llvm: bool) -> Result<(), Error> {
+    pub fn compile_all(
+        &mut self,
+        optimize: bool,
+        dump_llvm: bool,
+        dump_asm: bool,
+    ) -> Result<(), Error> {
         let optimization_level = if optimize {
             inkwell::OptimizationLevel::Aggressive
         } else {
@@ -143,6 +155,7 @@ impl Project {
                 optimization_level,
                 optimization_level,
                 dump_llvm,
+                dump_asm,
             )?;
         }
 

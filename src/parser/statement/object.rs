@@ -46,6 +46,7 @@ impl Object {
                 return Err(ParserError::expected_one_of(vec!["{string}"], lexeme, None).into())
             }
         };
+        let is_selector = identifier.ends_with("_deployed");
 
         match lexer.next()? {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
@@ -54,18 +55,21 @@ impl Object {
 
         let code = Code::parse(lexer, None)?;
 
-        let object = match lexer.peek()? {
-            Lexeme::Keyword(Keyword::Object) => Some(Self::parse(lexer, None).map(Box::new)?),
-            _ => None,
-        };
+        let mut object = None;
+        if !is_selector {
+            object = match lexer.peek()? {
+                Lexeme::Keyword(Keyword::Object) => Some(Self::parse(lexer, None).map(Box::new)?),
+                _ => None,
+            };
 
-        if let Lexeme::Identifier(identifier) = lexer.peek()? {
-            if identifier.as_str() == "data" {
-                let _data = lexer.next()?;
-                let _identifier = lexer.next()?;
-                let _metadata = lexer.next()?;
-            }
-        };
+            if let Lexeme::Identifier(identifier) = lexer.peek()? {
+                if identifier.as_str() == "data" {
+                    let _data = lexer.next()?;
+                    let _identifier = lexer.next()?;
+                    let _metadata = lexer.next()?;
+                }
+            };
+        }
 
         let mut dependencies = Vec::new();
         loop {
