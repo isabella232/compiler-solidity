@@ -6,8 +6,6 @@ pub mod function_call;
 pub mod literal;
 
 use crate::error::Error;
-use crate::generator::llvm::argument::Argument;
-use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -64,10 +62,13 @@ impl Expression {
     ///
     /// Converts the expression into an LLVM value.
     ///
-    pub fn into_llvm<'ctx, 'src>(
+    pub fn into_llvm<'ctx, 'dep, D>(
         self,
-        context: &mut LLVMContext<'ctx, 'src>,
-    ) -> anyhow::Result<Option<Argument<'ctx>>> {
+        context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+    ) -> anyhow::Result<Option<compiler_llvm_context::Argument<'ctx>>>
+    where
+        D: compiler_llvm_context::Dependency,
+    {
         match self {
             Self::Literal(inner) => Ok(Some(inner.into_llvm(context))),
             Self::Identifier(inner) => Ok(Some(
@@ -75,7 +76,9 @@ impl Expression {
                     .build_load(context.function().stack[inner.as_str()], inner.as_str())
                     .into(),
             )),
-            Self::FunctionCall(inner) => Ok(inner.into_llvm(context)?.map(Argument::new)),
+            Self::FunctionCall(inner) => Ok(inner
+                .into_llvm(context)?
+                .map(compiler_llvm_context::Argument::new)),
         }
     }
 }

@@ -6,8 +6,6 @@ use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
 
 use crate::error::Error;
-use crate::generator::llvm::Context as LLVMContext;
-use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -62,8 +60,11 @@ impl VariableDeclaration {
     }
 }
 
-impl ILLVMWritable for VariableDeclaration {
-    fn into_llvm(mut self, context: &mut LLVMContext) -> anyhow::Result<()> {
+impl<D> compiler_llvm_context::WriteLLVM<D> for VariableDeclaration
+where
+    D: compiler_llvm_context::Dependency,
+{
+    fn into_llvm(mut self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         if self.bindings.len() == 1 {
             let identifier = self.bindings.remove(0);
             let r#type = identifier.yul_type.unwrap_or_default().into_llvm(context);
@@ -121,7 +122,7 @@ impl ILLVMWritable for VariableDeclaration {
 
                     for (index, binding) in self.bindings.into_iter().enumerate() {
                         let pointer = unsafe {
-                            context.builder.build_gep(
+                            context.builder().build_gep(
                                 pointer,
                                 &[
                                     context.field_const(0),

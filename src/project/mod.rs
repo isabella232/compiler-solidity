@@ -7,9 +7,9 @@ pub mod contract;
 use std::collections::HashMap;
 use std::path::Path;
 
+use compiler_llvm_context::WriteLLVM;
+
 use crate::error::Error;
-use crate::generator::llvm::Context as LLVMContext;
-use crate::generator::ILLVMWritable;
 use crate::lexer::Lexer;
 use crate::parser::statement::object::Object;
 use crate::solc::combined_json::CombinedJson;
@@ -47,10 +47,9 @@ impl Project {
     pub fn compile(
         &mut self,
         contract_path: &str,
-        opt_level_llvm_middle: inkwell::OptimizationLevel,
-        opt_level_llvm_back: inkwell::OptimizationLevel,
-        dump_llvm: bool,
-        dump_asm: bool,
+        optimization_level_middle: inkwell::OptimizationLevel,
+        optimization_level_back: inkwell::OptimizationLevel,
+        dump_flags: Vec<compiler_llvm_context::DumpFlag>,
     ) -> Result<String, Error> {
         if let Some(contract) = self.contracts.get(contract_path) {
             if let Some(ref hash) = contract.hash {
@@ -67,20 +66,21 @@ impl Project {
 
         let (assembly_text, bytecode) = {
             let llvm = inkwell::context::Context::create();
-            let target_machine = crate::target_machine(opt_level_llvm_back).ok_or_else(|| {
-                Error::LLVM(format!(
-                    "Target machine `{}` creation error",
-                    compiler_common::VM_TARGET_NAME
-                ))
-            })?;
-            let mut context = LLVMContext::new_with_optimizer(
+            let target_machine =
+                crate::target_machine(optimization_level_back).ok_or_else(|| {
+                    Error::LLVM(format!(
+                        "Target machine `{}` creation error",
+                        compiler_common::VM_TARGET_NAME
+                    ))
+                })?;
+            let mut context = compiler_llvm_context::Context::new(
                 &llvm,
                 &target_machine,
-                opt_level_llvm_middle,
+                optimization_level_middle,
+                optimization_level_back,
                 object.identifier.as_str(),
-                self,
-                dump_llvm,
-                dump_asm,
+                Some(self),
+                dump_flags.clone(),
             );
             object
                 .into_llvm(&mut context)
@@ -92,7 +92,7 @@ impl Project {
             context
                 .verify()
                 .map_err(|error| Error::LLVM(error.to_string()))?;
-            if dump_llvm {
+            if dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM) {
                 let llvm_code = context.module().print_to_string().to_string();
                 eprintln!("Contract `{}` LLVM IR:\n", contract_path);
                 println!("{}", llvm_code);
@@ -102,7 +102,7 @@ impl Project {
                 .write_to_memory_buffer(context.module(), inkwell::targets::FileType::Assembly)
                 .map_err(|error| Error::LLVM(format!("Code compiling error: {}", error)))?;
             let assembly_text = String::from_utf8_lossy(buffer.as_slice()).to_string();
-            if dump_asm {
+            if dump_flags.contains(&compiler_llvm_context::DumpFlag::Assembly) {
                 eprintln!("Contract `{}` assembly:\n", contract_path);
                 println!("{}", assembly_text);
             }
@@ -139,8 +139,7 @@ impl Project {
     pub fn compile_all(
         &mut self,
         optimize: bool,
-        dump_llvm: bool,
-        dump_asm: bool,
+        dump_flags: Vec<compiler_llvm_context::DumpFlag>,
     ) -> Result<(), Error> {
         let optimization_level = if optimize {
             inkwell::OptimizationLevel::Aggressive
@@ -154,8 +153,7 @@ impl Project {
                 contract_path.as_str(),
                 optimization_level,
                 optimization_level,
-                dump_llvm,
-                dump_asm,
+                dump_flags.clone(),
             )?;
         }
 
@@ -226,5 +224,71 @@ impl Project {
             contracts: project_contracts,
             libraries: HashMap::new(),
         })
+    }
+}
+
+impl compiler_llvm_context::Dependency for Project {
+    fn compile(
+        &mut self,
+        name: &str,
+        parent_name: &str,
+        optimization_level_middle: inkwell::OptimizationLevel,
+        optimization_level_back: inkwell::OptimizationLevel,
+        dump_flags: Vec<compiler_llvm_context::DumpFlag>,
+    ) -> anyhow::Result<String> {
+        let contract_path = self
+            .contracts
+            .iter()
+            .find_map(|(path, contract)| {
+                if contract.object.identifier.as_str() == name {
+                    Some(path.to_owned())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| panic!("Dependency `{}` not found", name));
+
+        let hash = self
+            .compile(
+                contract_path.as_str(),
+                optimization_level_middle,
+                optimization_level_back,
+                dump_flags,
+            )
+            .unwrap_or_else(|error| panic!("Dependency `{}` compiling error: {:?}", name, error));
+
+        self.contracts
+            .iter_mut()
+            .find_map(|(_path, contract)| {
+                if contract.object.identifier == parent_name {
+                    Some(contract)
+                } else {
+                    None
+                }
+            })
+            .as_mut()
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Parent `{}` of dependency `{}` not found",
+                    parent_name,
+                    name
+                )
+            })?
+            .insert_factory_dependency(hash.clone(), contract_path);
+
+        Ok(hash)
+    }
+
+    fn resolve_library(&self, path: &str) -> anyhow::Result<String> {
+        for (file_path, contracts) in self.libraries.iter() {
+            for (contract_name, address) in contracts.iter() {
+                let key = format!("{}:{}", file_path, contract_name);
+                if key.as_str() == path {
+                    return Ok(address["0x".len()..].to_owned());
+                }
+            }
+        }
+
+        anyhow::bail!("Library `{}` not found", path)
     }
 }

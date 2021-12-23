@@ -3,8 +3,6 @@
 //!
 
 use crate::error::Error;
-use crate::generator::llvm::Context as LLVMContext;
-use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -53,7 +51,13 @@ impl Code {
     ///
     /// Translates the constructor code block into LLVM.
     ///
-    pub fn into_llvm_constructor(self, context: &mut LLVMContext) -> anyhow::Result<()> {
+    pub fn into_llvm_constructor<D>(
+        self,
+        context: &mut compiler_llvm_context::Context<D>,
+    ) -> anyhow::Result<()>
+    where
+        D: compiler_llvm_context::Dependency,
+    {
         self.block.into_llvm_constructor(context)?;
         Ok(())
     }
@@ -61,14 +65,23 @@ impl Code {
     ///
     /// Translates the main deployed code block into LLVM.
     ///
-    pub fn into_llvm_selector(self, context: &mut LLVMContext) -> anyhow::Result<()> {
+    pub fn into_llvm_selector<D>(
+        self,
+        context: &mut compiler_llvm_context::Context<D>,
+    ) -> anyhow::Result<()>
+    where
+        D: compiler_llvm_context::Dependency,
+    {
         self.block.into_llvm_selector(context)?;
         Ok(())
     }
 }
 
-impl ILLVMWritable for Code {
-    fn into_llvm(self, context: &mut LLVMContext) -> anyhow::Result<()> {
+impl<D> compiler_llvm_context::WriteLLVM<D> for Code
+where
+    D: compiler_llvm_context::Dependency,
+{
+    fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         self.block.into_llvm_selector(context)?;
         Ok(())
     }

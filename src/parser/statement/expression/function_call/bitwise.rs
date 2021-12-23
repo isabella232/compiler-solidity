@@ -4,18 +4,19 @@
 
 use inkwell::values::BasicValue;
 
-use crate::generator::llvm::Context as LLVMContext;
-
 ///
 /// Translates the bitwise OR.
 ///
-pub fn or<'ctx, 'src>(
-    context: &mut LLVMContext<'ctx, 'src>,
+pub fn or<'ctx, 'dep, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
+where
+    D: compiler_llvm_context::Dependency,
+{
     Ok(Some(
         context
-            .builder
+            .builder()
             .build_or(
                 arguments[0].into_int_value(),
                 arguments[1].into_int_value(),
@@ -28,13 +29,16 @@ pub fn or<'ctx, 'src>(
 ///
 /// Translates the bitwise XOR.
 ///
-pub fn xor<'ctx, 'src>(
-    context: &mut LLVMContext<'ctx, 'src>,
+pub fn xor<'ctx, 'dep, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
+where
+    D: compiler_llvm_context::Dependency,
+{
     Ok(Some(
         context
-            .builder
+            .builder()
             .build_xor(
                 arguments[0].into_int_value(),
                 arguments[1].into_int_value(),
@@ -47,13 +51,16 @@ pub fn xor<'ctx, 'src>(
 ///
 /// Translates the bitwise AND.
 ///
-pub fn and<'ctx, 'src>(
-    context: &mut LLVMContext<'ctx, 'src>,
+pub fn and<'ctx, 'dep, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
+where
+    D: compiler_llvm_context::Dependency,
+{
     Ok(Some(
         context
-            .builder
+            .builder()
             .build_and(
                 arguments[0].into_int_value(),
                 arguments[1].into_int_value(),
@@ -66,16 +73,19 @@ pub fn and<'ctx, 'src>(
 ///
 /// Translates the bitwise shift left.
 ///
-pub fn shift_left<'ctx, 'src>(
-    context: &mut LLVMContext<'ctx, 'src>,
+pub fn shift_left<'ctx, 'dep, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
+where
+    D: compiler_llvm_context::Dependency,
+{
     let overflow_block = context.append_basic_block("shift_left_overflow");
     let non_overflow_block = context.append_basic_block("shift_left_non_overflow");
     let join_block = context.append_basic_block("shift_left_join");
 
     let result_pointer = context.build_alloca(context.field_type(), "shift_left_result_pointer");
-    let condition_is_overflow = context.builder.build_int_compare(
+    let condition_is_overflow = context.builder().build_int_compare(
         inkwell::IntPredicate::UGT,
         arguments[0].into_int_value(),
         context.field_const((compiler_common::BITLENGTH_FIELD - 1) as u64),
@@ -88,7 +98,7 @@ pub fn shift_left<'ctx, 'src>(
     context.build_unconditional_branch(join_block);
 
     context.set_basic_block(non_overflow_block);
-    let value = context.builder.build_left_shift(
+    let value = context.builder().build_left_shift(
         arguments[1].into_int_value(),
         arguments[0].into_int_value(),
         "shift_left_non_overflow_result",
@@ -104,16 +114,19 @@ pub fn shift_left<'ctx, 'src>(
 ///
 /// Translates the bitwise shift right.
 ///
-pub fn shift_right<'ctx, 'src>(
-    context: &mut LLVMContext<'ctx, 'src>,
+pub fn shift_right<'ctx, 'dep, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
+where
+    D: compiler_llvm_context::Dependency,
+{
     let overflow_block = context.append_basic_block("shift_right_overflow");
     let non_overflow_block = context.append_basic_block("shift_right_non_overflow");
     let join_block = context.append_basic_block("shift_right_join");
 
     let result_pointer = context.build_alloca(context.field_type(), "shift_right_result_pointer");
-    let condition_is_overflow = context.builder.build_int_compare(
+    let condition_is_overflow = context.builder().build_int_compare(
         inkwell::IntPredicate::UGT,
         arguments[0].into_int_value(),
         context.field_const((compiler_common::BITLENGTH_FIELD - 1) as u64),
@@ -126,7 +139,7 @@ pub fn shift_right<'ctx, 'src>(
     context.build_unconditional_branch(join_block);
 
     context.set_basic_block(non_overflow_block);
-    let value = context.builder.build_right_shift(
+    let value = context.builder().build_right_shift(
         arguments[1].into_int_value(),
         arguments[0].into_int_value(),
         false,
@@ -143,10 +156,13 @@ pub fn shift_right<'ctx, 'src>(
 ///
 /// Translates the arithmetic bitwise shift right.
 ///
-pub fn shift_right_arithmetic<'ctx, 'src>(
-    context: &mut LLVMContext<'ctx, 'src>,
+pub fn shift_right_arithmetic<'ctx, 'dep, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
+where
+    D: compiler_llvm_context::Dependency,
+{
     let overflow_block = context.append_basic_block("shift_right_arithmetic_overflow");
     let overflow_positive_block =
         context.append_basic_block("shift_right_arithmetic_overflow_positive");
@@ -159,7 +175,7 @@ pub fn shift_right_arithmetic<'ctx, 'src>(
         context.field_type(),
         "shift_right_arithmetic_result_pointer",
     );
-    let condition_is_overflow = context.builder.build_int_compare(
+    let condition_is_overflow = context.builder().build_int_compare(
         inkwell::IntPredicate::UGT,
         arguments[0].into_int_value(),
         context.field_const((compiler_common::BITLENGTH_FIELD - 1) as u64),
@@ -168,13 +184,13 @@ pub fn shift_right_arithmetic<'ctx, 'src>(
     context.build_conditional_branch(condition_is_overflow, overflow_block, non_overflow_block);
 
     context.set_basic_block(overflow_block);
-    let sign_bit = context.builder.build_right_shift(
+    let sign_bit = context.builder().build_right_shift(
         arguments[1].into_int_value(),
         context.field_const((compiler_common::BITLENGTH_FIELD - 1) as u64),
         false,
         "shift_right_arithmetic_sign_bit",
     );
-    let condition_is_negative = context.builder.build_int_truncate_or_bit_cast(
+    let condition_is_negative = context.builder().build_int_truncate_or_bit_cast(
         sign_bit,
         context.integer_type(compiler_common::BITLENGTH_BOOLEAN),
         "shift_right_arithmetic_sign_bit_truncated",
@@ -194,7 +210,7 @@ pub fn shift_right_arithmetic<'ctx, 'src>(
     context.build_unconditional_branch(join_block);
 
     context.set_basic_block(non_overflow_block);
-    let value = context.builder.build_right_shift(
+    let value = context.builder().build_right_shift(
         arguments[1].into_int_value(),
         arguments[0].into_int_value(),
         true,
@@ -211,21 +227,24 @@ pub fn shift_right_arithmetic<'ctx, 'src>(
 ///
 /// Translates the byte extraction.
 ///
-pub fn byte<'ctx, 'src>(
-    context: &mut LLVMContext<'ctx, 'src>,
+pub fn byte<'ctx, 'dep, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
-    let byte_index = context.builder.build_int_sub(
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
+where
+    D: compiler_llvm_context::Dependency,
+{
+    let byte_index = context.builder().build_int_sub(
         context.field_const((compiler_common::SIZE_FIELD - 1) as u64),
         arguments[0].into_int_value(),
         "byte_index",
     );
-    let byte_bits_offset = context.builder.build_int_mul(
+    let byte_bits_offset = context.builder().build_int_mul(
         byte_index,
         context.field_const(compiler_common::BITLENGTH_BYTE as u64),
         "byte_bits_offset",
     );
-    let value_shifted = context.builder.build_right_shift(
+    let value_shifted = context.builder().build_right_shift(
         arguments[1].into_int_value(),
         byte_bits_offset,
         false,
@@ -233,7 +252,7 @@ pub fn byte<'ctx, 'src>(
     );
     let byte_result =
         context
-            .builder
+            .builder()
             .build_and(value_shifted, context.field_const(0xff), "byte_result");
     Ok(Some(byte_result.as_basic_value_enum()))
 }

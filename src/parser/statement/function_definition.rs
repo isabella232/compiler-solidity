@@ -5,10 +5,6 @@
 use inkwell::types::BasicType;
 
 use crate::error::Error;
-use crate::generator::llvm::address_space::AddressSpace;
-use crate::generator::llvm::function::r#return::Return as FunctionReturn;
-use crate::generator::llvm::Context as LLVMContext;
-use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -81,7 +77,10 @@ impl FunctionDefinition {
     ///
     /// Hoists a function to allow calls before translating the body.
     ///
-    pub fn declare(&mut self, context: &mut LLVMContext) {
+    pub fn declare<D>(&mut self, context: &mut compiler_llvm_context::Context<D>)
+    where
+        D: compiler_llvm_context::Dependency,
+    {
         let argument_types: Vec<_> = self
             .arguments
             .iter()
@@ -91,7 +90,7 @@ impl FunctionDefinition {
             })
             .collect();
 
-        let function_type = context.function_type(self.result.as_slice(), argument_types);
+        let function_type = context.function_type(self.result.len(), argument_types);
 
         context.add_function(
             self.name.as_str(),
@@ -106,13 +105,19 @@ impl FunctionDefinition {
                 .get_first_param()
                 .expect("Always exists")
                 .into_pointer_value();
-            context.set_function_return(FunctionReturn::compound(pointer, self.result.len()));
+            context.set_function_return(compiler_llvm_context::FunctionReturn::compound(
+                pointer,
+                self.result.len(),
+            ));
         }
     }
 }
 
-impl ILLVMWritable for FunctionDefinition {
-    fn into_llvm(mut self, context: &mut LLVMContext) -> anyhow::Result<()> {
+impl<D> compiler_llvm_context::WriteLLVM<D> for FunctionDefinition
+where
+    D: compiler_llvm_context::Dependency,
+{
+    fn into_llvm(mut self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         let function = context
             .functions
             .get(self.name.as_str())
@@ -126,7 +131,7 @@ impl ILLVMWritable for FunctionDefinition {
                 for (index, identifier) in self.result.into_iter().enumerate() {
                     let pointer = r#return.return_pointer().expect("Always exists");
                     let pointer = unsafe {
-                        context.builder.build_gep(
+                        context.builder().build_gep(
                             pointer,
                             &[
                                 context.field_const(0),
@@ -137,9 +142,11 @@ impl ILLVMWritable for FunctionDefinition {
                             format!("return_{}_gep_pointer", index).as_str(),
                         )
                     };
-                    let pointer = context.builder.build_pointer_cast(
+                    let pointer = context.builder().build_pointer_cast(
                         pointer,
-                        context.field_type().ptr_type(AddressSpace::Stack.into()),
+                        context
+                            .field_type()
+                            .ptr_type(compiler_llvm_context::AddressSpace::Stack.into()),
                         format!("return_{}_gep_pointer_field", index).as_str(),
                     );
                     context
@@ -159,9 +166,9 @@ impl ILLVMWritable for FunctionDefinition {
                         .function_mut()
                         .stack
                         .insert(identifier.name, pointer);
-                    FunctionReturn::primitive(pointer)
+                    compiler_llvm_context::FunctionReturn::primitive(pointer)
                 } else {
-                    FunctionReturn::none()
+                    compiler_llvm_context::FunctionReturn::none()
                 }
             }
         };
@@ -180,7 +187,9 @@ impl ILLVMWritable for FunctionDefinition {
                 .function_mut()
                 .stack
                 .insert(argument.name.clone(), pointer);
-            if let Some(FunctionReturn::Compound { .. }) = context.function().r#return {
+            if let Some(compiler_llvm_context::FunctionReturn::Compound { .. }) =
+                context.function().r#return
+            {
                 index += 1;
             }
             context.build_store(
@@ -205,14 +214,14 @@ impl ILLVMWritable for FunctionDefinition {
         }
 
         match r#return {
-            FunctionReturn::None => {
+            compiler_llvm_context::FunctionReturn::None => {
                 context.build_throw_block(false);
                 context.build_catch_block(false);
 
                 context.set_basic_block(context.function().return_block);
                 context.build_return(None);
             }
-            FunctionReturn::Primitive { pointer } => {
+            compiler_llvm_context::FunctionReturn::Primitive { pointer } => {
                 context.build_throw_block(false);
                 context.build_catch_block(false);
 
@@ -220,7 +229,7 @@ impl ILLVMWritable for FunctionDefinition {
                 let return_value = context.build_load(pointer, "return_value");
                 context.build_return(Some(&return_value));
             }
-            FunctionReturn::Compound {
+            compiler_llvm_context::FunctionReturn::Compound {
                 pointer: return_pointer,
                 ..
             } => {

@@ -3,8 +3,6 @@
 //!
 
 use crate::error::Error;
-use crate::generator::llvm::Context as LLVMContext;
-use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::statement::block::Block;
@@ -36,20 +34,23 @@ impl IfConditional {
     }
 }
 
-impl ILLVMWritable for IfConditional {
-    fn into_llvm(self, context: &mut LLVMContext) -> anyhow::Result<()> {
+impl<D> compiler_llvm_context::WriteLLVM<D> for IfConditional
+where
+    D: compiler_llvm_context::Dependency,
+{
+    fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         let condition = self
             .condition
             .into_llvm(context)?
             .expect("Always exists")
             .to_llvm()
             .into_int_value();
-        let condition = context.builder.build_int_z_extend_or_bit_cast(
+        let condition = context.builder().build_int_z_extend_or_bit_cast(
             condition,
             context.field_type(),
             "if_condition_extended",
         );
-        let condition = context.builder.build_int_compare(
+        let condition = context.builder().build_int_compare(
             inkwell::IntPredicate::NE,
             condition,
             context.field_const(0),

@@ -3,8 +3,6 @@
 //!
 
 use crate::error::Error;
-use crate::generator::llvm::Context as LLVMContext;
-use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -67,8 +65,11 @@ impl Assignment {
     }
 }
 
-impl ILLVMWritable for Assignment {
-    fn into_llvm(mut self, context: &mut LLVMContext) -> anyhow::Result<()> {
+impl<D> compiler_llvm_context::WriteLLVM<D> for Assignment
+where
+    D: compiler_llvm_context::Dependency,
+{
+    fn into_llvm(mut self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         let value = match self.initializer.into_llvm(context)? {
             Some(value) => value,
             None => return Ok(()),
@@ -86,7 +87,7 @@ impl ILLVMWritable for Assignment {
 
         for (index, binding) in self.bindings.into_iter().enumerate() {
             let pointer = unsafe {
-                context.builder.build_gep(
+                context.builder().build_gep(
                     pointer,
                     &[
                         context.field_const(0),

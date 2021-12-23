@@ -5,8 +5,6 @@
 pub mod case;
 
 use crate::error::Error;
-use crate::generator::llvm::Context as LLVMContext;
-use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -85,8 +83,11 @@ impl Switch {
     }
 }
 
-impl ILLVMWritable for Switch {
-    fn into_llvm(self, context: &mut LLVMContext) -> anyhow::Result<()> {
+impl<D> compiler_llvm_context::WriteLLVM<D> for Switch
+where
+    D: compiler_llvm_context::Dependency,
+{
+    fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         if self.cases.is_empty() {
             if let Some(block) = self.default {
                 block.into_llvm_local(context)?;
@@ -113,7 +114,7 @@ impl ILLVMWritable for Switch {
                 .into_llvm(context)?
                 .expect("Always exists");
             let constant = case.literal.into_llvm(context);
-            let comparison = context.builder.build_int_compare(
+            let comparison = context.builder().build_int_compare(
                 inkwell::IntPredicate::EQ,
                 constant.to_llvm().into_int_value(),
                 scrutinee.to_llvm().into_int_value(),

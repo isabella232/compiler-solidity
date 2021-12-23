@@ -1,6 +1,6 @@
 [package]
 name = "compiler-solidity"
-version = "0.8.10"
+version = "0.8.11"
 authors = [
     "Alex Zarudnyy <a.zarudnyy@matterlabs.dev>",
     "Dmitry Borisenkov <dmitry.borisenkov89@gmail.com>",
@@ -26,6 +26,7 @@ semver = "1.0"
 hex = "0.4"
 
 zkevm-assembly = { git = "ssh://git@github.com/matter-labs/zkEVM-assembly" }
+compiler-llvm-context = { git = "ssh://git@github.com/matter-labs/compiler-llvm-context" }
 compiler-common = { git = "ssh://git@github.com/matter-labs/compiler-common" }
 
 [dependencies.inkwell]

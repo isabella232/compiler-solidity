@@ -3,7 +3,6 @@
 //!
 
 use crate::error::Error;
-use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -49,10 +48,13 @@ impl Type {
     ///
     /// Converts the type into its LLVM representation.
     ///
-    pub fn into_llvm<'ctx, 'src>(
+    pub fn into_llvm<'ctx, 'dep, D>(
         self,
-        context: &LLVMContext<'ctx, 'src>,
-    ) -> inkwell::types::IntType<'ctx> {
+        context: &compiler_llvm_context::Context<'ctx, 'dep, D>,
+    ) -> inkwell::types::IntType<'ctx>
+    where
+        D: compiler_llvm_context::Dependency,
+    {
         match self {
             Self::Bool => context.integer_type(compiler_common::BITLENGTH_BOOLEAN),
             Self::Int(bitlength) => context.integer_type(bitlength),

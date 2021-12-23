@@ -5,8 +5,6 @@
 use inkwell::values::BasicValue;
 
 use crate::error::Error;
-use crate::generator::llvm::argument::Argument;
-use crate::generator::llvm::Context as LLVMContext;
 use crate::lexer::lexeme::literal::boolean::Boolean as BooleanLiteral;
 use crate::lexer::lexeme::literal::integer::Integer as IntegerLiteral;
 use crate::lexer::lexeme::literal::Literal as LexicalLiteral;
@@ -58,7 +56,13 @@ impl Literal {
     ///
     /// Converts the literal into its LLVM representation.
     ///
-    pub fn into_llvm<'ctx, 'src>(self, context: &LLVMContext<'ctx, 'src>) -> Argument<'ctx> {
+    pub fn into_llvm<'ctx, 'dep, D>(
+        self,
+        context: &compiler_llvm_context::Context<'ctx, 'dep, D>,
+    ) -> compiler_llvm_context::Argument<'ctx>
+    where
+        D: compiler_llvm_context::Dependency,
+    {
         match self.inner {
             LexicalLiteral::Boolean(inner) => {
                 let value = self
@@ -73,7 +77,7 @@ impl Literal {
                         false,
                     )
                     .as_basic_value_enum();
-                Argument::new(value)
+                compiler_llvm_context::Argument::new(value)
             }
             LexicalLiteral::Integer(inner) => {
                 let r#type = self.yul_type.unwrap_or_default().into_llvm(context);
@@ -89,7 +93,7 @@ impl Literal {
                 }
                 .expect("The value is valid")
                 .as_basic_value_enum();
-                Argument::new(value)
+                compiler_llvm_context::Argument::new(value)
             }
             LexicalLiteral::String(inner) => {
                 let string = inner.to_string();
@@ -121,7 +125,7 @@ impl Literal {
                 }
 
                 if hex_string.len() > compiler_common::SIZE_FIELD * 2 {
-                    return Argument::new_with_original(
+                    return compiler_llvm_context::Argument::new_with_original(
                         r#type.const_zero().as_basic_value_enum(),
                         string,
                     );
@@ -140,7 +144,7 @@ impl Literal {
                     )
                     .expect("The value is valid")
                     .as_basic_value_enum();
-                Argument::new_with_original(value, string)
+                compiler_llvm_context::Argument::new_with_original(value, string)
             }
         }
     }

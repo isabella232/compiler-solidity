@@ -4,30 +4,29 @@
 
 use inkwell::values::BasicValue;
 
-use crate::generator::llvm::address_space::AddressSpace;
-use crate::generator::llvm::intrinsic::Intrinsic;
-use crate::generator::llvm::Context as LLVMContext;
-
 ///
 /// Translates a log or event call.
 ///
-pub fn log<'ctx, 'src>(
-    context: &mut LLVMContext<'ctx, 'src>,
+pub fn log<'ctx, 'dep, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     range_start: inkwell::values::IntValue<'ctx>,
     length: inkwell::values::IntValue<'ctx>,
     topics: Vec<inkwell::values::IntValue<'ctx>>,
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
-    let intrinsic = context.get_intrinsic_function(Intrinsic::Event);
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
+where
+    D: compiler_llvm_context::Dependency,
+{
+    let intrinsic = context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::Event);
 
     let topics_length = context.field_const(topics.len() as u64);
-    let data_length_shifted = context.builder.build_left_shift(
+    let data_length_shifted = context.builder().build_left_shift(
         length,
         context.field_const((compiler_common::BITLENGTH_X32) as u64),
         "event_data_length_shifted",
     );
     let event_initializer =
         context
-            .builder
+            .builder()
             .build_int_add(topics_length, data_length_shifted, "event_initializer");
 
     let (range_start, length) = if topics.len() % 2 == 0 {
@@ -39,7 +38,7 @@ pub fn log<'ctx, 'src>(
         let data_not_empty_block = context.append_basic_block("event_odd_data_not_empty");
         let join_block = context.append_basic_block("event_odd_data_join");
 
-        let data_empty_condition = context.builder.build_int_compare(
+        let data_empty_condition = context.builder().build_int_compare(
             inkwell::IntPredicate::EQ,
             length,
             context.field_const(0),
@@ -103,7 +102,7 @@ pub fn log<'ctx, 'src>(
         context.set_basic_block(data_not_empty_block);
         let pointer = context.access_memory(
             range_start,
-            AddressSpace::Heap,
+            compiler_llvm_context::AddressSpace::Heap,
             "event_odd_first_value_pointer",
         );
         let value = context.build_load(pointer, "event_odd_first_value");
@@ -154,7 +153,7 @@ pub fn log<'ctx, 'src>(
 
         context.build_store(
             range_start_pointer,
-            context.builder.build_int_add(
+            context.builder().build_int_add(
                 range_start,
                 context.field_const(compiler_common::SIZE_FIELD as u64),
                 "event_odd_range_start_after_first",
@@ -162,7 +161,7 @@ pub fn log<'ctx, 'src>(
         );
         context.build_store(
             length_pointer,
-            context.builder.build_int_sub(
+            context.builder().build_int_sub(
                 length,
                 context.field_const(compiler_common::SIZE_FIELD as u64),
                 "event_odd_length_without_first",
@@ -212,7 +211,7 @@ pub fn log<'ctx, 'src>(
 
     let index_pointer = context.build_alloca(context.field_type(), "event_loop_index_pointer");
     let range_end = context
-        .builder
+        .builder()
         .build_int_add(range_start, length, "event_loop_range_end");
     context.build_store(index_pointer, range_start);
     context.build_unconditional_branch(condition_block);
@@ -221,7 +220,7 @@ pub fn log<'ctx, 'src>(
     let index_value = context
         .build_load(index_pointer, "event_loop_index_value")
         .into_int_value();
-    let condition = context.builder.build_int_compare(
+    let condition = context.builder().build_int_compare(
         inkwell::IntPredicate::ULT,
         index_value,
         range_end,
@@ -233,7 +232,7 @@ pub fn log<'ctx, 'src>(
     let index_value = context
         .build_load(index_pointer, "event_loop_index_value_increment")
         .into_int_value();
-    let incremented = context.builder.build_int_add(
+    let incremented = context.builder().build_int_add(
         index_value,
         context.field_const((compiler_common::SIZE_FIELD * 2) as u64),
         "event_loop_index_value_incremented",
@@ -249,9 +248,9 @@ pub fn log<'ctx, 'src>(
         .into_int_value();
     let values_remaining =
         context
-            .builder
+            .builder()
             .build_int_sub(range_end, index_value, "event_loop_values_remaining");
-    let has_two_values = context.builder.build_int_compare(
+    let has_two_values = context.builder().build_int_compare(
         inkwell::IntPredicate::UGE,
         values_remaining,
         context.field_const((compiler_common::SIZE_FIELD * 2) as u64),
@@ -262,18 +261,18 @@ pub fn log<'ctx, 'src>(
     context.set_basic_block(two_values_block);
     let value_1_pointer = context.access_memory(
         index_value,
-        AddressSpace::Heap,
+        compiler_llvm_context::AddressSpace::Heap,
         "event_loop_value_1_pointer",
     );
     let value_1 = context.build_load(value_1_pointer, "event_loop_value_1");
-    let index_value_next = context.builder.build_int_add(
+    let index_value_next = context.builder().build_int_add(
         index_value,
         context.field_const(compiler_common::SIZE_FIELD as u64),
         "event_loop_index_value_next",
     );
     let value_2_pointer = context.access_memory(
         index_value_next,
-        AddressSpace::Heap,
+        compiler_llvm_context::AddressSpace::Heap,
         "event_loop_value_2_pointer",
     );
     let value_2 = context.build_load(value_2_pointer, "event_loop_value_2");
@@ -291,7 +290,7 @@ pub fn log<'ctx, 'src>(
     context.set_basic_block(one_value_block);
     let value_1_pointer = context.access_memory(
         index_value,
-        AddressSpace::Heap,
+        compiler_llvm_context::AddressSpace::Heap,
         "event_loop_value_1_pointer",
     );
     let value_1 = context.build_load(value_1_pointer, "event_loop_value_1");

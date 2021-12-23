@@ -4,17 +4,18 @@
 
 use inkwell::values::BasicValue;
 
-use crate::generator::llvm::Context as LLVMContext;
-
 ///
 /// Translates the modular addition operation.
 ///
-pub fn add_mod<'ctx, 'src>(
-    context: &mut LLVMContext<'ctx, 'src>,
+pub fn add_mod<'ctx, 'dep, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
+where
+    D: compiler_llvm_context::Dependency,
+{
     Ok(context.build_invoke(
-        context.addmod,
+        context.runtime.addmod,
         &[arguments[0], arguments[1], arguments[2]],
         "add_mod_call",
     ))
@@ -23,12 +24,15 @@ pub fn add_mod<'ctx, 'src>(
 ///
 /// Translates the modular multiplication operation.
 ///
-pub fn mul_mod<'ctx, 'src>(
-    context: &mut LLVMContext<'ctx, 'src>,
+pub fn mul_mod<'ctx, 'dep, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
+where
+    D: compiler_llvm_context::Dependency,
+{
     Ok(context.build_invoke(
-        context.mulmod,
+        context.runtime.mulmod,
         &[arguments[0], arguments[1], arguments[2]],
         "mul_mod_call",
     ))
@@ -37,10 +41,13 @@ pub fn mul_mod<'ctx, 'src>(
 ///
 /// Translates the exponent operation.
 ///
-pub fn exponent<'ctx, 'src>(
-    context: &mut LLVMContext<'ctx, 'src>,
+pub fn exponent<'ctx, 'dep, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
+where
+    D: compiler_llvm_context::Dependency,
+{
     let result_pointer = context.build_alloca(context.field_type(), "exponent_result");
     context.build_store(result_pointer, context.field_const(1));
 
@@ -58,7 +65,7 @@ pub fn exponent<'ctx, 'src>(
     let index_value = context
         .build_load(index_pointer, "exponent_loop_index_value_condition")
         .into_int_value();
-    let condition = context.builder.build_int_compare(
+    let condition = context.builder().build_int_compare(
         inkwell::IntPredicate::ULT,
         index_value,
         arguments[1].into_int_value(),
@@ -70,7 +77,7 @@ pub fn exponent<'ctx, 'src>(
     let index_value = context
         .build_load(index_pointer, "exponent_loop_index_value_increment")
         .into_int_value();
-    let incremented = context.builder.build_int_add(
+    let incremented = context.builder().build_int_add(
         index_value,
         context.field_const(1),
         "exponent_loop_index_value_incremented",
@@ -82,7 +89,7 @@ pub fn exponent<'ctx, 'src>(
     let intermediate = context
         .build_load(result_pointer, "exponent_loop_intermediate_result")
         .into_int_value();
-    let result = context.builder.build_int_mul(
+    let result = context.builder().build_int_mul(
         intermediate,
         arguments[0].into_int_value(),
         "exponent_loop_intermediate_result_multiplied",
@@ -99,59 +106,65 @@ pub fn exponent<'ctx, 'src>(
 ///
 /// Translates the sign extension operation.
 ///
-pub fn sign_extend<'ctx, 'src>(
-    context: &mut LLVMContext<'ctx, 'src>,
+pub fn sign_extend<'ctx, 'dep, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
-    let bitlength = context.builder.build_int_mul(
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
+where
+    D: compiler_llvm_context::Dependency,
+{
+    let bitlength = context.builder().build_int_mul(
         arguments[0].into_int_value(),
         context.field_const(compiler_common::BITLENGTH_BYTE as u64),
         "sign_extend_bitlength_multiplied",
     );
-    let bitlength = context.builder.build_int_add(
+    let bitlength = context.builder().build_int_add(
         bitlength,
         context.field_const((compiler_common::BITLENGTH_BYTE - 1) as u64),
         "sign_extend_bitlength",
     );
-    let sign_mask = context.builder.build_left_shift(
+    let sign_mask = context.builder().build_left_shift(
         context.field_const(1),
         bitlength,
         "sign_extend_sign_mask",
     );
-    let sign_bit = context.builder.build_and(
+    let sign_bit = context.builder().build_and(
         arguments[1].into_int_value(),
         sign_mask,
         "sign_extend_sign_bit",
     );
-    let sign_bit_truncated = context.builder.build_right_shift(
+    let sign_bit_truncated = context.builder().build_right_shift(
         sign_bit,
         bitlength,
         false,
         "sign_extend_sign_bit_truncated",
     );
 
-    let value_mask =
-        context
-            .builder
-            .build_int_sub(sign_mask, context.field_const(1), "sign_extend_value_mask");
-    let value = context.builder.build_and(
+    let value_mask = context.builder().build_int_sub(
+        sign_mask,
+        context.field_const(1),
+        "sign_extend_value_mask",
+    );
+    let value = context.builder().build_and(
         arguments[1].into_int_value(),
         value_mask,
         "sign_extend_value",
     );
 
-    let sign_fill_bits = context.builder.build_xor(
+    let sign_fill_bits = context.builder().build_xor(
         value_mask,
         context.field_type().const_all_ones(),
         "sign_fill_bits",
     );
-    let sign_fill_bits_checked =
+    let sign_fill_bits_checked = context.builder().build_int_mul(
+        sign_fill_bits,
+        sign_bit_truncated,
+        "sign_fill_bits_checked",
+    );
+    let result =
         context
-            .builder
-            .build_int_mul(sign_fill_bits, sign_bit_truncated, "sign_fill_bits_checked");
-    let result = context
-        .builder
-        .build_int_add(value, sign_fill_bits_checked, "sign_extend_result");
+            .builder()
+            .build_int_add(value, sign_fill_bits_checked, "sign_extend_result");
 
     Ok(Some(result.as_basic_value_enum()))
 }

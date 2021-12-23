@@ -75,16 +75,16 @@ pub struct Arguments {
     pub output_hashes: bool,
 
     /// Dump the Yul Intermediate Representation (IR) of all contracts.
-    #[structopt(long = "ir")]
+    #[structopt(long = "dump-yul")]
     pub dump_yul: bool,
 
     /// Dump the LLVM Intermediate Representation (IR) of all contracts.
-    #[structopt(long = "llvm")]
+    #[structopt(long = "dump-llvm")]
     pub dump_llvm: bool,
 
     /// Dump the zkEVM assembly of all contracts.
-    #[structopt(long = "llvm")]
-    pub dump_asm: bool,
+    #[structopt(long = "dump-assembly")]
+    pub dump_assembly: bool,
 
     /// Output zkEVM assembly of the contracts.
     #[structopt(long = "asm")]

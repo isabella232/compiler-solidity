@@ -4,17 +4,18 @@
 
 use inkwell::values::BasicValue;
 
-use crate::generator::llvm::intrinsic::Intrinsic;
-use crate::generator::llvm::Context as LLVMContext;
-
 ///
 /// Translates the contract context getter calls.
 ///
-pub fn get<'ctx, 'src>(
-    context: &mut LLVMContext<'ctx, 'src>,
+pub fn get<'ctx, 'dep, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     context_value: compiler_common::ContextValue,
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>> {
-    let intrinsic = context.get_intrinsic_function(Intrinsic::GetFromContext);
+) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
+where
+    D: compiler_llvm_context::Dependency,
+{
+    let intrinsic =
+        context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::GetFromContext);
     let value = context
         .build_call(
             intrinsic,

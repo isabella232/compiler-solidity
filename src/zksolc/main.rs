@@ -27,6 +27,15 @@ fn main() {
 fn main_inner() -> Result<(), compiler_solidity::Error> {
     let mut arguments = Arguments::new();
 
+    let dump_flags = compiler_llvm_context::DumpFlag::initialize(
+        false,
+        false,
+        false,
+        arguments.dump_llvm,
+        arguments.dump_assembly,
+        false,
+    );
+
     for path in arguments.input_files.iter_mut() {
         *path = path.canonicalize()?;
     }
@@ -57,7 +66,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
 
     compiler_solidity::initialize_target();
     let mut project = solc_output.try_into_project(libraries, arguments.dump_yul, true)?;
-    project.compile_all(arguments.optimize, arguments.dump_llvm, arguments.dump_asm)?;
+    project.compile_all(arguments.optimize, dump_flags)?;
 
     let combined_json = if let Some(combined_json) = arguments.combined_json {
         match solc.combined_json(arguments.input_files.as_slice(), combined_json.as_str()) {

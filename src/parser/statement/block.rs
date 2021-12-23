@@ -4,12 +4,9 @@
 
 use inkwell::values::BasicValue;
 
+use compiler_llvm_context::WriteLLVM;
+
 use crate::error::Error;
-use crate::generator::llvm::address_space::AddressSpace;
-use crate::generator::llvm::function::r#return::Return as FunctionReturn;
-use crate::generator::llvm::intrinsic::Intrinsic;
-use crate::generator::llvm::Context as LLVMContext;
-use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::symbol::Symbol;
 use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
@@ -92,8 +89,14 @@ impl Block {
     ///
     /// Translates the constructor code block into LLVM.
     ///
-    pub fn into_llvm_constructor(self, context: &mut LLVMContext) -> anyhow::Result<()> {
-        let function_type = context.function_type(&[], vec![]);
+    pub fn into_llvm_constructor<D>(
+        self,
+        context: &mut compiler_llvm_context::Context<D>,
+    ) -> anyhow::Result<()>
+    where
+        D: compiler_llvm_context::Dependency,
+    {
+        let function_type = context.function_type(0, vec![]);
         context.add_function(
             compiler_common::LLVM_FUNCTION_CONSTRUCTOR,
             function_type,
@@ -108,7 +111,7 @@ impl Block {
             .ok_or_else(|| anyhow::anyhow!("Constructor not found"))?;
         context.set_function(function);
         context.set_basic_block(context.function().entry_block);
-        context.set_function_return(FunctionReturn::none());
+        context.set_function_return(compiler_llvm_context::FunctionReturn::none());
 
         self.into_llvm_local(context)?;
         match context
@@ -133,7 +136,13 @@ impl Block {
     ///
     /// Translates the main deployed code block into LLVM.
     ///
-    pub fn into_llvm_selector(self, context: &mut LLVMContext) -> anyhow::Result<()> {
+    pub fn into_llvm_selector<D>(
+        self,
+        context: &mut compiler_llvm_context::Context<D>,
+    ) -> anyhow::Result<()>
+    where
+        D: compiler_llvm_context::Dependency,
+    {
         let function = context
             .functions
             .get(compiler_common::LLVM_FUNCTION_SELECTOR)
@@ -144,7 +153,7 @@ impl Block {
         context.set_basic_block(context.function().entry_block);
 
         let return_pointer = context.build_alloca(context.field_type(), "return_pointer");
-        let r#return = FunctionReturn::primitive(return_pointer);
+        let r#return = compiler_llvm_context::FunctionReturn::primitive(return_pointer);
         context.set_function_return(r#return);
 
         self.constructor_call(context)?;
@@ -171,7 +180,13 @@ impl Block {
     ///
     /// Translates a function or ordinary block into LLVM.
     ///
-    pub fn into_llvm_local(self, context: &mut LLVMContext) -> anyhow::Result<()> {
+    pub fn into_llvm_local<D>(
+        self,
+        context: &mut compiler_llvm_context::Context<D>,
+    ) -> anyhow::Result<()>
+    where
+        D: compiler_llvm_context::Dependency,
+    {
         let current_function = context.function().to_owned();
         let current_block = context.basic_block();
 
@@ -229,7 +244,13 @@ impl Block {
     ///
     /// Writes a conditional constructor call at the beginning of the selector.
     ///
-    fn constructor_call(&self, context: &mut LLVMContext) -> anyhow::Result<()> {
+    fn constructor_call<D>(
+        &self,
+        context: &mut compiler_llvm_context::Context<D>,
+    ) -> anyhow::Result<()>
+    where
+        D: compiler_llvm_context::Dependency,
+    {
         let constructor = context
             .functions
             .get(compiler_common::LLVM_FUNCTION_CONSTRUCTOR)
@@ -237,42 +258,42 @@ impl Block {
             .ok_or_else(|| anyhow::anyhow!("Constructor not found"))?;
 
         let is_executed_flag = Self::is_executed_flag(context);
-        let is_executed_flag_zero = context.builder.build_int_compare(
+        let is_executed_flag_zero = context.builder().build_int_compare(
             inkwell::IntPredicate::EQ,
             is_executed_flag,
             context.field_const(0),
             "is_executed_flag_zero",
         );
-        let is_executed_flag_one = context.builder.build_int_compare(
+        let is_executed_flag_one = context.builder().build_int_compare(
             inkwell::IntPredicate::EQ,
             is_executed_flag,
             context.field_const(1),
             "is_executed_flag_one",
         );
         let is_constructor_call = Self::is_constructor_call(context);
-        let is_constructor_call_zero = context.builder.build_int_compare(
+        let is_constructor_call_zero = context.builder().build_int_compare(
             inkwell::IntPredicate::EQ,
             is_constructor_call,
             context.field_const(0),
             "is_constructor_call_zero",
         );
-        let is_constructor_call_one = context.builder.build_int_compare(
+        let is_constructor_call_one = context.builder().build_int_compare(
             inkwell::IntPredicate::EQ,
             is_constructor_call,
             context.field_const(1),
             "is_constructor_call_one",
         );
-        let is_error_double_constructor_call = context.builder.build_and(
+        let is_error_double_constructor_call = context.builder().build_and(
             is_constructor_call_one,
             is_executed_flag_one,
             "is_error_double_constructor_call",
         );
-        let is_error_expected_constructor_call = context.builder.build_and(
+        let is_error_expected_constructor_call = context.builder().build_and(
             is_constructor_call_zero,
             is_executed_flag_zero,
             "is_error_expected_constructor_call",
         );
-        let is_constructor_call = context.builder.build_and(
+        let is_constructor_call = context.builder().build_and(
             is_constructor_call_one,
             is_executed_flag_zero,
             "is_constructor_call",
@@ -326,11 +347,14 @@ impl Block {
     ///
     /// Returns the constructor call flag.
     ///
-    fn is_constructor_call<'ctx, 'src>(
-        context: &mut LLVMContext<'ctx, 'src>,
-    ) -> inkwell::values::IntValue<'ctx> {
-        let header = context.read_header(AddressSpace::Parent);
-        context.builder.build_right_shift(
+    fn is_constructor_call<'ctx, 'dep, D>(
+        context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+    ) -> inkwell::values::IntValue<'ctx>
+    where
+        D: compiler_llvm_context::Dependency,
+    {
+        let header = context.read_header(compiler_llvm_context::AddressSpace::Parent);
+        context.builder().build_right_shift(
             header,
             context.field_const((8 * compiler_common::BITLENGTH_BYTE) as u64),
             false,
@@ -341,15 +365,19 @@ impl Block {
     ///
     /// Returns the constructor having executed flag.
     ///
-    fn is_executed_flag<'ctx, 'src>(
-        context: &mut LLVMContext<'ctx, 'src>,
-    ) -> inkwell::values::IntValue<'ctx> {
+    fn is_executed_flag<'ctx, 'dep, D>(
+        context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+    ) -> inkwell::values::IntValue<'ctx>
+    where
+        D: compiler_llvm_context::Dependency,
+    {
         let storage_key_string = compiler_common::keccak256(
             compiler_common::ABI_STORAGE_IS_CONSTRUCTOR_EXECUTED.as_bytes(),
         );
         let storage_key_value = context.field_const_str(storage_key_string.as_str());
 
-        let intrinsic = context.get_intrinsic_function(Intrinsic::StorageLoad);
+        let intrinsic =
+            context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::StorageLoad);
         context
             .build_call(
                 intrinsic,
@@ -366,13 +394,17 @@ impl Block {
     ///
     /// Writes the contract constructor executed flag.
     ///
-    fn write_is_executed_flag(context: &mut LLVMContext) {
+    fn write_is_executed_flag<D>(context: &mut compiler_llvm_context::Context<D>)
+    where
+        D: compiler_llvm_context::Dependency,
+    {
         let storage_key_string = compiler_common::keccak256(
             compiler_common::ABI_STORAGE_IS_CONSTRUCTOR_EXECUTED.as_bytes(),
         );
         let storage_key_value = context.field_const_str(storage_key_string.as_str());
 
-        let intrinsic = context.get_intrinsic_function(Intrinsic::StorageStore);
+        let intrinsic =
+            context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::StorageStore);
         context.build_call(
             intrinsic,
             &[

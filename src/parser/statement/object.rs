@@ -3,8 +3,6 @@
 //!
 
 use crate::error::Error;
-use crate::generator::llvm::Context as LLVMContext;
-use crate::generator::ILLVMWritable;
 use crate::lexer::lexeme::keyword::Keyword;
 use crate::lexer::lexeme::literal::Literal;
 use crate::lexer::lexeme::symbol::Symbol;
@@ -100,19 +98,18 @@ impl Object {
     }
 }
 
-impl ILLVMWritable for Object {
-    fn into_llvm(self, context: &mut LLVMContext) -> anyhow::Result<()> {
+impl<D> compiler_llvm_context::WriteLLVM<D> for Object
+where
+    D: compiler_llvm_context::Dependency,
+{
+    fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         let is_selector = self.identifier.ends_with("_deployed");
         let is_constructor = !is_selector;
 
         if is_constructor {
-            context.set_object(self.identifier.as_str());
-        }
-
-        if is_constructor {
             context.add_function(
                 compiler_common::LLVM_FUNCTION_SELECTOR,
-                context.void_type().fn_type(&[], false),
+                context.function_type(0, vec![]),
                 Some(inkwell::module::Linkage::External),
                 false,
             );
