@@ -6,7 +6,6 @@ pub mod arithmetic;
 pub mod bitwise;
 pub mod calldata;
 pub mod comparison;
-pub mod context;
 pub mod contract;
 pub mod create;
 pub mod event;
@@ -509,11 +508,21 @@ impl FunctionCall {
                 Ok(Some(arguments[0]))
             }
 
-            Name::Address => context::get(context, compiler_common::ContextValue::Address),
-            Name::Caller => context::get(context, compiler_common::ContextValue::MessageSender),
-            Name::Timestamp => context::get(context, compiler_common::ContextValue::BlockTimestamp),
-            Name::Number => context::get(context, compiler_common::ContextValue::BlockNumber),
-            Name::Gas => context::get(context, compiler_common::ContextValue::GasLeft),
+            Name::Address => context
+                .access_context(compiler_common::ContextValue::Address)
+                .map(Option::Some),
+            Name::Caller => context
+                .access_context(compiler_common::ContextValue::MessageSender)
+                .map(Option::Some),
+            Name::Timestamp => context
+                .access_context(compiler_common::ContextValue::BlockTimestamp)
+                .map(Option::Some),
+            Name::Number => context
+                .access_context(compiler_common::ContextValue::BlockNumber)
+                .map(Option::Some),
+            Name::Gas => context
+                .access_context(compiler_common::ContextValue::GasLeft)
+                .map(Option::Some),
 
             Name::GasLimit => Ok(Some(
                 context.field_const(u32::MAX as u64).as_basic_value_enum(),

@@ -112,19 +112,6 @@ impl Statement {
             .into()),
         }
     }
-
-    ///
-    /// Converts the statement into a block.
-    ///
-    /// # Panics
-    /// If there statement is not a block.
-    ///
-    pub fn into_block(self) -> Block {
-        match self {
-            Self::Block(block) => block,
-            _ => panic!("Expected block"),
-        }
-    }
 }
 
 #[cfg(test)]
