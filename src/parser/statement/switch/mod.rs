@@ -90,7 +90,7 @@ where
     fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         if self.cases.is_empty() {
             if let Some(block) = self.default {
-                block.into_llvm_local(context)?;
+                block.into_llvm(context)?;
             }
             return Ok(());
         }
@@ -104,7 +104,7 @@ where
             let expression_block =
                 context.append_basic_block(format!("switch_case_branch_{}", index + 1).as_str());
             context.set_basic_block(expression_block);
-            case.block.into_llvm_local(context)?;
+            case.block.into_llvm(context)?;
             context.build_unconditional_branch(join_block);
 
             context.set_basic_block(current_block);
@@ -129,7 +129,7 @@ where
 
         context.set_basic_block(current_block);
         if let Some(block) = self.default {
-            block.into_llvm_local(context)?;
+            block.into_llvm(context)?;
         }
         context.build_unconditional_branch(join_block);
 

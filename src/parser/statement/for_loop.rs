@@ -52,7 +52,7 @@ where
     D: compiler_llvm_context::Dependency,
 {
     fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
-        self.initializer.into_llvm_local(context)?;
+        self.initializer.into_llvm(context)?;
 
         let condition_block = context.append_basic_block("for_condition");
         let body_block = context.append_basic_block("for_body");
@@ -83,11 +83,11 @@ where
         context.push_loop(body_block, increment_block, join_block);
 
         context.set_basic_block(body_block);
-        self.body.into_llvm_local(context)?;
+        self.body.into_llvm(context)?;
         context.build_unconditional_branch(increment_block);
 
         context.set_basic_block(increment_block);
-        self.finalizer.into_llvm_local(context)?;
+        self.finalizer.into_llvm(context)?;
         context.build_unconditional_branch(condition_block);
 
         context.pop_loop();

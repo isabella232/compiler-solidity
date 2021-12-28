@@ -47,34 +47,6 @@ impl Code {
             dependencies: vec![],
         }
     }
-
-    ///
-    /// Translates the constructor code block into LLVM.
-    ///
-    pub fn into_llvm_constructor<D>(
-        self,
-        context: &mut compiler_llvm_context::Context<D>,
-    ) -> anyhow::Result<()>
-    where
-        D: compiler_llvm_context::Dependency,
-    {
-        self.block.into_llvm_constructor(context)?;
-        Ok(())
-    }
-
-    ///
-    /// Translates the main deployed code block into LLVM.
-    ///
-    pub fn into_llvm_selector<D>(
-        self,
-        context: &mut compiler_llvm_context::Context<D>,
-    ) -> anyhow::Result<()>
-    where
-        D: compiler_llvm_context::Dependency,
-    {
-        self.block.into_llvm_selector(context)?;
-        Ok(())
-    }
 }
 
 impl<D> compiler_llvm_context::WriteLLVM<D> for Code
@@ -82,7 +54,7 @@ where
     D: compiler_llvm_context::Dependency,
 {
     fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
-        self.block.into_llvm_selector(context)?;
+        self.block.into_llvm(context)?;
         Ok(())
     }
 }

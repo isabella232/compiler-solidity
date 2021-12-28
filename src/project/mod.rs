@@ -82,6 +82,7 @@ impl Project {
                 Some(self),
                 dump_flags.clone(),
             );
+            Object::prepare(&mut context).map_err(|error| Error::LLVM(error.to_string()))?;
             object
                 .into_llvm(&mut context)
                 .map_err(|error| Error::LLVM(error.to_string()))?;

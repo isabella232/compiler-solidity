@@ -73,14 +73,13 @@ impl FunctionDefinition {
             body,
         })
     }
+}
 
-    ///
-    /// Hoists a function to allow calls before translating the body.
-    ///
-    pub fn declare<D>(&mut self, context: &mut compiler_llvm_context::Context<D>)
-    where
-        D: compiler_llvm_context::Dependency,
-    {
+impl<D> compiler_llvm_context::WriteLLVM<D> for FunctionDefinition
+where
+    D: compiler_llvm_context::Dependency,
+{
+    fn declare(&mut self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         let argument_types: Vec<_> = self
             .arguments
             .iter()
@@ -96,27 +95,29 @@ impl FunctionDefinition {
             self.name.as_str(),
             function_type,
             Some(inkwell::module::Linkage::Private),
-            true,
         );
 
         if self.result.len() > 1 {
-            let function = context.function().value;
+            let function = context
+                .functions
+                .get(self.name.as_str())
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("Entry not found"))?;
             let pointer = function
+                .value
                 .get_first_param()
                 .expect("Always exists")
                 .into_pointer_value();
+            context.set_function(function);
             context.set_function_return(compiler_llvm_context::FunctionReturn::compound(
                 pointer,
                 self.result.len(),
             ));
         }
-    }
-}
 
-impl<D> compiler_llvm_context::WriteLLVM<D> for FunctionDefinition
-where
-    D: compiler_llvm_context::Dependency,
-{
+        Ok(())
+    }
+
     fn into_llvm(mut self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         let function = context
             .functions
@@ -202,7 +203,7 @@ where
             );
         }
 
-        self.body.into_llvm_local(context)?;
+        self.body.into_llvm(context)?;
         match context
             .basic_block()
             .get_last_instruction()

@@ -102,21 +102,21 @@ impl<D> compiler_llvm_context::WriteLLVM<D> for Object
 where
     D: compiler_llvm_context::Dependency,
 {
+    fn prepare(context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
+        compiler_llvm_context::EntryFunction::prepare(context)?;
+        compiler_llvm_context::ConstructorFunction::<Code, D>::prepare(context)?;
+        compiler_llvm_context::SelectorFunction::<Code, D>::prepare(context)?;
+
+        compiler_llvm_context::EntryFunction::default().into_llvm(context)?;
+
+        Ok(())
+    }
+
     fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
-        let is_selector = self.identifier.ends_with("_deployed");
-        let is_constructor = !is_selector;
-
-        if is_constructor {
-            context.add_function(
-                compiler_common::LLVM_FUNCTION_SELECTOR,
-                context.function_type(0, vec![]),
-                Some(inkwell::module::Linkage::External),
-                false,
-            );
-
-            self.code.into_llvm_constructor(context)?;
-        } else if is_selector {
-            self.code.into_llvm_selector(context)?;
+        if self.identifier.ends_with("_deployed") {
+            compiler_llvm_context::SelectorFunction::new(self.code).into_llvm(context)?;
+        } else {
+            compiler_llvm_context::ConstructorFunction::new(self.code).into_llvm(context)?;
         }
 
         if let Some(object) = self.object {
