@@ -3,46 +3,6 @@
 //!
 
 ///
-/// Translates the heap memory load.
-///
-pub fn load<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
-    arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
-where
-    D: compiler_llvm_context::Dependency,
-{
-    let pointer = context.access_memory(
-        arguments[0].into_int_value(),
-        compiler_llvm_context::AddressSpace::Heap,
-        "memory_load_pointer",
-    );
-    let result = context.build_load(pointer, "memory_load_result");
-    Ok(Some(result))
-}
-
-///
-/// Translates the heap memory store.
-///
-pub fn store<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
-    arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
-where
-    D: compiler_llvm_context::Dependency,
-{
-    let offset = arguments[0].into_int_value();
-    let pointer = context.access_memory(
-        offset,
-        compiler_llvm_context::AddressSpace::Heap,
-        "memory_store_pointer",
-    );
-    context.build_store(pointer, arguments[1]);
-
-    Ok(None)
-}
-
-///
 /// Translates the heap memory byte store.
 ///
 pub fn store_byte<'ctx, 'dep, D>(

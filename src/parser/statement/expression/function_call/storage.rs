@@ -5,53 +5,6 @@
 use inkwell::values::BasicValue;
 
 ///
-/// Translates the contract storage load.
-///
-pub fn load<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
-    arguments: [inkwell::values::BasicValueEnum<'ctx>; 1],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
-where
-    D: compiler_llvm_context::Dependency,
-{
-    let intrinsic =
-        context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::StorageLoad);
-    let position = arguments[0];
-    let is_external_storage = context.field_const(0);
-    let value = context
-        .build_call(
-            intrinsic,
-            &[position, is_external_storage.as_basic_value_enum()],
-            "storage_value",
-        )
-        .expect("Contract storage always returns a value");
-    Ok(Some(value))
-}
-
-///
-/// Translates the contract storage store.
-///
-pub fn store<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
-    arguments: [inkwell::values::BasicValueEnum<'ctx>; 2],
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
-where
-    D: compiler_llvm_context::Dependency,
-{
-    let intrinsic =
-        context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::StorageStore);
-    let position = arguments[0];
-    let value = arguments[1];
-    let is_external_storage = context.field_const(0);
-    context.build_call(
-        intrinsic,
-        &[value, position, is_external_storage.as_basic_value_enum()],
-        "storage_store",
-    );
-    Ok(None)
-}
-
-///
 /// Translates the contract storage immutable load.
 ///
 pub fn load_immutable<'ctx, 'dep, D>(
