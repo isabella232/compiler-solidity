@@ -5,8 +5,6 @@
 pub mod calldata;
 pub mod contract;
 pub mod create;
-pub mod event;
-pub mod memory;
 pub mod name;
 pub mod storage;
 
@@ -284,7 +282,7 @@ impl FunctionCall {
             }
             Name::MStore8 => {
                 let arguments = self.pop_arguments_llvm::<D, 2>(context)?;
-                memory::store_byte(context, arguments)
+                compiler_llvm_context::memory::store_byte(context, arguments)
             }
 
             Name::SLoad => {
@@ -341,7 +339,7 @@ impl FunctionCall {
 
             Name::Log0 => {
                 let arguments = self.pop_arguments_llvm::<D, 2>(context)?;
-                event::log(
+                compiler_llvm_context::event::log(
                     context,
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
@@ -350,7 +348,7 @@ impl FunctionCall {
             }
             Name::Log1 => {
                 let arguments = self.pop_arguments_llvm::<D, 3>(context)?;
-                event::log(
+                compiler_llvm_context::event::log(
                     context,
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
@@ -362,7 +360,7 @@ impl FunctionCall {
             }
             Name::Log2 => {
                 let arguments = self.pop_arguments_llvm::<D, 4>(context)?;
-                event::log(
+                compiler_llvm_context::event::log(
                     context,
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
@@ -374,7 +372,7 @@ impl FunctionCall {
             }
             Name::Log3 => {
                 let arguments = self.pop_arguments_llvm::<D, 5>(context)?;
-                event::log(
+                compiler_llvm_context::event::log(
                     context,
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
@@ -386,7 +384,7 @@ impl FunctionCall {
             }
             Name::Log4 => {
                 let arguments = self.pop_arguments_llvm::<D, 6>(context)?;
-                event::log(
+                compiler_llvm_context::event::log(
                     context,
                     arguments[0].into_int_value(),
                     arguments[1].into_int_value(),
