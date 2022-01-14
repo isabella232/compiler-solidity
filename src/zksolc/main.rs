@@ -28,7 +28,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     let mut arguments = Arguments::new();
 
     let dump_flags = compiler_llvm_context::DumpFlag::initialize(
-        false,
+        arguments.dump_yul,
         false,
         false,
         arguments.dump_llvm,
