@@ -66,6 +66,11 @@ pub struct Arguments {
     #[structopt(long = "combined-json")]
     pub combined_json: Option<String>,
 
+    /// Switch to Standard JSON input / output mode.
+    /// Reads from stdin, result is written to stdout.
+    #[structopt(long = "standard-json")]
+    pub standard_json: bool,
+
     /// Output ABI specification of the contracts.
     #[structopt(long = "abi")]
     pub output_abi: bool,

@@ -4,9 +4,11 @@
 
 pub mod arguments;
 
+use std::io::{stdin, Stdin};
 use std::str::FromStr;
 
 use self::arguments::Arguments;
+use compiler_solidity::SolcStandardJsonInput;
 
 ///
 /// The application entry point.
@@ -36,21 +38,28 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         false,
     );
 
-    for path in arguments.input_files.iter_mut() {
-        *path = path.canonicalize()?;
-    }
-
     let solc = compiler_solidity::SolcCompiler::new(
         "solc".to_owned(),
         semver::Version::from_str(env!("CARGO_PKG_VERSION")).expect("Always valid"),
     );
 
-    let solc_input = compiler_solidity::SolcStandardJsonInput::try_from_paths(
-        arguments.input_files.as_slice(),
-        arguments.libraries,
-        true,
-    )?;
-    let libraries = solc_input.settings.libraries.clone();
+    let solc_input = if arguments.standard_json {
+        let mut input = serde_json::from_reader::<Stdin, SolcStandardJsonInput>(stdin())?;
+        input.settings.output_selection = serde_json::json!({ "*": { "*": [ "irOptimized" ] } });
+        input
+    } else {
+        for path in arguments.input_files.iter_mut() {
+            *path = path.canonicalize()?;
+        }
+
+        SolcStandardJsonInput::try_from_paths(
+            arguments.input_files.as_slice(),
+            arguments.libraries,
+            true,
+        )?
+    };
+
+    let libraries = solc_input.settings.libraries.clone().unwrap_or_default();
     let solc_output = match solc.standard_json(
         solc_input,
         arguments.base_path,
