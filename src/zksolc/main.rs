@@ -45,13 +45,22 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         semver::Version::from_str(env!("CARGO_PKG_VERSION")).expect("Always valid"),
     );
 
-    let solc_input = compiler_solidity::SolcStandardJsonInput::try_from_paths(
-        arguments.input_files.as_slice(),
-        arguments.libraries,
-        true,
-    )?;
-    let libraries = solc_input.settings.libraries.clone();
-    let solc_output = match solc.standard_json(
+    let solc_input = if arguments.standard_json {
+        let mut input: compiler_solidity::SolcStandardJsonInput =
+            serde_json::from_reader(std::io::BufReader::new(std::io::stdin()))?;
+        input.settings.output_selection =
+            serde_json::json!({ "*": { "*": [ "irOptimized", "abi" ] } });
+        input
+    } else {
+        compiler_solidity::SolcStandardJsonInput::try_from_paths(
+            arguments.input_files.as_slice(),
+            arguments.libraries,
+            true,
+        )?
+    };
+
+    let libraries = solc_input.settings.libraries.clone().unwrap_or_default();
+    let mut solc_output = match solc.standard_json(
         solc_input,
         arguments.base_path,
         arguments.include_paths,
@@ -64,9 +73,46 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         }
     };
 
+    if let Some(errors) = &solc_output.errors {
+        for error in errors.iter() {
+            if arguments.standard_json {
+                if error.severity.as_str() == "error" {
+                    serde_json::to_writer(std::io::stdout(), &solc_output)?;
+                    return Ok(());
+                }
+            } else {
+                eprintln!("{}", error);
+            }
+        }
+    }
+
     compiler_solidity::initialize_target();
-    let mut project = solc_output.try_into_project(libraries, arguments.dump_yul, true)?;
+    let mut project = solc_output
+        .clone()
+        .try_into_project(libraries, arguments.dump_yul)?;
     project.compile_all(arguments.optimize, dump_flags)?;
+
+    if arguments.standard_json {
+        if let Some(contracts) = &mut solc_output.contracts {
+            for (path, contracts) in contracts.iter_mut() {
+                for (name, contract) in contracts.iter_mut() {
+                    if let Some(contract_data) =
+                        project.contracts.get(&format!("{}:{}", path, name))
+                    {
+                        let bytecode =
+                            hex::encode(contract_data.bytecode.as_ref().expect("bytecode absent"));
+                        contract.evm =
+                            Some(serde_json::json!({ "bytecode": { "object": bytecode } }));
+                        contract.factory_dependencies =
+                            Some(contract_data.factory_dependencies.clone());
+                        contract.hash = contract_data.hash.clone();
+                    }
+                }
+            }
+        }
+        serde_json::to_writer(std::io::stdout(), &solc_output)?;
+        return Ok(());
+    }
 
     let combined_json = if let Some(combined_json) = arguments.combined_json {
         match solc.combined_json(arguments.input_files.as_slice(), combined_json.as_str()) {

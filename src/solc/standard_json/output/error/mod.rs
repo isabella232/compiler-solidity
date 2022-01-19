@@ -5,13 +5,14 @@
 pub mod source_location;
 
 use serde::Deserialize;
+use serde::Serialize;
 
 use self::source_location::SourceLocation;
 
 ///
 /// The `solc --standard-json` output error.
 ///
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Error {
     /// The component type.

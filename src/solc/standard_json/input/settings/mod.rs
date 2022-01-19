@@ -20,7 +20,8 @@ use self::optimizer::Optimizer;
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     /// The linker library addresses.
-    pub libraries: HashMap<String, HashMap<String, String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub libraries: Option<HashMap<String, HashMap<String, String>>>,
     /// The output selection filters.
     pub output_selection: serde_json::Value,
     /// The optimizer settings.
@@ -33,7 +34,7 @@ impl Settings {
     ///
     pub fn new(libraries: HashMap<String, HashMap<String, String>>, optimize: bool) -> Self {
         Self {
-            libraries,
+            libraries: Some(libraries),
             output_selection: serde_json::json!({
                 "*": {
                     "*": [
