@@ -2,12 +2,12 @@
 //! The `solc --standard-json` output error source location.
 //!
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 ///
 /// The `solc --standard-json` output error source location.
 ///
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceLocation {
     /// The start location.

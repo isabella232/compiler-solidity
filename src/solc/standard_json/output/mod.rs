@@ -8,7 +8,7 @@ pub mod source;
 
 use std::collections::HashMap;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
 use crate::lexer::Lexer;
@@ -23,7 +23,7 @@ use self::source::Source;
 ///
 /// The `solc --standard-json` output representation.
 ///
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Output {
     /// The file-contract hashmap.
     pub contracts: Option<HashMap<String, HashMap<String, Contract>>>,
