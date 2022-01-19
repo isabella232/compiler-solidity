@@ -2,12 +2,13 @@
 //! The `solc --standard-json` output source.
 //!
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 ///
 /// The `solc --standard-json` output source.
 ///
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 #[serde(rename_all = "camelCase")]
 pub struct Source {
     /// The source code ID.

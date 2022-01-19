@@ -4,10 +4,9 @@
 
 pub mod arguments;
 
-use self::arguments::Arguments;
-use compiler_solidity::SolcStandardJsonInput;
-use std::io;
 use std::str::FromStr;
+
+use self::arguments::Arguments;
 
 ///
 /// The application entry point.
@@ -47,13 +46,13 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     );
 
     let solc_input = if arguments.standard_json {
-        let mut input: SolcStandardJsonInput =
-            serde_json::from_reader(io::BufReader::new(io::stdin()))?;
+        let mut input: compiler_solidity::SolcStandardJsonInput =
+            serde_json::from_reader(std::io::BufReader::new(std::io::stdin()))?;
         input.settings.output_selection =
             serde_json::json!({ "*": { "*": [ "irOptimized", "abi" ] } });
         input
     } else {
-        SolcStandardJsonInput::try_from_paths(
+        compiler_solidity::SolcStandardJsonInput::try_from_paths(
             arguments.input_files.as_slice(),
             arguments.libraries,
             true,
@@ -78,7 +77,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         for error in errors.iter() {
             if arguments.standard_json {
                 if error.severity.as_str() == "error" {
-                    serde_json::to_writer(io::stdout(), &solc_output)?;
+                    serde_json::to_writer(std::io::stdout(), &solc_output)?;
                     return Ok(());
                 }
             } else {
@@ -88,9 +87,11 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     }
 
     compiler_solidity::initialize_target();
-    let mut project = solc_output
-        .clone()
-        .try_into_project(libraries, arguments.dump_yul)?;
+    let mut project = solc_output.clone().try_into_project(
+        libraries,
+        arguments.dump_yul,
+        !arguments.standard_json,
+    )?;
     project.compile_all(arguments.optimize, dump_flags)?;
 
     if arguments.standard_json {
@@ -111,7 +112,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
                 }
             }
         }
-        serde_json::to_writer(io::stdout(), &solc_output)?;
+        serde_json::to_writer(std::io::stdout(), &solc_output)?;
         return Ok(());
     }
 

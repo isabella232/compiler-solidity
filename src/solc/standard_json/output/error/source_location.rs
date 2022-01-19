@@ -2,7 +2,8 @@
 //! The `solc --standard-json` output error source location.
 //!
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 ///
 /// The `solc --standard-json` output error source location.
