@@ -24,7 +24,7 @@ use self::source::Source;
 ///
 /// The `solc --standard-json` output representation.
 ///
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Output {
     /// The file-contract hashmap.
     pub contracts: Option<HashMap<String, HashMap<String, Contract>>>,

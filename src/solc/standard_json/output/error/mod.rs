@@ -12,7 +12,7 @@ use self::source_location::SourceLocation;
 ///
 /// The `solc --standard-json` output error.
 ///
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Error {
     /// The component type.

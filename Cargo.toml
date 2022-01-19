@@ -3,7 +3,6 @@ name = "compiler-solidity"
 version = "0.8.11"
 authors = [
     "Alex Zarudnyy <a.zarudnyy@matterlabs.dev>",
-    "Dmitry Borisenkov <dmitry.borisenkov89@gmail.com>",
 ]
 license = "Apache-2.0"
 edition = "2021"
