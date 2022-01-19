@@ -74,14 +74,23 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         }
     };
 
-    if solc_output.errors.is_some() {
-        // TODO: output json right away
+    if let Some(errors) = &solc_output.errors {
+        for error in errors.iter() {
+            if arguments.standard_json {
+                if error.severity.as_str() == "error" {
+                    serde_json::to_writer(io::stdout(), &solc_output)?;
+                    return Ok(());
+                }
+            } else {
+                eprintln!("{}", error);
+            }
+        }
     }
 
     compiler_solidity::initialize_target();
     let mut project = solc_output
         .clone()
-        .try_into_project(libraries, arguments.dump_yul, true)?;
+        .try_into_project(libraries, arguments.dump_yul)?;
     project.compile_all(arguments.optimize, dump_flags)?;
 
     if arguments.standard_json {
@@ -100,7 +109,6 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
                             Some(project_contract.factory_dependencies.clone());
                         contract.hash = project_contract.hash.clone();
                     }
-                    contract.ir_optimized = "".to_string();
                 })
             })
         }
