@@ -95,22 +95,21 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
 
     if arguments.standard_json {
         if let Some(contracts) = &mut solc_output.contracts {
-            contracts.iter_mut().for_each(|(path, contracts)| {
-                contracts.iter_mut().for_each(|(name, contract)| {
-                    if let Some(project_contract) =
+            for (path, contracts) in contracts.iter_mut() {
+                for (name, contract) in contracts.iter_mut() {
+                    if let Some(contract_data) =
                         project.contracts.get(&format!("{}:{}", path, name))
                     {
-                        let bytecode = hex::encode(
-                            project_contract.bytecode.as_ref().expect("bytecode absent"),
-                        );
+                        let bytecode =
+                            hex::encode(contract_data.bytecode.as_ref().expect("bytecode absent"));
                         contract.evm =
                             Some(serde_json::json!({ "bytecode": { "object": bytecode } }));
                         contract.factory_dependencies =
-                            Some(project_contract.factory_dependencies.clone());
-                        contract.hash = project_contract.hash.clone();
+                            Some(contract_data.factory_dependencies.clone());
+                        contract.hash = contract_data.hash.clone();
                     }
-                })
-            })
+                }
+            }
         }
         serde_json::to_writer(io::stdout(), &solc_output)?;
         return Ok(());
