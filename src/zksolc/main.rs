@@ -87,11 +87,9 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     }
 
     compiler_solidity::initialize_target();
-    let mut project = solc_output.clone().try_into_project(
-        libraries,
-        arguments.dump_yul,
-        !arguments.standard_json,
-    )?;
+    let mut project = solc_output
+        .clone()
+        .try_into_project(libraries, arguments.dump_yul)?;
     project.compile_all(arguments.optimize, dump_flags)?;
 
     if arguments.standard_json {

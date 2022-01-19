@@ -47,18 +47,7 @@ impl Output {
         self,
         libraries: HashMap<String, HashMap<String, String>>,
         dump_yul: bool,
-        print_warnings: bool,
     ) -> Result<Project, Error> {
-        if let Some(errors) = self.errors {
-            for error in errors.into_iter() {
-                if error.severity.as_str() == "warning" && !print_warnings {
-                    continue;
-                }
-
-                eprintln!("{}", error);
-            }
-        }
-
         let input_contracts = self
             .contracts
             .ok_or_else(|| Error::Solc("Solidity compiler error".to_owned()))?;
