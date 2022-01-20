@@ -27,10 +27,13 @@ use self::source::Source;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Output {
     /// The file-contract hashmap.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contracts: Option<HashMap<String, HashMap<String, Contract>>>,
     /// The source code mapping data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sources: Option<HashMap<String, Source>>,
     /// The compilation errors and warnings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub errors: Option<Vec<SolidityError>>,
 }
 
