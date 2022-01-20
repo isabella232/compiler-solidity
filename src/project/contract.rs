@@ -55,8 +55,7 @@ impl Contract {
     /// Inserts a factory dependency.
     ///
     pub fn insert_factory_dependency(&mut self, hash: String, path: String) {
-        self.factory_dependencies
-            .insert(hash, Self::short_path(path.as_str()).to_owned());
+        self.factory_dependencies.insert(hash, path);
     }
 
     ///
