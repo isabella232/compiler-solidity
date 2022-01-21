@@ -82,6 +82,11 @@ impl Project {
                 Some(self),
                 dump_flags.clone(),
             );
+            context.set_long_return_offset(context.field_const(
+                (compiler_common::SOLIDITY_MEMORY_OFFSET_EMPTY_SLOT * compiler_common::SIZE_FIELD)
+                    as u64,
+            ));
+
             Object::prepare(&mut context).map_err(|error| Error::LLVM(error.to_string()))?;
             object
                 .into_llvm(&mut context)
@@ -93,6 +98,7 @@ impl Project {
             context
                 .verify()
                 .map_err(|error| Error::LLVM(error.to_string()))?;
+
             if dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM) {
                 let llvm_code = context.module().print_to_string().to_string();
                 eprintln!("Contract `{}` LLVM IR:\n", contract_path);
