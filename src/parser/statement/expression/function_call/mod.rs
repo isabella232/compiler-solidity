@@ -2,7 +2,6 @@
 //! The function call subexpression.
 //!
 
-pub mod calldata;
 pub mod contract;
 pub mod create;
 pub mod name;
@@ -314,7 +313,7 @@ impl FunctionCall {
             Name::CodeSize => compiler_llvm_context::calldata::size(context),
             Name::CodeCopy => {
                 let arguments = self.pop_arguments_llvm::<D, 3>(context)?;
-                calldata::codecopy(context, arguments)
+                compiler_llvm_context::calldata::codecopy(context, arguments)
             }
             Name::ExtCodeSize => {
                 let _arguments = self.pop_arguments_llvm::<D, 1>(context)?;
