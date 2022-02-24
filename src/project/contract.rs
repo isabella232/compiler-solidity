@@ -25,7 +25,9 @@ pub struct Contract {
     /// The Yul AST object.
     pub object: Object,
     /// The zkEVM text assembly.
-    pub assembly: Option<String>,
+    pub assembly_text: Option<String>,
+    /// The zkEVM binary assembly.
+    pub assembly: Option<zkevm_assembly::Assembly>,
     /// The zkEVM binary bytecode.
     pub bytecode: Option<Vec<u8>>,
     /// The zkEVM binary bytecode hash.
@@ -44,6 +46,7 @@ impl Contract {
             name,
             source,
             object,
+            assembly_text: None,
             assembly: None,
             bytecode: None,
             hash: None,
@@ -87,7 +90,12 @@ impl Contract {
             } else {
                 File::create(&file_path)
                     .map_err(Error::FileSystem)?
-                    .write_all(self.assembly.as_ref().expect("Always exists").as_bytes())
+                    .write_all(
+                        self.assembly_text
+                            .as_ref()
+                            .expect("Always exists")
+                            .as_bytes(),
+                    )
                     .map_err(Error::FileSystem)?;
             }
         }

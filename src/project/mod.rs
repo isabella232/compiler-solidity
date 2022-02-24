@@ -64,67 +64,62 @@ impl Project {
             .ok_or_else(|| Error::ContractNotFound(contract_path.to_owned()))?
             .object;
 
-        let (assembly_text, bytecode) = {
-            let llvm = inkwell::context::Context::create();
-            let target_machine =
-                crate::target_machine(optimization_level_back).ok_or_else(|| {
-                    Error::LLVM(format!(
-                        "Target machine `{}` creation error",
-                        compiler_common::VM_TARGET_NAME
-                    ))
-                })?;
-            let mut context = compiler_llvm_context::Context::new(
-                &llvm,
-                &target_machine,
-                optimization_level_middle,
-                optimization_level_back,
-                object.identifier.as_str(),
-                Some(self),
-                dump_flags.clone(),
-            );
-            context.set_long_return_offset(context.field_const(
-                (compiler_common::SOLIDITY_MEMORY_OFFSET_EMPTY_SLOT * compiler_common::SIZE_FIELD)
-                    as u64,
-            ));
+        let llvm = inkwell::context::Context::create();
+        let target_machine = crate::target_machine(optimization_level_back).ok_or_else(|| {
+            Error::LLVM(format!(
+                "Target machine `{}` creation error",
+                compiler_common::VM_TARGET_NAME
+            ))
+        })?;
+        let mut context = compiler_llvm_context::Context::new(
+            &llvm,
+            &target_machine,
+            optimization_level_middle,
+            optimization_level_back,
+            object.identifier.as_str(),
+            Some(self),
+            dump_flags.clone(),
+        );
+        context.set_long_return_offset(context.field_const(
+            (compiler_common::SOLIDITY_MEMORY_OFFSET_EMPTY_SLOT * compiler_common::SIZE_FIELD)
+                as u64,
+        ));
 
-            Object::prepare(&mut context).map_err(|error| Error::LLVM(error.to_string()))?;
-            object
-                .into_llvm(&mut context)
-                .map_err(|error| Error::LLVM(error.to_string()))?;
-            context
-                .verify()
-                .map_err(|error| Error::LLVM(error.to_string()))?;
-            context.optimize();
-            context
-                .verify()
-                .map_err(|error| Error::LLVM(error.to_string()))?;
+        Object::prepare(&mut context).map_err(|error| Error::LLVM(error.to_string()))?;
+        object
+            .into_llvm(&mut context)
+            .map_err(|error| Error::LLVM(error.to_string()))?;
+        context
+            .verify()
+            .map_err(|error| Error::LLVM(error.to_string()))?;
+        context.optimize();
+        context
+            .verify()
+            .map_err(|error| Error::LLVM(error.to_string()))?;
 
-            if dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM) {
-                let llvm_code = context.module().print_to_string().to_string();
-                eprintln!("Contract `{}` LLVM IR:\n", contract_path);
-                println!("{}", llvm_code);
-            }
+        if dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM) {
+            let llvm_code = context.module().print_to_string().to_string();
+            eprintln!("Contract `{}` LLVM IR:\n", contract_path);
+            println!("{}", llvm_code);
+        }
 
-            let buffer = target_machine
-                .write_to_memory_buffer(context.module(), inkwell::targets::FileType::Assembly)
-                .map_err(|error| Error::LLVM(format!("Code compiling error: {}", error)))?;
-            let assembly_text = String::from_utf8_lossy(buffer.as_slice()).to_string();
-            if dump_flags.contains(&compiler_llvm_context::DumpFlag::Assembly) {
-                eprintln!("Contract `{}` assembly:\n", contract_path);
-                println!("{}", assembly_text);
-            }
+        let buffer = target_machine
+            .write_to_memory_buffer(context.module(), inkwell::targets::FileType::Assembly)
+            .map_err(|error| Error::LLVM(format!("Code compiling error: {}", error)))?;
+        let assembly_text = String::from_utf8_lossy(buffer.as_slice()).to_string();
+        if dump_flags.contains(&compiler_llvm_context::DumpFlag::Assembly) {
+            eprintln!("Contract `{}` assembly:\n", contract_path);
+            println!("{}", assembly_text);
+        }
 
-            let assembly = zkevm_assembly::Assembly::try_from(assembly_text.clone())
-                .unwrap_or_else(|error| {
-                    panic!(
-                        "Dependency `{}` assembly parsing error: {}",
-                        contract_path, error
-                    )
-                });
-            let bytecode = Vec::<u8>::from(&assembly);
+        let assembly = zkevm_assembly::Assembly::try_from(assembly_text.clone())?;
 
-            (assembly_text, bytecode)
-        };
+        let bytecode: Vec<u8> = assembly
+            .clone()
+            .compile_to_bytecode()?
+            .into_iter()
+            .flatten()
+            .collect();
 
         let hash = compiler_common::keccak256(bytecode.as_slice());
 
@@ -132,7 +127,8 @@ impl Project {
             .contracts
             .get_mut(contract_path)
             .expect("Always exists");
-        contract.assembly = Some(assembly_text);
+        contract.assembly_text = Some(assembly_text);
+        contract.assembly = Some(assembly);
         contract.bytecode = Some(bytecode);
         contract.hash = Some(hash.clone());
 

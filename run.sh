@@ -36,7 +36,7 @@ fi
 # Prevents the stack overflow when running some unit tests
 export RUST_MIN_STACK=$(( 64 * 1024 * 1024 ))
 
-cargo fmt --all
-cargo clippy
-cargo test
-cargo build ${CARGO_LOG_LEVEL} ${RELEASE_FLAG}
+cargo +nightly fmt --all
+cargo +nightly clippy
+cargo +nightly test
+cargo +nightly build ${CARGO_LOG_LEVEL} ${RELEASE_FLAG}

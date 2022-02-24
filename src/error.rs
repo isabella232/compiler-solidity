@@ -30,8 +30,10 @@ pub enum Error {
     Parser(ParserError),
     /// The LLVM error.
     LLVM(String),
-    /// The assembly error.
-    Assembly(zkevm_assembly::AssemblyParseError),
+    /// The assembly parsing error.
+    AssemblyParsing(zkevm_assembly::AssemblyParseError),
+    /// The assembly encoding error.
+    AssemblyEncoding(zkevm_assembly::InstructionReadError),
 }
 
 impl PartialEq<Self> for Error {
@@ -70,6 +72,12 @@ impl From<ParserError> for Error {
 
 impl From<zkevm_assembly::AssemblyParseError> for Error {
     fn from(error: zkevm_assembly::AssemblyParseError) -> Self {
-        Self::Assembly(error)
+        Self::AssemblyParsing(error)
+    }
+}
+
+impl From<zkevm_assembly::InstructionReadError> for Error {
+    fn from(error: zkevm_assembly::InstructionReadError) -> Self {
+        Self::AssemblyEncoding(error)
     }
 }
