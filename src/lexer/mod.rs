@@ -2,9 +2,6 @@
 //! The compiler lexer.
 //!
 
-#[cfg(test)]
-mod tests;
-
 pub mod error;
 pub mod lexeme;
 

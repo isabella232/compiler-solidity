@@ -76,9 +76,9 @@ checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "byte-slice-cast"
-version = "1.2.0"
+version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d30c751592b77c499e7bce34d99d67c2c11bdc0574e9a488ddade14150a4698"
+checksum = "87c5fdd0166095e1d463fc6cc01aa8ce547ad77a4e84d42eb6762b084e28067e"
 
 [[package]]
 name = "byteorder"
@@ -137,7 +137,7 @@ dependencies = [
 [[package]]
 name = "compiler-llvm-context"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#933d5a8139a5ae2cda44a1f3e4b3f9bebc2376a9"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#0093582b9bac789fb8d532a353669688bf65e509"
 dependencies = [
  "anyhow",
  "compiler-common",
@@ -974,7 +974,7 @@ checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
 [[package]]
 name = "zkevm-assembly"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.2#55393141bd4523ff2ab9f797f703f5c2a50b68ff"
+source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.2#bdcea7deec8186b4c3e009e164bf06f30ce46ef7"
 dependencies = [
  "env_logger",
  "hex",

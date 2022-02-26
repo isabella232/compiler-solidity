@@ -106,33 +106,3 @@ impl fmt::Display for Keyword {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::lexer::Lexer;
-    use crate::parser::statement::Statement;
-
-    #[test]
-    fn ok_break() {
-        let input = r#"break"#;
-
-        let result = Statement::parse(&mut Lexer::new(input.to_owned()), None);
-        assert_eq!(result, Ok((Statement::Break, None)));
-    }
-
-    #[test]
-    fn ok_continue() {
-        let input = r#"continue"#;
-
-        let result = Statement::parse(&mut Lexer::new(input.to_owned()), None);
-        assert_eq!(result, Ok((Statement::Continue, None)));
-    }
-
-    #[test]
-    fn ok_leave() {
-        let input = r#"leave"#;
-
-        let result = Statement::parse(&mut Lexer::new(input.to_owned()), None);
-        assert_eq!(result, Ok((Statement::Leave, None)));
-    }
-}

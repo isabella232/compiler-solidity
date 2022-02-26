@@ -82,17 +82,3 @@ impl Expression {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn ok_list() {
-        let input = r#"object "Test" { code {
-            id
-            3
-            foo(x, y)
-        }}"#;
-
-        assert!(crate::Project::try_from_test_yul(input).is_ok());
-    }
-}
