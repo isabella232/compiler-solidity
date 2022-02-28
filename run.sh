@@ -28,15 +28,23 @@ case "${2}" in
         ;;
 esac
 
-# The LLVM static binding library build cleanup
-if [[ "${3}" == '--clean' ]]; then
-    rm -rfv ./target/release/build/llvm-sys-*
+# The LLVM rebuild if it has been updated
+if [[ -n ${LLVM_HOME} ]]; then
+  LLVM_LOCK_FILE='./LLVM.lock'
+  LLVM_COMMIT_CURRENT=$(git --git-dir "${LLVM_HOME}/.git/" rev-parse HEAD)
+  LLVM_COMMIT_LAST=$(cat "${LLVM_LOCK_FILE}" 2>'/dev/null' || echo '0000000000000000000000000000000000000000')
+
+  if [[ "${LLVM_COMMIT_CURRENT}" != "${LLVM_COMMIT_LAST}" ]]; then
+      (cd "${LLVM_HOME}" && ./build.sh ${BUILD_TYPE})
+      rm -rfv ./target/${BUILD_TYPE}/build/llvm-sys-*
+      echo -n "${LLVM_COMMIT_CURRENT}" > "${LLVM_LOCK_FILE}"
+  fi
 fi
 
 # Prevents the stack overflow when running some unit tests
 export RUST_MIN_STACK=$(( 64 * 1024 * 1024 ))
 
-cargo +nightly fmt --all
-cargo +nightly clippy
-cargo +nightly test
-cargo +nightly build ${CARGO_LOG_LEVEL} ${RELEASE_FLAG}
+cargo fmt --all
+cargo clippy
+cargo test
+cargo build ${CARGO_LOG_LEVEL} ${RELEASE_FLAG}
