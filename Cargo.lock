@@ -974,7 +974,7 @@ checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
 [[package]]
 name = "zkevm-assembly"
 version = "0.1.0"
-source = "git+ssh://git@github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#c8cc73a1e3e4ca73d0a3983179495b0a0e81e762"
+source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#c8cc73a1e3e4ca73d0a3983179495b0a0e81e762"
 dependencies = [
  "env_logger",
  "hex",
