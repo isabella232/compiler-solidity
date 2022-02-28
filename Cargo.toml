@@ -24,7 +24,7 @@ regex = "1.5"
 semver = "1.0"
 hex = "0.4"
 
-zkevm-assembly = { git = "https://github.com/matter-labs/zkEVM-assembly", branch = "v1.1.1" }
+zkevm-assembly = { git = "ssh://git@github.com/matter-labs/zkEVM-assembly", branch = "v1.1.1" }
 compiler-common = { git = "ssh://git@github.com/matter-labs/compiler-common", branch = "az/vm-v1.1" }
 compiler-llvm-context = { git = "ssh://git@github.com/matter-labs/compiler-llvm-context", branch = "az/vm-v1.1" }
 
