@@ -974,7 +974,7 @@ checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
 [[package]]
 name = "zkevm-assembly"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.2#bdcea7deec8186b4c3e009e164bf06f30ce46ef7"
+source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#785ea42f624a53652f886e88673218331f93a4f8"
 dependencies = [
  "env_logger",
  "hex",
@@ -992,7 +992,7 @@ dependencies = [
 [[package]]
 name = "zkevm_opcode_defs"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.2#7acae7b949e6a846e64f9b96d7aeaa2ac735348f"
+source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#7acae7b949e6a846e64f9b96d7aeaa2ac735348f"
 dependencies = [
  "bitflags",
  "ethereum-types",
