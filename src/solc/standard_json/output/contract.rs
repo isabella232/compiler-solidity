@@ -14,8 +14,8 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct Contract {
     /// The contract optimized IR code.
-    #[serde(skip_serializing)]
-    pub ir_optimized: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ir_optimized: Option<String>,
     /// The contract ABI
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub abi: Option<serde_json::Value>,
