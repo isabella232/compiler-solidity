@@ -55,22 +55,27 @@ impl Output {
             .contracts
             .ok_or_else(|| Error::Solc("Solidity compiler error".to_owned()))?;
         let mut project_contracts = HashMap::with_capacity(input_contracts.len());
+
         for (path, contracts) in input_contracts.into_iter() {
             for (name, contract) in contracts.into_iter() {
-                if contract.ir_optimized.is_empty() {
+                let ir_optimized = match contract.ir_optimized {
+                    Some(ir_optimized) => ir_optimized,
+                    None => continue,
+                };
+                if ir_optimized.is_empty() {
                     continue;
                 }
 
                 let full_path = format!("{}:{}", path, name);
                 if dump_yul {
                     eprintln!("Contract `{}` Yul:\n", full_path);
-                    println!("{}", contract.ir_optimized);
+                    println!("{}", ir_optimized);
                 }
 
-                let mut lexer = Lexer::new(contract.ir_optimized.clone());
+                let mut lexer = Lexer::new(ir_optimized.clone());
                 let object = Object::parse(&mut lexer, None)?;
                 let project_contract =
-                    ProjectContract::new(full_path.clone(), name, contract.ir_optimized, object);
+                    ProjectContract::new(full_path.clone(), name, ir_optimized, object);
                 project_contracts.insert(full_path, project_contract);
             }
         }
