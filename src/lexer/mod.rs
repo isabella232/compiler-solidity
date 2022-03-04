@@ -76,7 +76,7 @@ impl Lexer {
                 let string = string
                     .strip_prefix('"')
                     .and_then(|string| string.strip_suffix('"'))
-                    .unwrap_or_else(|| string.as_str())
+                    .unwrap_or(string.as_str())
                     .to_owned();
                 return Ok(Lexeme::Literal(Literal::String(StringLiteral::new(
                     string,

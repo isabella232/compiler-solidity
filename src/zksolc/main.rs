@@ -93,24 +93,30 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     project.compile_all(arguments.optimize, dump_flags)?;
 
     if arguments.standard_json {
-        if let Some(contracts) = &mut solc_output.contracts {
+        if let Some(contracts) = solc_output.contracts.as_mut() {
             for (path, contracts) in contracts.iter_mut() {
                 for (name, contract) in contracts.iter_mut() {
                     if let Some(contract_data) =
-                        project.contracts.get(&format!("{}:{}", path, name))
+                        project.contracts.get(format!("{}:{}", path, name).as_str())
                     {
-                        let bytecode =
-                            hex::encode(contract_data.bytecode.as_ref().expect("bytecode absent"));
+                        let bytecode = hex::encode(
+                            contract_data
+                                .bytecode
+                                .as_ref()
+                                .expect("Bytecode always exists"),
+                        );
+
+                        contract.ir_optimized = None;
                         contract.evm =
                             Some(serde_json::json!({ "bytecode": { "object": bytecode } }));
                         contract.factory_dependencies =
                             Some(contract_data.factory_dependencies.clone());
                         contract.hash = contract_data.hash.clone();
-                        contract.ir_optimized = None;
                     }
                 }
             }
         }
+
         serde_json::to_writer(std::io::stdout(), &solc_output)?;
         return Ok(());
     }
