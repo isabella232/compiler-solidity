@@ -106,6 +106,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
                         contract.factory_dependencies =
                             Some(contract_data.factory_dependencies.clone());
                         contract.hash = contract_data.hash.clone();
+                        contract.ir_optimized = None;
                     }
                 }
             }
