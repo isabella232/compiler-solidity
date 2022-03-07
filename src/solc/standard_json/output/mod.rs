@@ -11,7 +11,6 @@ use std::collections::HashMap;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::error::Error;
 use crate::lexer::Lexer;
 use crate::parser::statement::object::Object;
 use crate::project::contract::Contract as ProjectContract;
@@ -50,10 +49,10 @@ impl Output {
         self,
         libraries: HashMap<String, HashMap<String, String>>,
         dump_yul: bool,
-    ) -> Result<Project, Error> {
+    ) -> Result<Project, String> {
         let input_contracts = self
             .contracts
-            .ok_or_else(|| Error::Solc("Solidity compiler error".to_owned()))?;
+            .ok_or_else(|| "Solidity compiler error".to_owned())?;
         let mut project_contracts = HashMap::with_capacity(input_contracts.len());
 
         for (path, contracts) in input_contracts.into_iter() {
@@ -73,7 +72,9 @@ impl Output {
                 }
 
                 let mut lexer = Lexer::new(ir_optimized.clone());
-                let object = Object::parse(&mut lexer, None)?;
+                let object = Object::parse(&mut lexer, None).map_err(|error| {
+                    format!("Contract `{}` parsing error: {:?}", full_path, error)
+                })?;
                 let project_contract =
                     ProjectContract::new(full_path.clone(), name, ir_optimized, object);
                 project_contracts.insert(full_path, project_contract);

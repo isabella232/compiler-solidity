@@ -107,7 +107,7 @@ impl Project {
 
             let buffer = target_machine
                 .write_to_memory_buffer(context.module(), inkwell::targets::FileType::Assembly)
-                .map_err(|error| Error::LLVM(format!("Code compiling error: {}", error)))?;
+                .map_err(|error| Error::LLVM(error.to_string()))?;
             let assembly_text = String::from_utf8_lossy(buffer.as_slice()).to_string();
             if dump_flags.contains(&compiler_llvm_context::DumpFlag::Assembly) {
                 eprintln!("Contract `{}` assembly:\n", contract_path);
@@ -147,7 +147,7 @@ impl Project {
         &mut self,
         optimize: bool,
         dump_flags: Vec<compiler_llvm_context::DumpFlag>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), String> {
         let optimization_level = if optimize {
             inkwell::OptimizationLevel::Aggressive
         } else {
@@ -161,7 +161,10 @@ impl Project {
                 optimization_level,
                 optimization_level,
                 dump_flags.clone(),
-            )?;
+            )
+            .map_err(|error| {
+                format!("Contract `{}` compiling error: {:?}", contract_path, error)
+            })?;
         }
 
         Ok(())

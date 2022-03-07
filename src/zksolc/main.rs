@@ -87,10 +87,23 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     }
 
     compiler_solidity::initialize_target();
-    let mut project = solc_output
+    let mut project = match solc_output
         .clone()
-        .try_into_project(libraries, arguments.dump_yul)?;
-    project.compile_all(arguments.optimize, dump_flags)?;
+        .try_into_project(libraries, arguments.dump_yul)
+    {
+        Ok(standard_json) => standard_json,
+        Err(error) => {
+            eprint!("{}", error);
+            std::process::exit(compiler_common::EXIT_CODE_FAILURE);
+        }
+    };
+    match project.compile_all(arguments.optimize, dump_flags) {
+        Ok(()) => {}
+        Err(error) => {
+            eprint!("{}", error);
+            std::process::exit(compiler_common::EXIT_CODE_FAILURE);
+        }
+    }
 
     if arguments.standard_json {
         if let Some(contracts) = solc_output.contracts.as_mut() {
