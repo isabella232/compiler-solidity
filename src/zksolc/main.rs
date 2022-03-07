@@ -87,20 +87,39 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     }
 
     compiler_solidity::initialize_target();
-    let mut project = solc_output
+    let mut project = match solc_output
         .clone()
-        .try_into_project(libraries, arguments.dump_yul)?;
-    project.compile_all(arguments.optimize, dump_flags)?;
+        .try_into_project(libraries, arguments.dump_yul)
+    {
+        Ok(standard_json) => standard_json,
+        Err(error) => {
+            eprint!("{}", error);
+            std::process::exit(compiler_common::EXIT_CODE_FAILURE);
+        }
+    };
+    match project.compile_all(arguments.optimize, dump_flags) {
+        Ok(()) => {}
+        Err(error) => {
+            eprint!("{}", error);
+            std::process::exit(compiler_common::EXIT_CODE_FAILURE);
+        }
+    }
 
     if arguments.standard_json {
-        if let Some(contracts) = &mut solc_output.contracts {
+        if let Some(contracts) = solc_output.contracts.as_mut() {
             for (path, contracts) in contracts.iter_mut() {
                 for (name, contract) in contracts.iter_mut() {
                     if let Some(contract_data) =
-                        project.contracts.get(&format!("{}:{}", path, name))
+                        project.contracts.get(format!("{}:{}", path, name).as_str())
                     {
-                        let bytecode =
-                            hex::encode(contract_data.bytecode.as_ref().expect("bytecode absent"));
+                        let bytecode = hex::encode(
+                            contract_data
+                                .bytecode
+                                .as_ref()
+                                .expect("Bytecode always exists"),
+                        );
+
+                        contract.ir_optimized = None;
                         contract.evm =
                             Some(serde_json::json!({ "bytecode": { "object": bytecode } }));
                         contract.factory_dependencies =
@@ -110,6 +129,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
                 }
             }
         }
+
         serde_json::to_writer(std::io::stdout(), &solc_output)?;
         return Ok(());
     }
