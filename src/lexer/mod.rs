@@ -2,9 +2,6 @@
 //! The compiler lexer.
 //!
 
-#[cfg(test)]
-mod tests;
-
 pub mod error;
 pub mod lexeme;
 
@@ -37,7 +34,7 @@ impl Lexer {
     /// A shortcut constructor.
     ///
     pub fn new(mut input: String) -> Self {
-        Self::remove_comments(&mut input);
+        Comment::remove_all(&mut input);
         input.push('\n');
 
         Self {
@@ -58,30 +55,9 @@ impl Lexer {
         }
 
         loop {
-            let is_string = self.input[self.index..].starts_with('"');
-            let is_hex_string = self.input[self.index..].starts_with(r#"hex""#);
-            if is_string || is_hex_string {
-                if is_string {
-                    self.index += 1;
-                }
-                if is_hex_string {
-                    self.index += r#"hex""#.len();
-                }
-                let mut string = String::new();
-                while !self.input[self.index..].starts_with('"') {
-                    string.push(self.input.chars().nth(self.index).expect("Always exists"));
-                    self.index += 1;
-                }
-                self.index += 1;
-                let string = string
-                    .strip_prefix('"')
-                    .and_then(|string| string.strip_suffix('"'))
-                    .unwrap_or(string.as_str())
-                    .to_owned();
-                return Ok(Lexeme::Literal(Literal::String(StringLiteral::new(
-                    string,
-                    is_hex_string,
-                ))));
+            if let Some((length, literal)) = StringLiteral::parse(&self.input[self.index..]) {
+                self.index += length;
+                return Ok(Lexeme::Literal(Literal::String(literal)));
             }
 
             let r#match = match self.regexp.find(&self.input[self.index..]) {
@@ -98,16 +74,8 @@ impl Lexer {
                         Err(keyword) => Lexeme::Keyword(keyword),
                     },
                     Err(string) => {
-                        let decimal = regex::Regex::new("^[0-9]+$").expect("Regexp is valid");
-                        let hexadecimal =
-                            regex::Regex::new(r#"^0x[0-9a-fA-F]+$"#).expect("Regexp is valid");
-
-                        if decimal.is_match(string.as_str()) {
-                            Lexeme::Literal(Literal::Integer(IntegerLiteral::new_decimal(string)))
-                        } else if hexadecimal.is_match(string.as_str()) {
-                            Lexeme::Literal(Literal::Integer(IntegerLiteral::new_hexadecimal(
-                                string,
-                            )))
+                        if let Some(literal) = IntegerLiteral::parse(string.as_str()) {
+                            Lexeme::Literal(Literal::Integer(literal))
                         } else if Lexeme::is_identifier(string.as_str()) {
                             Lexeme::Identifier(string)
                         } else {
@@ -143,61 +111,6 @@ impl Lexer {
                 let peeked = self.next()?;
                 self.peeked = Some(peeked.clone());
                 Ok(peeked)
-            }
-        }
-    }
-
-    ///
-    /// Tokenizes the entire input source code string.
-    ///
-    /// Only for testing purposes.
-    ///
-    pub fn tokenize(&mut self) -> Result<Vec<Lexeme>, Error> {
-        let mut lexemes = Vec::new();
-        loop {
-            match self.next()? {
-                Lexeme::EndOfFile => return Ok(lexemes),
-                lexeme => lexemes.push(lexeme),
-            }
-        }
-    }
-
-    ///
-    /// Returns the unprocessed slice of the input.
-    ///
-    pub fn remaining(&self) -> &str {
-        &self.input[self.index..]
-    }
-
-    ///
-    /// Removes comments from the given source code.
-    ///
-    fn remove_comments(src: &mut String) {
-        loop {
-            let next_multiline = src.find("/*");
-            let next_oneline = src.find("//");
-
-            let (position, r#type) = match (next_multiline, next_oneline) {
-                (Some(next_multiline), Some(next_oneline)) if next_oneline < next_multiline => {
-                    (next_oneline, Comment::SingleLine)
-                }
-                (Some(next_multiline), Some(_next_oneline)) => (next_multiline, Comment::MultiLine),
-                (Some(next_multiline), None) => (next_multiline, Comment::MultiLine),
-                (None, Some(next_oneline)) => (next_oneline, Comment::SingleLine),
-                (None, None) => break,
-            };
-
-            match r#type {
-                Comment::SingleLine => {
-                    let end_of_line =
-                        src[position..].find('\n').unwrap_or(src.len() - position) + position;
-                    src.replace_range(position..end_of_line, "");
-                }
-                Comment::MultiLine => {
-                    let end_of_comment =
-                        src[position..].find("*/").unwrap_or(src.len() - position) + position;
-                    src.replace_range(position..end_of_comment + 2, "");
-                }
             }
         }
     }

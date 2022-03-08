@@ -96,29 +96,3 @@ where
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn ok_empty() {
-        let input = r#"object "Test" { code {
-            for {} expr {} {}
-        }}"#;
-
-        assert!(crate::Project::try_from_test_yul(input).is_ok());
-    }
-
-    #[test]
-    fn ok_complex() {
-        let input = r#"object "Test" { code {
-            function foo() -> x {
-                x := 0
-                for { let i := 0 } lt(i, 10) { i := add(i, 1) } {
-                    x := add(i, x)
-                }
-            }
-        }}"#;
-
-        assert!(crate::Project::try_from_test_yul(input).is_ok());
-    }
-}

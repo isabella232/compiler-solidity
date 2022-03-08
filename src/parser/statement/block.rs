@@ -142,34 +142,3 @@ where
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::parser::statement::block::Block;
-    use crate::parser::statement::Statement;
-
-    #[test]
-    fn ok_nested() {
-        let input = r#"{
-            {}
-        }"#;
-
-        let expected = Ok(Block {
-            statements: vec![Statement::Block(Block { statements: vec![] })],
-        });
-
-        let mut lexer = crate::lexer::Lexer::new(input.to_owned());
-        let result = super::Block::parse(&mut lexer, None);
-        assert_eq!(expected, result);
-    }
-
-    #[test]
-    fn error_expected_bracket_curly_right() {
-        let input = r#"{
-            {}{}{{
-        }"#;
-
-        let mut lexer = crate::lexer::Lexer::new(input.to_owned());
-        assert!(super::Block::parse(&mut lexer, None).is_err());
-    }
-}
