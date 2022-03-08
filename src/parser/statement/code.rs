@@ -8,7 +8,6 @@ use crate::lexer::lexeme::Lexeme;
 use crate::lexer::Lexer;
 use crate::parser::error::Error as ParserError;
 use crate::parser::statement::block::Block;
-use crate::parser::statement::object::Object;
 
 ///
 /// The YUL code.
@@ -34,18 +33,6 @@ impl Code {
         let block = Block::parse(lexer, None)?;
 
         Ok(Self { block })
-    }
-
-    ///
-    /// Converts the element into a test object.
-    ///
-    pub fn into_test_object(self) -> Object {
-        Object {
-            identifier: "Test".to_owned(),
-            code: self,
-            object: None,
-            dependencies: vec![],
-        }
     }
 }
 

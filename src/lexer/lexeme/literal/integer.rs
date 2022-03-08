@@ -35,6 +35,22 @@ impl Integer {
     pub fn new_hexadecimal(inner: String) -> Self {
         Self::Hexadecimal { inner }
     }
+
+    ///
+    /// Parses the value from the source code slice.
+    ///
+    pub fn parse(input: &str) -> Option<Self> {
+        let decimal = regex::Regex::new("^[0-9]+$").expect("Regexp is valid");
+        let hexadecimal = regex::Regex::new(r#"^0x[0-9a-fA-F]+$"#).expect("Regexp is valid");
+
+        if decimal.is_match(input) {
+            Some(Self::new_decimal(input.to_owned()))
+        } else if hexadecimal.is_match(input) {
+            Some(Self::new_hexadecimal(input.to_owned()))
+        } else {
+            None
+        }
+    }
 }
 
 impl fmt::Display for Integer {
