@@ -34,7 +34,6 @@ impl Lexer {
     /// A shortcut constructor.
     ///
     pub fn new(mut input: String) -> Self {
-        Comment::remove_all(&mut input);
         input.push('\n');
 
         Self {
@@ -55,9 +54,15 @@ impl Lexer {
         }
 
         loop {
+            if let Some(length) = Comment::parse(&self.input[self.index..]) {
+                self.index += length;
+                continue;
+            }
+
             if let Some((length, literal)) = StringLiteral::parse(&self.input[self.index..]) {
                 self.index += length;
-                return Ok(Lexeme::Literal(Literal::String(literal)));
+                let lexeme = Lexeme::Literal(Literal::String(literal));
+                return Ok(lexeme);
             }
 
             let r#match = match self.regexp.find(&self.input[self.index..]) {
@@ -79,6 +84,7 @@ impl Lexer {
                         } else if Lexeme::is_identifier(string.as_str()) {
                             Lexeme::Identifier(string)
                         } else {
+                            dbg!(&string);
                             return Err(Error::invalid_lexeme(string));
                         }
                     }
@@ -88,7 +94,9 @@ impl Lexer {
             } else if !r#match.as_str().trim().is_empty() {
                 let lexeme = match Symbol::try_from(r#match.as_str()) {
                     Ok(symbol) => Lexeme::Symbol(symbol),
-                    Err(string) => return Err(Error::invalid_lexeme(string)),
+                    Err(string) => {
+                        return Err(Error::invalid_lexeme(string));
+                    }
                 };
                 self.index += r#match.as_str().len();
                 lexeme

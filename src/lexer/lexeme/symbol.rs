@@ -25,10 +25,6 @@ pub enum Symbol {
     Comma,
     /// The `:` symbol.
     Colon,
-    /// The `/*` symbol.
-    CommentStart,
-    /// The `*/` symbol.
-    CommentEnd,
 }
 
 impl Symbol {
@@ -53,8 +49,6 @@ impl TryFrom<&str> for Symbol {
             ")" => Self::ParenthesisRight,
             "," => Self::Comma,
             ":" => Self::Colon,
-            "/*" => Self::CommentStart,
-            "*/" => Self::CommentEnd,
 
             _ => return Err(input.to_owned()),
         })
@@ -72,8 +66,6 @@ impl fmt::Display for Symbol {
             Self::ParenthesisRight => write!(f, ")"),
             Self::Comma => write!(f, ","),
             Self::Colon => write!(f, ":"),
-            Self::CommentStart => write!(f, "/*"),
-            Self::CommentEnd => write!(f, "*/"),
         }
     }
 }
