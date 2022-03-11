@@ -54,6 +54,11 @@ pub struct Arguments {
     #[structopt(long = "optimize")]
     pub optimize: bool,
 
+    /// Path to the `solc` executable.
+    /// By default, the one in $PATH is used.
+    #[structopt(long = "solc")]
+    pub solc: Option<String>,
+
     /// Direct string or file containing library addresses.
     /// Syntax: <libraryName>=<address> [, or whitespace] ...
     /// Address is interpreted as a hex string prefixed by 0x.
