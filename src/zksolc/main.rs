@@ -40,8 +40,9 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         *path = path.canonicalize()?;
     }
 
+    let solc_executable = arguments.solc.unwrap_or("solc".to_string());
     let solc = compiler_solidity::SolcCompiler::new(
-        "solc".to_owned(),
+        solc_executable,
         semver::Version::from_str(env!("CARGO_PKG_VERSION")).expect("Always valid"),
     );
 
