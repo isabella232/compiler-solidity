@@ -2,9 +2,12 @@
 
 The compiler from Solidity to zkEVM bytecode.
 
-## Warning 
+## Building (only for developers)
 
-This project cannot be built. It is read-only and published only to demonstrate the workflow of LLVM IR generation.
+1. Get the access to the private [LLVM repository](https://github.com/matter-labs/compiler-llvm).
+2. Remove all the existing LLVM artifacts from your system.
+3. Build the `main` branch of LLVM by running `./build.sh release` at its root.
+4. Perform a clean build of this repository: `cargo clean && ./run.sh`.
 
 ## Usage
 
