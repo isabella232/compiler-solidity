@@ -84,6 +84,14 @@ pub struct Arguments {
     #[structopt(long = "hashes")]
     pub output_hashes: bool,
 
+    /// Output zkEVM assembly of the contracts.
+    #[structopt(long = "asm")]
+    pub output_assembly: bool,
+
+    /// Output zkEVM bytecode of the contracts.
+    #[structopt(long = "bin")]
+    pub output_binary: bool,
+
     /// Dump the Yul Intermediate Representation (IR) of all contracts.
     #[structopt(long = "dump-yul")]
     pub dump_yul: bool,
@@ -95,14 +103,6 @@ pub struct Arguments {
     /// Dump the zkEVM assembly of all contracts.
     #[structopt(long = "dump-assembly")]
     pub dump_assembly: bool,
-
-    /// Output zkEVM assembly of the contracts.
-    #[structopt(long = "asm")]
-    pub output_assembly: bool,
-
-    /// Output zkEVM bytecode of the contracts.
-    #[structopt(long = "bin")]
-    pub output_binary: bool,
 }
 
 impl Arguments {
