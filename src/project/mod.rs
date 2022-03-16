@@ -58,12 +58,11 @@ impl Project {
             }
         }
 
-        let object = self
+        let contract = self
             .contracts
             .get(contract_path)
             .cloned()
-            .ok_or_else(|| Error::ContractNotFound(contract_path.to_owned()))?
-            .object;
+            .ok_or_else(|| Error::ContractNotFound(contract_path.to_owned()))?;
 
         let llvm = inkwell::context::Context::create();
         let target_machine = crate::target_machine(optimization_level_back).ok_or_else(|| {
@@ -85,7 +84,7 @@ impl Project {
             &target_machine,
             optimization_level_middle,
             optimization_level_back,
-            object.identifier.as_str(),
+            contract.object.identifier.as_str(),
             Some(self),
             dump_flags.clone(),
         );
@@ -94,8 +93,14 @@ impl Project {
                 as u64,
         ));
 
+        if dump_flags.contains(&compiler_llvm_context::DumpFlag::Yul) {
+            eprintln!("Contract `{}` Yul IR:\n", contract_path);
+            println!("{}", contract.source);
+        }
+
         Object::prepare(&mut context).map_err(|error| Error::LLVM(error.to_string()))?;
-        object
+        contract
+            .object
             .into_llvm(&mut context)
             .map_err(|error| Error::LLVM(error.to_string()))?;
         context
