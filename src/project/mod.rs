@@ -93,11 +93,6 @@ impl Project {
                 as u64,
         ));
 
-        if dump_flags.contains(&compiler_llvm_context::DumpFlag::Yul) {
-            eprintln!("Contract `{}` Yul IR:\n", contract_path);
-            println!("{}", contract.source);
-        }
-
         Object::prepare(&mut context).map_err(|error| Error::LLVM(error.to_string()))?;
         contract
             .object
