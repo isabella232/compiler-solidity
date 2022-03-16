@@ -58,12 +58,11 @@ impl Project {
             }
         }
 
-        let object = self
+        let contract = self
             .contracts
             .get(contract_path)
             .cloned()
-            .ok_or_else(|| Error::ContractNotFound(contract_path.to_owned()))?
-            .object;
+            .ok_or_else(|| Error::ContractNotFound(contract_path.to_owned()))?;
 
         let (assembly_text, bytecode) = {
             let llvm = inkwell::context::Context::create();
@@ -87,7 +86,7 @@ impl Project {
                 &target_machine,
                 optimization_level_middle,
                 optimization_level_back,
-                object.identifier.as_str(),
+                contract.object.identifier.as_str(),
                 Some(self),
                 dump_flags.clone(),
             );
@@ -97,7 +96,8 @@ impl Project {
             ));
 
             Object::prepare(&mut context).map_err(|error| Error::LLVM(error.to_string()))?;
-            object
+            contract
+                .object
                 .into_llvm(&mut context)
                 .map_err(|error| Error::LLVM(error.to_string()))?;
             context
