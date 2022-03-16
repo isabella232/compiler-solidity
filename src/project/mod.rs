@@ -9,6 +9,7 @@ use std::path::Path;
 
 use compiler_llvm_context::WriteLLVM;
 
+use crate::dump_flag::DumpFlag;
 use crate::error::Error;
 use crate::lexer::Lexer;
 use crate::parser::statement::object::Object;
@@ -49,7 +50,7 @@ impl Project {
         contract_path: &str,
         optimization_level_middle: inkwell::OptimizationLevel,
         optimization_level_back: inkwell::OptimizationLevel,
-        dump_flags: Vec<compiler_llvm_context::DumpFlag>,
+        dump_flags: Vec<DumpFlag>,
     ) -> Result<String, Error> {
         if let Some(contract) = self.contracts.get(contract_path) {
             if let Some(ref hash) = contract.hash {
@@ -73,6 +74,14 @@ impl Project {
                         compiler_common::VM_TARGET_NAME
                     ))
                 })?;
+            let dump_flags = compiler_llvm_context::DumpFlag::initialize(
+                dump_flags.contains(&DumpFlag::Yul),
+                false,
+                false,
+                false,
+                dump_flags.contains(&DumpFlag::LLVM),
+                dump_flags.contains(&DumpFlag::Assembly),
+            );
             let mut context = compiler_llvm_context::Context::new(
                 &llvm,
                 &target_machine,
@@ -143,11 +152,7 @@ impl Project {
     /// Compiles all contracts, setting their text assembly and binary bytecode.
     ///
     #[allow(clippy::needless_collect)]
-    pub fn compile_all(
-        &mut self,
-        optimize: bool,
-        dump_flags: Vec<compiler_llvm_context::DumpFlag>,
-    ) -> Result<(), String> {
+    pub fn compile_all(&mut self, optimize: bool, dump_flags: Vec<DumpFlag>) -> Result<(), String> {
         let optimization_level = if optimize {
             inkwell::OptimizationLevel::Aggressive
         } else {
@@ -258,6 +263,11 @@ impl compiler_llvm_context::Dependency for Project {
             })
             .unwrap_or_else(|| panic!("Dependency `{}` not found", name));
 
+        let dump_flags = DumpFlag::initialize(
+            dump_flags.contains(&compiler_llvm_context::DumpFlag::Yul),
+            dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM),
+            dump_flags.contains(&compiler_llvm_context::DumpFlag::Assembly),
+        );
         let hash = self
             .compile(
                 contract_path.as_str(),

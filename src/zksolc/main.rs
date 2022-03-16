@@ -27,20 +27,17 @@ fn main() {
 fn main_inner() -> Result<(), compiler_solidity::Error> {
     let mut arguments = Arguments::new();
 
-    let dump_flags = compiler_llvm_context::DumpFlag::initialize(
+    let dump_flags = compiler_solidity::DumpFlag::initialize(
         arguments.dump_yul,
-        false,
-        false,
         arguments.dump_llvm,
         arguments.dump_assembly,
-        false,
     );
 
     for path in arguments.input_files.iter_mut() {
         *path = path.canonicalize()?;
     }
 
-    let solc_executable = arguments.solc.unwrap_or("solc".to_string());
+    let solc_executable = arguments.solc.unwrap_or_else(|| "solc".to_string());
     let solc = compiler_solidity::SolcCompiler::new(
         solc_executable,
         semver::Version::from_str(env!("CARGO_PKG_VERSION")).expect("Always valid"),
@@ -172,7 +169,28 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
             "{}",
             serde_json::to_string(&combined_json).expect("Always valid")
         );
-    } else if arguments.output_hashes || arguments.output_abi {
+    } else if arguments.output_assembly
+        || arguments.output_binary
+        || arguments.output_hashes
+        || arguments.output_abi
+    {
+        for (path, contract) in project.contracts.into_iter() {
+            if arguments.output_assembly {
+                println!(
+                    "Contract `{}` assembly:\n\n{}",
+                    path,
+                    contract.assembly.expect("Always exists")
+                );
+            }
+            if arguments.output_binary {
+                println!(
+                    "Contract `{}` bytecode: 0x{}",
+                    path,
+                    hex::encode(contract.bytecode.expect("Always exists").as_slice())
+                );
+            }
+        }
+
         match solc.extra_output(
             arguments.input_files.as_slice(),
             arguments.output_abi,

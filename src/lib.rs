@@ -2,12 +2,14 @@
 //! YUL to LLVM compiler library.
 //!
 
+pub(crate) mod dump_flag;
 pub(crate) mod error;
 pub(crate) mod lexer;
 pub(crate) mod parser;
 pub(crate) mod project;
 pub(crate) mod solc;
 
+pub use self::dump_flag::DumpFlag;
 pub use self::error::Error;
 pub use self::lexer::lexeme::keyword::Keyword;
 pub use self::lexer::lexeme::Lexeme;
