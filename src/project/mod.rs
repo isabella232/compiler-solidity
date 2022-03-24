@@ -98,19 +98,23 @@ impl Project {
             .object
             .into_llvm(&mut context)
             .map_err(|error| Error::LLVM(error.to_string()))?;
-        context
-            .verify()
-            .map_err(|error| Error::LLVM(error.to_string()))?;
-        context.optimize();
-        context
-            .verify()
-            .map_err(|error| Error::LLVM(error.to_string()))?;
-
         if dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM) {
             let llvm_code = context.module().print_to_string().to_string();
-            eprintln!("Contract `{}` LLVM IR:\n", contract_path);
+            eprintln!("Contract `{}` LLVM IR unoptimized:\n", contract_path);
             println!("{}", llvm_code);
         }
+        context
+            .verify()
+            .map_err(|error| Error::LLVM(error.to_string()))?;
+        let is_optimized = context.optimize();
+        if dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM) && is_optimized {
+            let llvm_code = context.module().print_to_string().to_string();
+            eprintln!("Contract `{}` LLVM IR optimized:\n", contract_path);
+            println!("{}", llvm_code);
+        }
+        context
+            .verify()
+            .map_err(|error| Error::LLVM(error.to_string()))?;
 
         let buffer = target_machine
             .write_to_memory_buffer(context.module(), inkwell::targets::FileType::Assembly)
