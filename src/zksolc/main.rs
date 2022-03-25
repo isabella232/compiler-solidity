@@ -29,6 +29,8 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
 
     let dump_flags = compiler_solidity::DumpFlag::initialize(
         arguments.dump_yul,
+        arguments.dump_ethir,
+        arguments.dump_evm,
         arguments.dump_llvm,
         arguments.dump_assembly,
     );
@@ -43,16 +45,22 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         semver::Version::from_str(env!("CARGO_PKG_VERSION")).expect("Always valid"),
     );
 
+    let output_selection =
+        compiler_solidity::SolcStandardJsonInputSettings::get_output_selection(vec![
+            compiler_solidity::SolcStandardJsonInputSettingsSelection::Yul,
+            compiler_solidity::SolcStandardJsonInputSettingsSelection::EVM,
+            compiler_solidity::SolcStandardJsonInputSettingsSelection::ABI,
+        ]);
     let solc_input = if arguments.standard_json {
         let mut input: compiler_solidity::SolcStandardJsonInput =
             serde_json::from_reader(std::io::BufReader::new(std::io::stdin()))?;
-        input.settings.output_selection =
-            serde_json::json!({ "*": { "*": [ "irOptimized", "abi" ] } });
+        input.settings.output_selection = output_selection;
         input
     } else {
         compiler_solidity::SolcStandardJsonInput::try_from_paths(
             arguments.input_files.as_slice(),
             arguments.libraries,
+            output_selection,
             true,
         )?
     };
@@ -85,10 +93,11 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     }
 
     compiler_solidity::initialize_target();
-    let mut project = match solc_output
-        .clone()
-        .try_into_project(libraries, arguments.dump_yul)
-    {
+    let mut project = match solc_output.clone().try_into_project(
+        libraries,
+        compiler_solidity::SolcPipeline::Yul,
+        dump_flags.as_slice(),
+    ) {
         Ok(standard_json) => standard_json,
         Err(error) => {
             eprint!("{}", error);
@@ -118,8 +127,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
                         );
 
                         contract.ir_optimized = None;
-                        contract.evm =
-                            Some(serde_json::json!({ "bytecode": { "object": bytecode } }));
+                        contract.evm = Some(compiler_solidity::SolcStandardJsonOutputContractEVM::new_zkevm_bytecode(bytecode));
                         contract.factory_dependencies =
                             Some(contract_data.factory_dependencies.clone());
                         contract.hash = contract_data.hash.clone();

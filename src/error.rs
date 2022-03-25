@@ -2,8 +2,8 @@
 //! The Yul compiler error.
 //!
 
-use crate::lexer::error::Error as LexerError;
-use crate::parser::error::Error as ParserError;
+use crate::yul::lexer::error::Error as LexerError;
+use crate::yul::parser::error::Error as ParserError;
 
 ///
 /// The Yul compiler error.

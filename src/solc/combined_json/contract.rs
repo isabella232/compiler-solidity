@@ -1,5 +1,5 @@
 //!
-//! The `solc <input>.sol --combined-json` contract representation.
+//! The `solc --combined-json` contract representation.
 //!
 
 use std::collections::HashMap;

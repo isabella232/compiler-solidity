@@ -3,6 +3,7 @@
 //!
 
 pub mod optimizer;
+pub mod selection;
 
 use std::collections::HashMap;
 
@@ -12,6 +13,7 @@ use serde::Serialize;
 use crate::error::Error;
 
 use self::optimizer::Optimizer;
+use self::selection::Selection;
 
 ///
 /// The `solc --standard-json` input settings representation.
@@ -32,18 +34,46 @@ impl Settings {
     ///
     /// A shortcut constructor.
     ///
-    pub fn new(libraries: HashMap<String, HashMap<String, String>>, optimize: bool) -> Self {
+    pub fn new(
+        libraries: HashMap<String, HashMap<String, String>>,
+        output_selection: serde_json::Value,
+        optimize: bool,
+    ) -> Self {
         Self {
             libraries: Some(libraries),
-            output_selection: serde_json::json!({
-                "*": {
-                    "*": [
-                        "irOptimized"
-                    ]
-                }
-            }),
+            output_selection,
             optimizer: Optimizer::new(optimize),
         }
+    }
+
+    ///
+    /// Generates the output selection pattern.
+    ///
+    pub fn get_output_selection(selections: Vec<Selection>) -> serde_json::Value {
+        serde_json::json!({
+            "*": {
+                "*": selections.iter().map(Selection::to_string).collect::<Vec<String>>()
+            }
+        })
+    }
+
+    ///
+    /// Generates the AST output selection pattern.
+    ///
+    pub fn get_ast_selection(mut files: Vec<String>) -> serde_json::Value {
+        if files.is_empty() {
+            files.push("*".to_owned());
+        }
+        let map = files
+            .into_iter()
+            .map(|file| {
+                (
+                    file,
+                    serde_json::json!({ "": [Selection::AST.to_string()] }),
+                )
+            })
+            .collect::<serde_json::Map<String, serde_json::Value>>();
+        serde_json::Value::Object(map)
     }
 
     ///
