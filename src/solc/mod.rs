@@ -3,6 +3,7 @@
 //!
 
 pub mod combined_json;
+pub mod pipeline;
 pub mod standard_json;
 
 use std::io::Write;

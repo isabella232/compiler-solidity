@@ -1,5 +1,5 @@
 //!
-//! The `solc <input>.sol --combined-json` output representation.
+//! The `solc --combined-json` output representation.
 //!
 
 pub mod contract;
@@ -17,7 +17,7 @@ use crate::error::Error;
 use self::contract::Contract;
 
 ///
-/// The `solc <input>.sol --combined-json` output representation.
+/// The `solc --combined-json` output representation.
 ///
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CombinedJson {

@@ -96,6 +96,14 @@ pub struct Arguments {
     #[structopt(long = "dump-yul")]
     pub dump_yul: bool,
 
+    /// Dump the EVM legacy assembly Intermediate Representation (IR) of all contracts.
+    #[structopt(long = "dump-evm")]
+    pub dump_evm: bool,
+
+    /// Dump the Ethereal Intermediate Representation (IR) of all contracts.
+    #[structopt(long = "dump-ethir")]
+    pub dump_ethir: bool,
+
     /// Dump the LLVM Intermediate Representation (IR) of all contracts.
     #[structopt(long = "dump-llvm")]
     pub dump_llvm: bool,

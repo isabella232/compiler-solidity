@@ -31,12 +31,16 @@ pub struct Input {
 }
 
 impl Input {
+    /// The Solidity language identifier.
+    pub const LANGUAGE: &'static str = "Solidity";
+
     ///
     /// A shortcut constructor.
     ///
     pub fn try_from_paths(
         paths: &[PathBuf],
         library_map: Vec<String>,
+        output_selection: serde_json::Value,
         optimize: bool,
     ) -> Result<Self, Error> {
         let mut sources = HashMap::with_capacity(paths.len());
@@ -48,18 +52,21 @@ impl Input {
         let libraries = Settings::parse_libraries(library_map)?;
 
         Ok(Self {
-            language: "Solidity".to_owned(),
+            language: Self::LANGUAGE.to_owned(),
             sources,
-            settings: Settings::new(libraries, optimize),
+            settings: Settings::new(libraries, output_selection, optimize),
         })
     }
 
     ///
     /// A shortcut constructor.
     ///
+    /// Only for the integration test purposes.
+    ///
     pub fn try_from_sources(
         sources: HashMap<String, String>,
         libraries: HashMap<String, HashMap<String, String>>,
+        output_selection: serde_json::Value,
         optimize: bool,
     ) -> Result<Self, Error> {
         let sources = sources
@@ -68,9 +75,9 @@ impl Input {
             .collect();
 
         Ok(Self {
-            language: "Solidity".to_owned(),
+            language: Self::LANGUAGE.to_owned(),
             sources,
-            settings: Settings::new(libraries, optimize),
+            settings: Settings::new(libraries, output_selection, optimize),
         })
     }
 }

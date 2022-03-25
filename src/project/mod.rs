@@ -11,9 +11,11 @@ use compiler_llvm_context::WriteLLVM;
 
 use crate::dump_flag::DumpFlag;
 use crate::error::Error;
-use crate::lexer::Lexer;
-use crate::parser::statement::object::Object;
+use crate::evm::assembly::Assembly;
+use crate::project::contract::source::Source;
 use crate::solc::combined_json::CombinedJson;
+use crate::yul::lexer::Lexer;
+use crate::yul::parser::statement::object::Object;
 
 use self::contract::Contract;
 
@@ -58,12 +60,6 @@ impl Project {
             }
         }
 
-        let contract = self
-            .contracts
-            .get(contract_path)
-            .cloned()
-            .ok_or_else(|| Error::ContractNotFound(contract_path.to_owned()))?;
-
         let llvm = inkwell::context::Context::create();
         let target_machine = crate::target_machine(optimization_level_back).ok_or_else(|| {
             Error::LLVM(format!(
@@ -73,18 +69,32 @@ impl Project {
         })?;
         let dump_flags = compiler_llvm_context::DumpFlag::initialize(
             dump_flags.contains(&DumpFlag::Yul),
-            false,
-            false,
+            dump_flags.contains(&DumpFlag::EthIR),
+            dump_flags.contains(&DumpFlag::EVM),
             false,
             dump_flags.contains(&DumpFlag::LLVM),
             dump_flags.contains(&DumpFlag::Assembly),
         );
-        let mut context = compiler_llvm_context::Context::new(
+        let mut source = self
+            .contracts
+            .get(contract_path)
+            .ok_or_else(|| Error::ContractNotFound(contract_path.to_owned()))?
+            .source
+            .to_owned();
+        let module_name = match source {
+            Source::Yul(ref yul) => yul.object.identifier.to_owned(),
+            Source::EVM(_) => contract_path.to_owned(),
+        };
+        let context_initilizer = match source {
+            Source::Yul(_) => compiler_llvm_context::Context::new,
+            Source::EVM(_) => compiler_llvm_context::Context::new_evm,
+        };
+        let mut context = context_initilizer(
             &llvm,
             &target_machine,
             optimization_level_middle,
             optimization_level_back,
-            contract.object.identifier.as_str(),
+            module_name.as_str(),
             Some(self),
             dump_flags.clone(),
         );
@@ -93,9 +103,10 @@ impl Project {
                 as u64,
         ));
 
-        Object::prepare(&mut context).map_err(|error| Error::LLVM(error.to_string()))?;
-        contract
-            .object
+        source
+            .declare(&mut context)
+            .map_err(|error| Error::LLVM(error.to_string()))?;
+        source
             .into_llvm(&mut context)
             .map_err(|error| Error::LLVM(error.to_string()))?;
         if dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM) {
@@ -233,7 +244,27 @@ impl Project {
         let mut project_contracts = HashMap::with_capacity(1);
         project_contracts.insert(
             name.clone(),
-            Contract::new(name.clone(), name, yul.to_owned(), object),
+            Contract::new(name.clone(), name, Source::new_yul(yul.to_owned(), object)),
+        );
+        Ok(Self {
+            contracts: project_contracts,
+            libraries: HashMap::new(),
+        })
+    }
+
+    ///
+    /// Initializes the test EVM legacy assembly source code and returns the source data.
+    ///
+    /// Only for integration testing purposes.
+    ///
+    pub fn try_from_test_evm(evm: &str) -> Result<Self, Error> {
+        let name = "Test".to_owned();
+        let assembly: Assembly = serde_json::from_str(evm)?;
+
+        let mut project_contracts = HashMap::with_capacity(1);
+        project_contracts.insert(
+            name.clone(),
+            Contract::new(name.clone(), name, Source::new_evm(assembly)),
         );
         Ok(Self {
             contracts: project_contracts,
@@ -255,7 +286,10 @@ impl compiler_llvm_context::Dependency for Project {
             .contracts
             .iter()
             .find_map(|(path, contract)| {
-                if contract.object.identifier.as_str() == name {
+                if match contract.source {
+                    Source::Yul(ref yul) => yul.object.identifier.as_str() == name,
+                    Source::EVM(_) => contract.path.as_str() == name,
+                } {
                     Some(path.to_owned())
                 } else {
                     None
@@ -265,6 +299,8 @@ impl compiler_llvm_context::Dependency for Project {
 
         let dump_flags = DumpFlag::initialize(
             dump_flags.contains(&compiler_llvm_context::DumpFlag::Yul),
+            dump_flags.contains(&compiler_llvm_context::DumpFlag::EthIR),
+            dump_flags.contains(&compiler_llvm_context::DumpFlag::EVM),
             dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM),
             dump_flags.contains(&compiler_llvm_context::DumpFlag::Assembly),
         );
@@ -280,7 +316,10 @@ impl compiler_llvm_context::Dependency for Project {
         self.contracts
             .iter_mut()
             .find_map(|(_path, contract)| {
-                if contract.object.identifier == parent_name {
+                if match contract.source {
+                    Source::Yul(ref yul) => yul.object.identifier.as_str() == parent_name,
+                    Source::EVM(_) => contract.path.as_str() == parent_name,
+                } {
                     Some(contract)
                 } else {
                     None
