@@ -43,13 +43,14 @@ where
 ///
 pub fn dup<'ctx, 'dep, D>(
     context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
-    index: usize,
+    offset: usize,
+    height: usize,
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
 where
     D: compiler_llvm_context::Dependency,
 {
-    let pointer = context.evm().stack_pointer(index);
-    let value = context.build_load(pointer, format!("dup{}", index).as_str());
+    let pointer = context.evm().stack[height - offset - 1];
+    let value = context.build_load(pointer, format!("dup{}", offset).as_str());
     Ok(Some(value))
 }
 
@@ -58,16 +59,18 @@ where
 ///
 pub fn swap<'ctx, 'dep, D>(
     context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
-    index: usize,
+    offset: usize,
+    height: usize,
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
 where
     D: compiler_llvm_context::Dependency,
 {
-    let top_pointer = context.evm().stack_pointer(1);
-    let top_value = context.build_load(top_pointer, format!("swap{}_top_value", index).as_str());
+    let top_pointer = context.evm().stack[height - 1];
+    let top_value = context.build_load(top_pointer, format!("swap{}_top_value", offset).as_str());
 
-    let swap_pointer = context.evm().stack_pointer(index + 1);
-    let swap_value = context.build_load(swap_pointer, format!("swap{}_swap_value", index).as_str());
+    let swap_pointer = context.evm().stack[height - offset - 1];
+    let swap_value =
+        context.build_load(swap_pointer, format!("swap{}_swap_value", offset).as_str());
 
     context.build_store(top_pointer, swap_value);
     context.build_store(swap_pointer, top_value);
@@ -79,12 +82,10 @@ where
 /// Translates the stack memory pop.
 ///
 pub fn pop<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+    _context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
 where
     D: compiler_llvm_context::Dependency,
 {
-    context.evm_mut().decrease_stack_pointer(1);
-
     Ok(None)
 }

@@ -6,13 +6,11 @@ pub mod entry_link;
 pub mod function;
 
 use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
 use crate::evm::assembly::instruction::Instruction;
 
-use self::function::block::exit::Exit as BlockExit;
 use self::function::block::Block;
 use self::function::Function;
 
@@ -28,9 +26,6 @@ pub struct EtherealIR {
 }
 
 impl EtherealIR {
-    /// The entry function tag.
-    pub const ENTRY_FUNCTION_TAG: usize = 0;
-
     /// The blocks hashmap initial capacity.
     pub const BLOCKS_HASHMAP_DEFAULT_CAPACITY: usize = 64;
 
@@ -50,47 +45,11 @@ impl EtherealIR {
             offset += size;
         }
 
-        let mut entries: BTreeSet<usize> = blocks
-            .iter()
-            .filter_map(|(_tag, block)| match block.exit {
-                Some(BlockExit::Call { callee, .. }) => Some(callee),
-                _ => None,
-            })
-            .collect();
-        entries.insert(Self::ENTRY_FUNCTION_TAG);
-
         let mut visited = HashSet::with_capacity(blocks.len());
         let mut functions = BTreeMap::new();
-        let function = Function::try_from_tag(
-            Self::ENTRY_FUNCTION_TAG,
-            code_type,
-            &blocks,
-            &entries,
-            &mut visited,
-            &mut functions,
-        )?;
-        functions.insert(Self::ENTRY_FUNCTION_TAG, function);
-
-        if visited.len() != blocks.len() {
-            anyhow::bail!(
-                "Not all blocks are visited: {} out of {}",
-                visited.len(),
-                blocks.len()
-            );
-        }
-
-        let mut call_graph = Vec::with_capacity(functions.len());
-        for (tag, function) in functions.iter() {
-            call_graph.push((*tag, function.callees.to_owned()));
-        }
-        for (caller, callees) in call_graph.into_iter() {
-            for callee in callees.into_iter() {
-                functions
-                    .get_mut(&callee)
-                    .expect("Always exists")
-                    .insert_caller(caller);
-            }
-        }
+        let function = Function::try_from_blocks(code_type, &blocks, &mut visited, &mut functions)?;
+        let function = function.finalize();
+        functions.insert(0, function);
 
         Ok(Self {
             functions,
@@ -114,6 +73,8 @@ where
     }
 
     fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
+        context.evm_mut().stack = vec![];
+
         for (_tag, function) in self.functions.into_iter() {
             function.into_llvm(context)?;
         }
