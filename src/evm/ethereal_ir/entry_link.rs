@@ -25,7 +25,7 @@ where
     D: compiler_llvm_context::Dependency,
 {
     fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
-        let target_name = format!("function_{}_0", self.code_type);
+        let target_name = format!("function_{}", self.code_type);
         let target = context
             .functions
             .get(target_name.as_str())
