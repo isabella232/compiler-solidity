@@ -129,7 +129,7 @@ dependencies = [
 [[package]]
 name = "compiler-common"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#687adf4f9ecb48940bb01aa71a25d3380df47257"
+source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#4a9b031465b2fabb8c36598ed2b6b63fc575c088"
 dependencies = [
  "sha3",
 ]
@@ -137,7 +137,7 @@ dependencies = [
 [[package]]
 name = "compiler-llvm-context"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#3b8929f7f3f22ab42f3c85a4af31a6c2ac05183a"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#c030821adca1e8556aa529abc1c53dfd867004e8"
 dependencies = [
  "anyhow",
  "compiler-common",

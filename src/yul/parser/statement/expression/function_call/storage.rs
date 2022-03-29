@@ -21,12 +21,10 @@ where
 
     let position = context.field_const_str(compiler_common::keccak256(literal.as_bytes()).as_str());
 
-    let intrinsic =
-        context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::StorageLoad);
     let is_external_storage = context.field_const(0);
     let value = context
         .build_call(
-            intrinsic,
+            context.runtime.storage_load,
             &[
                 position.as_basic_value_enum(),
                 is_external_storage.as_basic_value_enum(),
@@ -54,12 +52,10 @@ where
 
     let position = context.field_const_str(compiler_common::keccak256(literal.as_bytes()).as_str());
 
-    let intrinsic =
-        context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::StorageStore);
     let value = arguments[2].value;
     let is_external_storage = context.field_const(0);
     context.build_call(
-        intrinsic,
+        context.runtime.storage_store,
         &[
             value,
             position.as_basic_value_enum(),

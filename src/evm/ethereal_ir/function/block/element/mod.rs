@@ -906,7 +906,7 @@ where
 
                 compiler_llvm_context::contract::call(
                     context,
-                    compiler_llvm_context::IntrinsicFunction::FarCall,
+                    context.runtime.far_call,
                     address,
                     Some(value),
                     input_offset,
@@ -931,7 +931,7 @@ where
 
                 compiler_llvm_context::contract::call(
                     context,
-                    compiler_llvm_context::IntrinsicFunction::StaticCall,
+                    context.runtime.static_call,
                     address,
                     None,
                     input_offset,
@@ -952,7 +952,7 @@ where
 
                 compiler_llvm_context::contract::call(
                     context,
-                    compiler_llvm_context::IntrinsicFunction::DelegateCall,
+                    context.runtime.delegate_call,
                     address,
                     None,
                     input_offset,
