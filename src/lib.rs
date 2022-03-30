@@ -9,6 +9,13 @@ pub(crate) mod project;
 pub(crate) mod solc;
 pub(crate) mod yul;
 
+// TODO: check unwraps
+// TODO: move jumps
+// TODO: merge immutables
+// TODO: parse solc version
+// TODO: print predecessor index
+// TODO: improve stack printing
+
 pub use self::dump_flag::DumpFlag;
 pub use self::error::Error;
 pub use self::project::contract::Contract as ProjectContract;

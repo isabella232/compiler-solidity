@@ -5,7 +5,6 @@
 pub mod entry_link;
 pub mod function;
 
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -19,8 +18,8 @@ use self::function::Function;
 ///
 #[derive(Debug)]
 pub struct EtherealIR {
-    /// The function representations.
-    pub functions: BTreeMap<usize, Function>,
+    /// The all-inlined function representation.
+    pub function: Function,
     /// The contract code part type.
     pub code_type: compiler_llvm_context::CodeType,
 }
@@ -46,13 +45,10 @@ impl EtherealIR {
         }
 
         let mut visited = HashSet::with_capacity(blocks.len());
-        let mut functions = BTreeMap::new();
-        let function = Function::try_from_blocks(code_type, &blocks, &mut visited, &mut functions)?;
-        let function = function.finalize();
-        functions.insert(0, function);
+        let function = Function::try_from_blocks(code_type, &blocks, &mut visited)?.finalize();
 
         Ok(Self {
-            functions,
+            function,
             code_type,
         })
     }
@@ -65,9 +61,7 @@ where
     fn declare(&mut self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         context.code_type = Some(self.code_type);
 
-        for (_tag, function) in self.functions.iter_mut() {
-            function.declare(context)?;
-        }
+        self.function.declare(context)?;
 
         Ok(())
     }
@@ -75,9 +69,7 @@ where
     fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         context.evm_mut().stack = vec![];
 
-        for (_tag, function) in self.functions.into_iter() {
-            function.into_llvm(context)?;
-        }
+        self.function.into_llvm(context)?;
 
         Ok(())
     }
@@ -85,9 +77,7 @@ where
 
 impl std::fmt::Display for EtherealIR {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (_tag, function) in self.functions.iter() {
-            writeln!(f, "{}", function)?;
-        }
+        writeln!(f, "{}", self.function)?;
 
         Ok(())
     }

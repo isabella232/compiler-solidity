@@ -98,10 +98,6 @@ impl Project {
             Some(self),
             dump_flags.clone(),
         );
-        context.set_long_return_offset(context.field_const(
-            (compiler_common::SOLIDITY_MEMORY_OFFSET_EMPTY_SLOT * compiler_common::SIZE_FIELD)
-                as u64,
-        ));
 
         source
             .declare(&mut context)
