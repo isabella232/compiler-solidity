@@ -11,9 +11,9 @@ use crate::evm::ethereal_ir::function::block::element::stack::Stack;
 pub struct QueueElement {
     /// The block tag.
     pub tag: usize,
-    /// The block predecessor. Unset for the function entry.
+    /// The block predecessor.
     pub predecessor: Option<usize>,
-    /// The predecessor last stack state.
+    /// The predecessor's last stack state.
     pub stack: Stack,
 }
 

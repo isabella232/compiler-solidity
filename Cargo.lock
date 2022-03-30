@@ -129,7 +129,7 @@ dependencies = [
 [[package]]
 name = "compiler-common"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#4a9b031465b2fabb8c36598ed2b6b63fc575c088"
+source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#f011c162c3d15add830b42357f5e29555ce9d8d9"
 dependencies = [
  "sha3",
 ]
@@ -137,7 +137,7 @@ dependencies = [
 [[package]]
 name = "compiler-llvm-context"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#c030821adca1e8556aa529abc1c53dfd867004e8"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#3020dc705b7bd48f17c3b6c2f76a4e4d207dccb1"
 dependencies = [
  "anyhow",
  "compiler-common",
@@ -154,7 +154,6 @@ dependencies = [
  "compiler-llvm-context",
  "hex",
  "inkwell",
- "log",
  "rand",
  "regex",
  "semver 1.0.7",
@@ -403,10 +402,11 @@ dependencies = [
 
 [[package]]
 name = "lock_api"
-version = "0.4.6"
+version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88943dd7ef4a2e5a4bfa2753aaab3013e34ce2533d1996fb18ef591e315e2b3b"
+checksum = "327fa5b6a6940e4699ec49a9beae1ea4845c6bab9314e4f84ac68742139d8c53"
 dependencies = [
+ "autocfg",
  "scopeguard",
 ]
 
@@ -652,9 +652,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.2.12"
+version = "0.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ae183fc1b06c149f0c1793e1eb447c8b04bfe46d48e9e48bfb8d2d7ed64ecf0"
+checksum = "62f25bc4c7e55e0b0b7a1d43fb893f4fa1361d0abe38b9ce4f323c2adfe6ef42"
 dependencies = [
  "bitflags",
 ]

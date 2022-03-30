@@ -39,37 +39,14 @@ impl Function {
         code_type: compiler_llvm_context::CodeType,
         blocks: &HashMap<usize, Block>,
         visited: &mut HashSet<QueueElement>,
-        functions: &mut BTreeMap<usize, Self>,
     ) -> anyhow::Result<Self> {
         let mut function = Self {
             code_type,
             blocks: BTreeMap::new(),
             stack_size: 0,
         };
-        function.consume_block(
-            blocks,
-            visited,
-            functions,
-            QueueElement::new(0, None, Stack::new()),
-        )?;
+        function.consume_block(blocks, visited, QueueElement::new(0, None, Stack::new()))?;
         Ok(function)
-    }
-
-    ///
-    /// Finalizes the function data.
-    ///
-    pub fn finalize(mut self) -> Self {
-        for (_tag, blocks) in self.blocks.iter() {
-            for block in blocks.iter() {
-                for block_element in block.elements.iter() {
-                    if block_element.stack.elements.len() > self.stack_size {
-                        self.stack_size = block_element.stack.elements.len();
-                    }
-                }
-            }
-        }
-
-        self
     }
 
     ///
@@ -79,344 +56,318 @@ impl Function {
         &mut self,
         blocks: &HashMap<usize, Block>,
         visited: &mut HashSet<QueueElement>,
-        functions: &mut BTreeMap<usize, Self>,
         mut queue_element: QueueElement,
     ) -> anyhow::Result<()> {
         let mut queue = vec![];
 
-        loop {
-            if visited.contains(&queue_element) {
-                break;
-            }
-            visited.insert(queue_element.clone());
+        if visited.contains(&queue_element) {
+            return Ok(());
+        }
+        visited.insert(queue_element.clone());
 
-            let block = blocks.get(&queue_element.tag).cloned().ok_or_else(|| {
-                anyhow::anyhow!("Undeclared destination block {}", queue_element.tag)
-            })?;
-            let block = self.insert_block(block);
-            block.initial_stack = queue_element.stack.clone();
-            block.stack = block.initial_stack.clone();
-            if !block.validate_predecessor(queue_element.predecessor.take()) {
-                break;
-            }
+        let mut block = blocks
+            .get(&queue_element.tag)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("Undeclared destination block {}", queue_element.tag))?;
+        block.initial_stack = queue_element.stack.clone();
+        let block = self.insert_block(block);
+        block.stack = block.initial_stack.clone();
+        if !block.validate_predecessor(queue_element.predecessor.take()) {
+            return Ok(());
+        }
 
-            let mut is_end = false;
-            for block_element in block.elements.iter_mut() {
-                match block_element.instruction {
-                    Instruction {
-                        name: InstructionName::PUSH_Tag,
-                        value: Some(ref tag),
-                    } => {
-                        let tag: usize = tag.parse().expect("Always valid");
-                        block.stack.push(Element::Tag(tag));
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::JUMP,
-                        ..
-                    } => {
-                        queue_element.predecessor = Some(queue_element.tag);
+        for block_element in block.elements.iter_mut() {
+            match block_element.instruction {
+                Instruction {
+                    name: InstructionName::PUSH_Tag,
+                    value: Some(ref tag),
+                } => {
+                    let tag: usize = tag.parse().expect("Always valid");
+                    block.stack.push(Element::Tag(tag));
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::JUMP,
+                    ..
+                } => {
+                    queue_element.predecessor = Some(queue_element.tag);
 
-                        block_element.stack = block.stack.clone();
-                        let destination = block.stack.pop_tag()?;
-                        log::trace!("Queued  {:4} [unconditional jump]", destination);
-                        queue.push(QueueElement::new(
-                            destination,
-                            queue_element.predecessor,
-                            block.stack.to_owned(),
-                        ));
+                    block_element.stack = block.stack.clone();
+                    let destination = block.stack.pop_tag()?;
+                    queue.push(QueueElement::new(
+                        destination,
+                        queue_element.predecessor,
+                        block.stack.to_owned(),
+                    ));
+                }
+                Instruction {
+                    name: InstructionName::JUMPI,
+                    ..
+                } => {
+                    queue_element.predecessor = Some(queue_element.tag);
 
-                        is_end = true;
-                    }
-                    Instruction {
-                        name: InstructionName::JUMPI,
-                        ..
-                    } => {
-                        queue_element.predecessor = Some(queue_element.tag);
+                    block_element.stack = block.stack.clone();
+                    let destination = block.stack.pop_tag()?;
+                    block.stack.pop();
+                    queue.push(QueueElement::new(
+                        destination,
+                        queue_element.predecessor,
+                        block.stack.to_owned(),
+                    ));
+                }
+                Instruction {
+                    name: InstructionName::Tag,
+                    value: Some(ref destination),
+                } => {
+                    block_element.stack = block.stack.clone();
 
-                        block_element.stack = block.stack.clone();
-                        let destination = block.stack.pop_tag()?;
+                    let destination: usize = destination.parse().expect("Always valid");
+                    queue_element.predecessor = Some(queue_element.tag);
+                    queue_element.tag = destination;
+                    queue.push(QueueElement::new(
+                        destination,
+                        queue_element.predecessor,
+                        block.stack.to_owned(),
+                    ));
+                }
+                Instruction {
+                    name: InstructionName::SWAP1,
+                    ..
+                } => {
+                    block.stack.swap(1);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP2,
+                    ..
+                } => {
+                    block.stack.swap(2);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP3,
+                    ..
+                } => {
+                    block.stack.swap(3);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP4,
+                    ..
+                } => {
+                    block.stack.swap(4);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP5,
+                    ..
+                } => {
+                    block.stack.swap(5);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP6,
+                    ..
+                } => {
+                    block.stack.swap(6);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP7,
+                    ..
+                } => {
+                    block.stack.swap(7);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP8,
+                    ..
+                } => {
+                    block.stack.swap(8);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP9,
+                    ..
+                } => {
+                    block.stack.swap(9);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP10,
+                    ..
+                } => {
+                    block.stack.swap(10);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP11,
+                    ..
+                } => {
+                    block.stack.swap(11);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP12,
+                    ..
+                } => {
+                    block.stack.swap(12);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP13,
+                    ..
+                } => {
+                    block.stack.swap(13);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP14,
+                    ..
+                } => {
+                    block.stack.swap(14);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP15,
+                    ..
+                } => {
+                    block.stack.swap(15);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::SWAP16,
+                    ..
+                } => {
+                    block.stack.swap(16);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP1,
+                    ..
+                } => {
+                    block.stack.dup(1);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP2,
+                    ..
+                } => {
+                    block.stack.dup(2);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP3,
+                    ..
+                } => {
+                    block.stack.dup(3);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP4,
+                    ..
+                } => {
+                    block.stack.dup(4);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP5,
+                    ..
+                } => {
+                    block.stack.dup(5);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP6,
+                    ..
+                } => {
+                    block.stack.dup(6);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP7,
+                    ..
+                } => {
+                    block.stack.dup(7);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP8,
+                    ..
+                } => {
+                    block.stack.dup(8);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP9,
+                    ..
+                } => {
+                    block.stack.dup(9);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP10,
+                    ..
+                } => {
+                    block.stack.dup(10);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP11,
+                    ..
+                } => {
+                    block.stack.dup(11);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP12,
+                    ..
+                } => {
+                    block.stack.dup(12);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP13,
+                    ..
+                } => {
+                    block.stack.dup(13);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP14,
+                    ..
+                } => {
+                    block.stack.dup(14);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP15,
+                    ..
+                } => {
+                    block.stack.dup(15);
+                    block_element.stack = block.stack.clone();
+                }
+                Instruction {
+                    name: InstructionName::DUP16,
+                    ..
+                } => {
+                    block.stack.dup(16);
+                    block_element.stack = block.stack.clone();
+                }
+                ref instruction => {
+                    block
+                        .stack
+                        .extend(vec![StackElement::Value; instruction.output_size()]);
+                    block_element.stack = block.stack.clone();
+                    for _ in 0..instruction.input_size() {
                         block.stack.pop();
-                        log::trace!("Queued  {:4} [conditional jump]", destination);
-                        queue.push(QueueElement::new(
-                            destination,
-                            queue_element.predecessor,
-                            block.stack.to_owned(),
-                        ));
-                    }
-                    Instruction {
-                        name: InstructionName::Tag,
-                        value: Some(ref destination),
-                    } => {
-                        block_element.stack = block.stack.clone();
-
-                        let destination: usize = destination.parse().expect("Always valid");
-                        queue_element.predecessor = Some(queue_element.tag);
-                        queue_element.tag = destination;
-                        log::trace!("Queued  {:4} [fallthrough]", queue_element.tag);
-                        queue.push(QueueElement::new(
-                            destination,
-                            queue_element.predecessor,
-                            block.stack.to_owned(),
-                        ));
-
-                        is_end = true;
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP1,
-                        ..
-                    } => {
-                        block.stack.swap(1);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP2,
-                        ..
-                    } => {
-                        block.stack.swap(2);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP3,
-                        ..
-                    } => {
-                        block.stack.swap(3);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP4,
-                        ..
-                    } => {
-                        block.stack.swap(4);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP5,
-                        ..
-                    } => {
-                        block.stack.swap(5);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP6,
-                        ..
-                    } => {
-                        block.stack.swap(6);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP7,
-                        ..
-                    } => {
-                        block.stack.swap(7);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP8,
-                        ..
-                    } => {
-                        block.stack.swap(8);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP9,
-                        ..
-                    } => {
-                        block.stack.swap(9);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP10,
-                        ..
-                    } => {
-                        block.stack.swap(10);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP11,
-                        ..
-                    } => {
-                        block.stack.swap(11);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP12,
-                        ..
-                    } => {
-                        block.stack.swap(12);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP13,
-                        ..
-                    } => {
-                        block.stack.swap(13);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP14,
-                        ..
-                    } => {
-                        block.stack.swap(14);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP15,
-                        ..
-                    } => {
-                        block.stack.swap(15);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::SWAP16,
-                        ..
-                    } => {
-                        block.stack.swap(16);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP1,
-                        ..
-                    } => {
-                        block.stack.dup(1);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP2,
-                        ..
-                    } => {
-                        block.stack.dup(2);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP3,
-                        ..
-                    } => {
-                        block.stack.dup(3);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP4,
-                        ..
-                    } => {
-                        block.stack.dup(4);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP5,
-                        ..
-                    } => {
-                        block.stack.dup(5);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP6,
-                        ..
-                    } => {
-                        block.stack.dup(6);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP7,
-                        ..
-                    } => {
-                        block.stack.dup(7);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP8,
-                        ..
-                    } => {
-                        block.stack.dup(8);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP9,
-                        ..
-                    } => {
-                        block.stack.dup(9);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP10,
-                        ..
-                    } => {
-                        block.stack.dup(10);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP11,
-                        ..
-                    } => {
-                        block.stack.dup(11);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP12,
-                        ..
-                    } => {
-                        block.stack.dup(12);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP13,
-                        ..
-                    } => {
-                        block.stack.dup(13);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP14,
-                        ..
-                    } => {
-                        block.stack.dup(14);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP15,
-                        ..
-                    } => {
-                        block.stack.dup(15);
-                        block_element.stack = block.stack.clone();
-                    }
-                    Instruction {
-                        name: InstructionName::DUP16,
-                        ..
-                    } => {
-                        block.stack.dup(16);
-                        block_element.stack = block.stack.clone();
-                    }
-                    ref instruction => {
-                        block
-                            .stack
-                            .extend(vec![StackElement::Value; instruction.output_size()]);
-                        block_element.stack = block.stack.clone();
-                        for _ in 0..instruction.input_size() {
-                            block.stack.pop();
-                        }
-
-                        if let Instruction {
-                            name: InstructionName::RETURN,
-                            ..
-                        }
-                        | Instruction {
-                            name: InstructionName::REVERT,
-                            ..
-                        } = instruction
-                        {
-                            is_end = true;
-                        }
                     }
                 }
-            }
-
-            if is_end {
-                break;
             }
         }
 
         for element in queue.into_iter() {
-            self.consume_block(blocks, visited, functions, element)?;
+            self.consume_block(blocks, visited, element)?;
         }
 
         Ok(())
@@ -444,6 +395,23 @@ impl Function {
             .expect("Always exists")
             .last_mut()
             .expect("Always exists")
+    }
+
+    ///
+    /// Finalizes the function data.
+    ///
+    pub fn finalize(mut self) -> Self {
+        for (_tag, blocks) in self.blocks.iter() {
+            for block in blocks.iter() {
+                for block_element in block.elements.iter() {
+                    if block_element.stack.elements.len() > self.stack_size {
+                        self.stack_size = block_element.stack.elements.len();
+                    }
+                }
+            }
+        }
+
+        self
     }
 
     ///
@@ -535,21 +503,22 @@ impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(
             f,
-            "function {} (stack size: {}) {{",
+            "function {} (max_sp = {}) {{",
             self.code_type, self.stack_size,
         )?;
         for (tag, blocks) in self.blocks.iter() {
             for (index, block) in blocks.iter().enumerate() {
                 writeln!(
                     f,
-                    "block_{}/{}: {}",
+                    "block_{}/{}: {} {:?}",
                     *tag,
                     index,
                     if block.predecessors.is_empty() {
                         "".to_owned()
                     } else {
                         format!("(predecessors: {:?})", block.predecessors)
-                    }
+                    },
+                    block.initial_stack,
                 )?;
                 write!(f, "{}", block)?;
             }
