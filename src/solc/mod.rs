@@ -19,8 +19,6 @@ use self::standard_json::output::Output as StandardJsonOutput;
 pub struct Compiler {
     /// The binary executable name.
     pub executable: String,
-    /// The compiler version.
-    pub version: semver::Version,
 }
 
 impl Compiler {
@@ -30,11 +28,8 @@ impl Compiler {
     /// Different tools may use different `executable` names. For example, the integration tester
     /// uses `solc-<version>` format.
     ///
-    pub fn new(executable: String, version: semver::Version) -> Self {
-        Self {
-            executable,
-            version,
-        }
+    pub fn new(executable: String) -> Self {
+        Self { executable }
     }
 
     ///
@@ -139,5 +134,32 @@ impl Compiler {
         }
 
         Ok(String::from_utf8_lossy(solc_pipeline.stdout.as_slice()).to_string())
+    }
+
+    ///
+    /// The `solc --version` mini-parser.
+    ///
+    pub fn version(&self) -> Result<semver::Version, String> {
+        let mut solc_command = std::process::Command::new(self.executable.as_str());
+        solc_command.arg("--version");
+        let solc_pipeline = solc_command
+            .output()
+            .map_err(|error| format!("solc subprocess error: {:?}", error))?;
+        if !solc_pipeline.status.success() {
+            return Err(String::from_utf8_lossy(solc_pipeline.stderr.as_slice()).to_string());
+        }
+
+        let stdout = String::from_utf8_lossy(solc_pipeline.stdout.as_slice());
+        let version: semver::Version = stdout
+            .lines()
+            .nth(1)
+            .ok_or_else(|| "solc version parsing: not enough lines".to_owned())?
+            .split(' ')
+            .nth(1)
+            .ok_or_else(|| "solc version parsing: not enough words in the 2nd line".to_owned())?
+            .parse()
+            .map_err(|error| format!("solc version parsing: {}", error))?;
+
+        Ok(version)
     }
 }

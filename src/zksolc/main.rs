@@ -4,8 +4,6 @@
 
 pub mod arguments;
 
-use std::str::FromStr;
-
 use self::arguments::Arguments;
 
 ///
@@ -40,10 +38,14 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     }
 
     let solc_executable = arguments.solc.unwrap_or_else(|| "solc".to_string());
-    let solc = compiler_solidity::SolcCompiler::new(
-        solc_executable,
-        semver::Version::from_str(env!("CARGO_PKG_VERSION")).expect("Always valid"),
-    );
+    let solc = compiler_solidity::SolcCompiler::new(solc_executable);
+    let solc_version = match solc.version() {
+        Ok(version) => version,
+        Err(stderr) => {
+            eprint!("{}", stderr);
+            std::process::exit(compiler_common::EXIT_CODE_FAILURE);
+        }
+    };
 
     let output_selection =
         compiler_solidity::SolcStandardJsonInputSettings::get_output_selection(vec![
@@ -96,6 +98,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     let mut project = match solc_output.clone().try_into_project(
         libraries,
         compiler_solidity::SolcPipeline::Yul,
+        solc_version,
         dump_flags.as_slice(),
     ) {
         Ok(standard_json) => standard_json,

@@ -101,11 +101,12 @@ dependencies = [
 [[package]]
 name = "compiler-llvm-context"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context#c010afe557547ea74152274743a6eb2c0aba67ad"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context#bb9a953cfe9c8b0eca8952b98543f254481f0208"
 dependencies = [
  "anyhow",
  "compiler-common",
  "inkwell",
+ "semver 1.0.7",
 ]
 
 [[package]]

@@ -2,9 +2,9 @@
 //! The EVM instruction.
 //!
 
+pub mod jump;
 pub mod name;
 pub mod stack;
-pub mod storage;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -26,7 +26,7 @@ impl Instruction {
     ///
     /// Returns the number of input stack arguments.
     ///
-    pub const fn input_size(&self) -> usize {
+    pub const fn input_size(&self, version: &semver::Version) -> usize {
         match self.name {
             Name::POP => 1,
 
@@ -71,7 +71,13 @@ impl Instruction {
             Name::SLOAD => 1,
             Name::SSTORE => 2,
             Name::PUSHIMMUTABLE => 0,
-            Name::ASSIGNIMMUTABLE => 1,
+            Name::ASSIGNIMMUTABLE => {
+                if version.minor >= 8 {
+                    2
+                } else {
+                    1
+                }
+            }
 
             Name::CALLDATALOAD => 1,
             Name::CALLDATACOPY => 3,
@@ -237,49 +243,6 @@ impl Instruction {
             Name::EXTCODEHASH => 1,
 
             _ => 0,
-        }
-    }
-
-    ///
-    /// Returns the stack depth, where the instruction can reach.
-    ///
-    pub const fn stack_depth(&self) -> usize {
-        match self.name {
-            Name::DUP1 => 1,
-            Name::DUP2 => 2,
-            Name::DUP3 => 3,
-            Name::DUP4 => 4,
-            Name::DUP5 => 5,
-            Name::DUP6 => 6,
-            Name::DUP7 => 7,
-            Name::DUP8 => 8,
-            Name::DUP9 => 9,
-            Name::DUP10 => 10,
-            Name::DUP11 => 11,
-            Name::DUP12 => 12,
-            Name::DUP13 => 13,
-            Name::DUP14 => 14,
-            Name::DUP15 => 15,
-            Name::DUP16 => 16,
-
-            Name::SWAP1 => 2,
-            Name::SWAP2 => 3,
-            Name::SWAP3 => 4,
-            Name::SWAP4 => 5,
-            Name::SWAP5 => 6,
-            Name::SWAP6 => 7,
-            Name::SWAP7 => 8,
-            Name::SWAP8 => 9,
-            Name::SWAP9 => 10,
-            Name::SWAP10 => 11,
-            Name::SWAP11 => 12,
-            Name::SWAP12 => 13,
-            Name::SWAP13 => 14,
-            Name::SWAP14 => 15,
-            Name::SWAP15 => 16,
-            Name::SWAP16 => 17,
-
-            _ => self.input_size(),
         }
     }
 }

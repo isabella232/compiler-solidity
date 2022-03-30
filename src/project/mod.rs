@@ -6,12 +6,12 @@ pub mod contract;
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::str::FromStr;
 
 use compiler_llvm_context::WriteLLVM;
 
 use crate::dump_flag::DumpFlag;
 use crate::error::Error;
-use crate::evm::assembly::Assembly;
 use crate::project::contract::source::Source;
 use crate::solc::combined_json::CombinedJson;
 use crate::yul::lexer::Lexer;
@@ -24,6 +24,8 @@ use self::contract::Contract;
 ///
 #[derive(Debug, Clone)]
 pub struct Project {
+    /// The Solidity project version.
+    pub version: semver::Version,
     /// The contract data,
     pub contracts: HashMap<String, Contract>,
     /// The library addresses.
@@ -35,10 +37,12 @@ impl Project {
     /// The shortcut constructor.
     ///
     pub fn new(
+        version: semver::Version,
         contracts: HashMap<String, Contract>,
         libraries: HashMap<String, HashMap<String, String>>,
     ) -> Self {
         Self {
+            version,
             contracts,
             libraries,
         }
@@ -85,19 +89,30 @@ impl Project {
             Source::Yul(ref yul) => yul.object.identifier.to_owned(),
             Source::EVM(_) => contract_path.to_owned(),
         };
-        let context_initilizer = match source {
-            Source::Yul(_) => compiler_llvm_context::Context::new,
-            Source::EVM(_) => compiler_llvm_context::Context::new_evm,
+        let mut context = match source {
+            Source::Yul(_) => compiler_llvm_context::Context::new(
+                &llvm,
+                &target_machine,
+                optimization_level_middle,
+                optimization_level_back,
+                module_name.as_str(),
+                Some(self),
+                dump_flags.clone(),
+            ),
+            Source::EVM(_) => {
+                let version = self.version.to_owned();
+                compiler_llvm_context::Context::new_evm(
+                    &llvm,
+                    &target_machine,
+                    optimization_level_middle,
+                    optimization_level_back,
+                    module_name.as_str(),
+                    Some(self),
+                    dump_flags.clone(),
+                    compiler_llvm_context::ContextEVMData::new(version),
+                )
+            }
         };
-        let mut context = context_initilizer(
-            &llvm,
-            &target_machine,
-            optimization_level_middle,
-            optimization_level_back,
-            module_name.as_str(),
-            Some(self),
-            dump_flags.clone(),
-        );
 
         source
             .declare(&mut context)
@@ -232,6 +247,13 @@ impl Project {
     /// Only for integration testing purposes.
     ///
     pub fn try_from_test_yul(yul: &str) -> Result<Self, Error> {
+        let version = semver::Version::from_str(
+            std::env::var("CARGO_PKG_VERSION")
+                .expect("Always exists")
+                .as_str(),
+        )
+        .expect("Always valid");
+
         let mut lexer = Lexer::new(yul.to_owned());
         let name = "Test".to_owned();
         let object = Object::parse(&mut lexer, None)?;
@@ -242,26 +264,7 @@ impl Project {
             Contract::new(name.clone(), name, Source::new_yul(yul.to_owned(), object)),
         );
         Ok(Self {
-            contracts: project_contracts,
-            libraries: HashMap::new(),
-        })
-    }
-
-    ///
-    /// Initializes the test EVM legacy assembly source code and returns the source data.
-    ///
-    /// Only for integration testing purposes.
-    ///
-    pub fn try_from_test_evm(evm: &str) -> Result<Self, Error> {
-        let name = "Test".to_owned();
-        let assembly: Assembly = serde_json::from_str(evm)?;
-
-        let mut project_contracts = HashMap::with_capacity(1);
-        project_contracts.insert(
-            name.clone(),
-            Contract::new(name.clone(), name, Source::new_evm(assembly)),
-        );
-        Ok(Self {
+            version,
             contracts: project_contracts,
             libraries: HashMap::new(),
         })

@@ -18,10 +18,12 @@ use self::function::Function;
 ///
 #[derive(Debug)]
 pub struct EtherealIR {
-    /// The all-inlined function representation.
-    pub function: Function,
+    /// The Solidity compiler version.
+    pub solc_version: semver::Version,
     /// The contract code part type.
     pub code_type: compiler_llvm_context::CodeType,
+    /// The all-inlined function representation.
+    pub function: Function,
 }
 
 impl EtherealIR {
@@ -31,7 +33,8 @@ impl EtherealIR {
     ///
     /// Assembles a sequence of functions from the sequence of instructions.
     ///
-    pub fn try_from_instructions(
+    pub fn new(
+        solc_version: semver::Version,
         instructions: Vec<Instruction>,
         code_type: compiler_llvm_context::CodeType,
     ) -> anyhow::Result<Self> {
@@ -45,11 +48,12 @@ impl EtherealIR {
         }
 
         let mut visited = HashSet::with_capacity(blocks.len());
-        let function = Function::try_from_blocks(code_type, &blocks, &mut visited)?.finalize();
+        let function = Function::new(solc_version.clone(), code_type, &blocks, &mut visited)?;
 
         Ok(Self {
-            function,
+            solc_version,
             code_type,
+            function,
         })
     }
 }

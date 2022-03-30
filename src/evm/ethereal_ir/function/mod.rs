@@ -23,6 +23,8 @@ use self::queue_element::QueueElement;
 ///
 #[derive(Debug, Clone)]
 pub struct Function {
+    /// The Solidity compiler version.
+    pub solc_version: semver::Version,
     /// The contract part where the function belongs.
     pub code_type: compiler_llvm_context::CodeType,
     /// The separately labelled blocks.
@@ -35,29 +37,33 @@ impl Function {
     ///
     /// A shortcut constructor.
     ///
-    pub fn try_from_blocks(
+    pub fn new(
+        solc_version: semver::Version,
         code_type: compiler_llvm_context::CodeType,
         blocks: &HashMap<usize, Block>,
         visited: &mut HashSet<QueueElement>,
     ) -> anyhow::Result<Self> {
         let mut function = Self {
+            solc_version,
             code_type,
             blocks: BTreeMap::new(),
             stack_size: 0,
         };
         function.consume_block(blocks, visited, QueueElement::new(0, None, Stack::new()))?;
-        Ok(function)
+        Ok(function.finalize())
     }
 
     ///
     /// Consumes the entry or a conditional block attached to another one.
     ///
-    pub fn consume_block(
+    fn consume_block(
         &mut self,
         blocks: &HashMap<usize, Block>,
         visited: &mut HashSet<QueueElement>,
         mut queue_element: QueueElement,
     ) -> anyhow::Result<()> {
+        let version = self.solc_version.to_owned();
+
         let mut queue = vec![];
 
         if visited.contains(&queue_element) {
@@ -359,7 +365,7 @@ impl Function {
                         .stack
                         .extend(vec![StackElement::Value; instruction.output_size()]);
                     block_element.stack = block.stack.clone();
-                    for _ in 0..instruction.input_size() {
+                    for _ in 0..instruction.input_size(&version) {
                         block.stack.pop();
                     }
                 }
@@ -376,7 +382,7 @@ impl Function {
     ///
     /// Pushes a block into the function.
     ///
-    pub fn insert_block(&mut self, block: Block) -> &mut Block {
+    fn insert_block(&mut self, block: Block) -> &mut Block {
         let tag = block.tag;
 
         if let Some(entry) = self.blocks.get_mut(&tag) {
@@ -400,7 +406,7 @@ impl Function {
     ///
     /// Finalizes the function data.
     ///
-    pub fn finalize(mut self) -> Self {
+    fn finalize(mut self) -> Self {
         for (_tag, blocks) in self.blocks.iter() {
             for block in blocks.iter() {
                 for block_element in block.elements.iter() {
@@ -417,7 +423,7 @@ impl Function {
     ///
     /// Returns the function name.
     ///
-    pub fn name(&self) -> String {
+    fn name(&self) -> String {
         format!("function_{}", self.code_type)
     }
 }

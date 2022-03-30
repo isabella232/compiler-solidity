@@ -33,7 +33,7 @@ impl Element {
     where
         D: compiler_llvm_context::Dependency,
     {
-        let input_size = self.instruction.input_size();
+        let input_size = self.instruction.input_size(&context.evm().version);
         let mut arguments = Vec::with_capacity(input_size);
         for index in 0..input_size {
             let pointer = context.evm().stack
@@ -62,7 +62,7 @@ where
         mut self,
         context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     ) -> anyhow::Result<()> {
-        let input_size = self.instruction.input_size();
+        let input_size = self.instruction.input_size(&context.evm().version);
 
         let value = match self.instruction.name {
             InstructionName::PUSH => crate::evm::assembly::instruction::stack::push(
@@ -436,58 +436,38 @@ where
             InstructionName::POP => crate::evm::assembly::instruction::stack::pop(context),
 
             InstructionName::Tag => {
-                let tag: usize = self
+                let destination: usize = self
                     .instruction
                     .value
                     .expect("Always exists")
                     .parse()
                     .expect("Always valid");
-                let block = context
-                    .function()
-                    .evm()
-                    .block_by_stack_pattern(tag, self.stack.to_string().as_str())?;
-                context.build_unconditional_branch(block.inner);
 
-                Ok(None)
+                crate::evm::assembly::instruction::jump::unconditional(
+                    context,
+                    destination,
+                    self.stack.to_string(),
+                )
             }
             InstructionName::JUMP => {
                 let destination = self.stack.pop_tag()?;
 
-                let block = context
-                    .function()
-                    .evm()
-                    .block_by_stack_pattern(destination, self.stack.to_string().as_str())?;
-                context.build_unconditional_branch(block.inner);
-
-                Ok(None)
+                crate::evm::assembly::instruction::jump::unconditional(
+                    context,
+                    destination,
+                    self.stack.to_string(),
+                )
             }
             InstructionName::JUMPI => {
                 let destination = self.stack.pop_tag()?;
                 self.stack.pop();
 
-                let condition_pointer = context.evm().stack[self.stack.elements.len()];
-                let condition = context.build_load(
-                    condition_pointer,
-                    format!("conditional_{}_condition", destination).as_str(),
-                );
-                let condition = context.builder().build_int_compare(
-                    inkwell::IntPredicate::NE,
-                    condition.into_int_value(),
-                    context.field_const(0),
-                    format!("conditional_{}_condition_compared", destination).as_str(),
-                );
-
-                let then_block = context
-                    .function()
-                    .evm()
-                    .block_by_stack_pattern(destination, self.stack.to_string().as_str())?;
-                let join_block = context
-                    .append_basic_block(format!("conditional_{}_join_block", destination).as_str());
-
-                context.build_conditional_branch(condition, then_block.inner, join_block);
-
-                context.set_basic_block(join_block);
-                Ok(None)
+                crate::evm::assembly::instruction::jump::conditional(
+                    context,
+                    destination,
+                    self.stack.to_string(),
+                    self.stack.elements.len(),
+                )
             }
             InstructionName::JUMPDEST => Ok(None),
 
@@ -757,25 +737,20 @@ where
                 compiler_llvm_context::storage::store(context, arguments)
             }
             InstructionName::PUSHIMMUTABLE => {
-                crate::evm::assembly::instruction::storage::push_immutable(
-                    context,
-                    self.instruction
-                        .value
-                        .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-                )
+                let key = self
+                    .instruction
+                    .value
+                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?;
+                compiler_llvm_context::immutable::load(context, key)
             }
             InstructionName::ASSIGNIMMUTABLE => {
-                let arguments = self
-                    .pop_arguments(context)
-                    .try_into()
-                    .expect("Always valid");
-                crate::evm::assembly::instruction::storage::assign_immutable(
-                    context,
-                    arguments,
-                    self.instruction
-                        .value
-                        .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-                )
+                let mut arguments = self.pop_arguments(context);
+                let key = self
+                    .instruction
+                    .value
+                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?;
+                let value = arguments.pop().expect("Always exists").into_int_value();
+                compiler_llvm_context::immutable::store(context, key, value)
             }
 
             InstructionName::CALLDATALOAD => {

@@ -5,7 +5,6 @@
 pub mod contract;
 pub mod create;
 pub mod name;
-pub mod storage;
 
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
@@ -293,12 +292,21 @@ impl FunctionCall {
                 compiler_llvm_context::storage::store(context, arguments)
             }
             Name::LoadImmutable => {
-                let arguments = self.pop_arguments::<D, 1>(context)?;
-                storage::load_immutable(context, arguments)
+                let mut arguments = self.pop_arguments::<D, 1>(context)?;
+                let key = arguments[0]
+                    .original
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("`load_immutable` literal is missing"))?;
+                compiler_llvm_context::immutable::load(context, key)
             }
             Name::SetImmutable => {
-                let arguments = self.pop_arguments::<D, 3>(context)?;
-                storage::set_immutable(context, arguments)
+                let mut arguments = self.pop_arguments::<D, 3>(context)?;
+                let key = arguments[1]
+                    .original
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("`load_immutable` literal is missing"))?;
+                let value = arguments[2].value.into_int_value();
+                compiler_llvm_context::immutable::store(context, key, value)
             }
 
             Name::CallDataLoad => {
