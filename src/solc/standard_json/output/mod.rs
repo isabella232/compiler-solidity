@@ -47,6 +47,7 @@ impl Output {
         self,
         libraries: HashMap<String, HashMap<String, String>>,
         pipeline: SolcPipeline,
+        version: semver::Version,
         dump_flags: &[DumpFlag],
     ) -> Result<Project, String> {
         let input_contracts = self
@@ -99,6 +100,6 @@ impl Output {
             }
         }
 
-        Ok(Project::new(project_contracts, libraries))
+        Ok(Project::new(version, project_contracts, libraries))
     }
 }

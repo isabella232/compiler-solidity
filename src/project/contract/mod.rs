@@ -147,7 +147,6 @@ impl Contract {
         }
 
         combined_json_contract.factory_deps = Some(self.factory_dependencies);
-        dbg!(&combined_json_contract.factory_deps);
 
         Ok(())
     }

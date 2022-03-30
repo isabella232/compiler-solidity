@@ -57,8 +57,11 @@ where
             println!("Constructor EVM:");
             println!("{}", self);
         }
-        let mut constructor_ethereal_ir =
-            EtherealIR::try_from_instructions(self.code, compiler_llvm_context::CodeType::Deploy)?;
+        let mut constructor_ethereal_ir = EtherealIR::new(
+            context.evm().version.to_owned(),
+            self.code,
+            compiler_llvm_context::CodeType::Deploy,
+        )?;
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EthIR) {
             println!("Constructor Ethereal IR:\n\n{}", constructor_ethereal_ir);
         }
@@ -74,7 +77,8 @@ where
             println!("Runtime EVM:");
             println!("{}", data);
         };
-        let mut runtime_ethereal_ir = EtherealIR::try_from_instructions(
+        let mut runtime_ethereal_ir = EtherealIR::new(
+            context.evm().version.to_owned(),
             data.try_into_instructions()?,
             compiler_llvm_context::CodeType::Runtime,
         )?;

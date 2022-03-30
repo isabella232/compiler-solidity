@@ -9,10 +9,7 @@ pub(crate) mod project;
 pub(crate) mod solc;
 pub(crate) mod yul;
 
-// TODO: check unwraps
 // TODO: move jumps
-// TODO: merge immutables
-// TODO: parse solc version
 // TODO: print predecessor index
 // TODO: improve stack printing
 
