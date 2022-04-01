@@ -303,6 +303,11 @@ pub enum Name {
     DELEGATECALL,
 
     /// The eponymous EVM instruction.
+    PUSHLIB,
+    /// The eponymous EVM instruction.
+    PUSHDEPLOYADDRESS,
+
+    /// The eponymous EVM instruction.
     STOP,
     /// The eponymous EVM instruction.
     SELFDESTRUCT,

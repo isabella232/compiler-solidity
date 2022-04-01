@@ -2,7 +2,6 @@
 //! The function call subexpression.
 //!
 
-pub mod contract;
 pub mod create;
 pub mod name;
 
@@ -467,10 +466,6 @@ impl FunctionCall {
                     output_size,
                 )
             }
-            Name::LinkerSymbol => {
-                let arguments = self.pop_arguments::<D, 1>(context)?;
-                contract::linker_symbol(context, arguments)
-            }
 
             Name::Create => {
                 let arguments = self.pop_arguments_llvm::<D, 3>(context)?;
@@ -510,6 +505,19 @@ impl FunctionCall {
                 create::datacopy(context, arguments)
             }
 
+            Name::LinkerSymbol => {
+                let mut arguments = self.pop_arguments::<D, 1>(context)?;
+                let path = arguments[0]
+                    .original
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("Linker symbol literal is missing"))?;
+
+                Ok(Some(
+                    context
+                        .resolve_library(path.as_str())?
+                        .as_basic_value_enum(),
+                ))
+            }
             Name::MemoryGuard => {
                 let arguments = self.pop_arguments_llvm::<D, 1>(context)?;
                 Ok(Some(arguments[0]))

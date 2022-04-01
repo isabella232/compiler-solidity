@@ -90,35 +90,10 @@ impl Block {
     }
 
     ///
-    /// Validates predecessor.
-    ///
-    /// If the predecessor is present, `false` is returned.
-    /// If not, it is inserted, and `true` is returned.
-    ///
-    pub fn validate_predecessor(&mut self, predecessor: Option<usize>) -> bool {
-        if let Some(predecessor) = predecessor {
-            if self.has_predecessor(predecessor) {
-                return false;
-            }
-
-            self.insert_predecessor(predecessor);
-        }
-
-        true
-    }
-
-    ///
     /// Inserts a predecessor tag.
     ///
     pub fn insert_predecessor(&mut self, tag: usize) {
         self.predecessors.insert(tag);
-    }
-
-    ///
-    /// Whether the block has the predecessor.
-    ///
-    pub fn has_predecessor(&self, tag: usize) -> bool {
-        self.predecessors.contains(&tag)
     }
 }
 
