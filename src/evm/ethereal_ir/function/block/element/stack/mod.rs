@@ -9,7 +9,7 @@ use self::element::Element;
 ///
 /// The Ethereal IR block element stack.
 ///
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Stack {
     /// The stack elements.
     pub elements: Vec<Element>,
@@ -33,13 +33,6 @@ impl Stack {
     ///
     pub fn push(&mut self, element: Element) {
         self.elements.push(element);
-    }
-
-    ///
-    /// Extends the stack with some elements.
-    ///
-    pub fn extend(&mut self, elements: Vec<Element>) {
-        self.elements.extend(elements);
     }
 
     ///
@@ -78,6 +71,14 @@ impl Stack {
 
 impl std::fmt::Display for Stack {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.elements)
+        write!(
+            f,
+            "[{}]",
+            self.elements
+                .iter()
+                .map(Element::to_string)
+                .collect::<Vec<String>>()
+                .join("|")
+        )
     }
 }

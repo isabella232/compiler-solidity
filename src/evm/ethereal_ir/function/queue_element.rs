@@ -7,7 +7,7 @@ use crate::evm::ethereal_ir::function::block::element::stack::Stack;
 ///
 /// The Ethereal IR block queue element.
 ///
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub struct QueueElement {
     /// The block tag.
     pub tag: usize,

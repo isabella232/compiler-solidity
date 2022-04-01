@@ -95,6 +95,21 @@ where
                     .value
                     .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
             ),
+            InstructionName::PUSHLIB => {
+                let path = self
+                    .instruction
+                    .value
+                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?;
+
+                Ok(Some(
+                    context
+                        .resolve_library(path.as_str())?
+                        .as_basic_value_enum(),
+                ))
+            }
+            InstructionName::PUSHDEPLOYADDRESS => {
+                Ok(Some(context.field_const(0).as_basic_value_enum()))
+            }
 
             InstructionName::PUSH1 => crate::evm::assembly::instruction::stack::push(
                 context,
@@ -957,11 +972,11 @@ where
 
             InstructionName::CREATE => {
                 let _arguments = self.pop_arguments(context);
-                Ok(None)
+                Ok(Some(context.field_const(0).as_basic_value_enum()))
             }
             InstructionName::CREATE2 => {
                 let _arguments = self.pop_arguments(context);
-                Ok(None)
+                Ok(Some(context.field_const(0).as_basic_value_enum()))
             }
 
             InstructionName::ADDRESS => compiler_llvm_context::contract_context::get(
@@ -1032,11 +1047,6 @@ where
 
 impl std::fmt::Display for Element {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(
-            f,
-            "{:80}        {}",
-            self.instruction.to_string(),
-            self.stack,
-        )
+        writeln!(f, "{:88}{}", self.instruction.to_string(), self.stack,)
     }
 }

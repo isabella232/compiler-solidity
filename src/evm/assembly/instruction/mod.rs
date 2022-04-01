@@ -103,6 +103,8 @@ impl Instruction {
             Name::CREATE => 3,
             Name::CREATE2 => 4,
 
+            Name::BLOCKHASH => 1,
+
             Name::EXTCODECOPY => 4,
             Name::EXTCODEHASH => 1,
 
@@ -120,6 +122,8 @@ impl Instruction {
             Name::PUSH_Tag => 1,
             Name::PUSH_Dollar => 1,
             Name::PUSH_HashDollar => 1,
+            Name::PUSHLIB => 1,
+            Name::PUSHDEPLOYADDRESS => 1,
 
             Name::PUSH1 => 1,
             Name::PUSH2 => 1,

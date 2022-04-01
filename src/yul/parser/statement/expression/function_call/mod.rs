@@ -2,7 +2,6 @@
 //! The function call subexpression.
 //!
 
-pub mod contract;
 pub mod create;
 pub mod name;
 
@@ -424,25 +423,8 @@ impl FunctionCall {
                 )
             }
             Name::CallCode => {
-                let arguments = self.pop_arguments_llvm::<D, 7>(context)?;
-
-                let address = arguments[1].into_int_value();
-                let value = arguments[2].into_int_value();
-                let input_offset = arguments[3].into_int_value();
-                let input_size = arguments[4].into_int_value();
-                let output_offset = arguments[5].into_int_value();
-                let output_size = arguments[6].into_int_value();
-
-                compiler_llvm_context::contract::call(
-                    context,
-                    compiler_llvm_context::IntrinsicFunction::CallCode,
-                    address,
-                    Some(value),
-                    input_offset,
-                    input_size,
-                    output_offset,
-                    output_size,
-                )
+                let _arguments = self.pop_arguments_llvm::<D, 7>(context)?;
+                Ok(Some(context.field_const(0).as_basic_value_enum()))
             }
             Name::StaticCall => {
                 let arguments = self.pop_arguments_llvm::<D, 6>(context)?;
@@ -484,10 +466,6 @@ impl FunctionCall {
                     output_size,
                 )
             }
-            Name::LinkerSymbol => {
-                let arguments = self.pop_arguments::<D, 1>(context)?;
-                contract::linker_symbol(context, arguments)
-            }
 
             Name::Create => {
                 let arguments = self.pop_arguments_llvm::<D, 3>(context)?;
@@ -527,6 +505,19 @@ impl FunctionCall {
                 create::datacopy(context, arguments)
             }
 
+            Name::LinkerSymbol => {
+                let mut arguments = self.pop_arguments::<D, 1>(context)?;
+                let path = arguments[0]
+                    .original
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("Linker symbol literal is missing"))?;
+
+                Ok(Some(
+                    context
+                        .resolve_library(path.as_str())?
+                        .as_basic_value_enum(),
+                ))
+            }
             Name::MemoryGuard => {
                 let arguments = self.pop_arguments_llvm::<D, 1>(context)?;
                 Ok(Some(arguments[0]))

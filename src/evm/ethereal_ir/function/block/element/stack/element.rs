@@ -5,10 +5,12 @@
 ///
 /// The Ethereal IR block element stack element.
 ///
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Element {
     /// The unknown runtime value.
     Value,
+    /// The known compile-time value.
+    Constant(String),
     /// The known compile-time destination tag.
     Tag(usize),
 }
@@ -16,8 +18,9 @@ pub enum Element {
 impl std::fmt::Display for Element {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Value => write!(f, "VALUE"),
-            Self::Tag(tag) => write!(f, "T_{:3}", tag),
+            Self::Value => write!(f, "Value"),
+            Self::Constant(_) => write!(f, "Value"),
+            Self::Tag(tag) => write!(f, "T{:04}", tag),
         }
     }
 }

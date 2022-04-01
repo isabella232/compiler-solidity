@@ -4,6 +4,7 @@
 
 pub mod block;
 pub mod queue_element;
+pub mod visited_element;
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -17,6 +18,7 @@ use crate::evm::ethereal_ir::function::block::element::stack::Stack;
 use self::block::element::stack::element::Element as StackElement;
 use self::block::Block;
 use self::queue_element::QueueElement;
+use self::visited_element::VisitedElement;
 
 ///
 /// The Ethereal IR function.
@@ -41,7 +43,7 @@ impl Function {
         solc_version: semver::Version,
         code_type: compiler_llvm_context::CodeType,
         blocks: &HashMap<usize, Block>,
-        visited: &mut HashSet<QueueElement>,
+        visited: &mut HashSet<VisitedElement>,
     ) -> anyhow::Result<Self> {
         let mut function = Self {
             solc_version,
@@ -59,27 +61,29 @@ impl Function {
     fn consume_block(
         &mut self,
         blocks: &HashMap<usize, Block>,
-        visited: &mut HashSet<QueueElement>,
+        visited: &mut HashSet<VisitedElement>,
         mut queue_element: QueueElement,
     ) -> anyhow::Result<()> {
         let version = self.solc_version.to_owned();
 
         let mut queue = vec![];
 
-        if visited.contains(&queue_element) {
+        let visited_element =
+            VisitedElement::new(queue_element.tag, queue_element.stack.to_string());
+        if visited.contains(&visited_element) {
             return Ok(());
         }
-        visited.insert(queue_element.clone());
+        visited.insert(visited_element);
 
         let mut block = blocks
             .get(&queue_element.tag)
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("Undeclared destination block {}", queue_element.tag))?;
-        block.initial_stack = queue_element.stack.clone();
+        block.initial_stack = queue_element.stack;
         let block = self.insert_block(block);
         block.stack = block.initial_stack.clone();
-        if !block.validate_predecessor(queue_element.predecessor.take()) {
-            return Ok(());
+        if let Some(predecessor) = queue_element.predecessor.take() {
+            block.insert_predecessor(predecessor);
         }
 
         for block_element in block.elements.iter_mut() {
@@ -136,6 +140,7 @@ impl Function {
                         block.stack.to_owned(),
                     ));
                 }
+
                 Instruction {
                     name: InstructionName::SWAP1,
                     ..
@@ -248,6 +253,7 @@ impl Function {
                     block.stack.swap(16);
                     block_element.stack = block.stack.clone();
                 }
+
                 Instruction {
                     name: InstructionName::DUP1,
                     ..
@@ -360,10 +366,60 @@ impl Function {
                     block.stack.dup(16);
                     block_element.stack = block.stack.clone();
                 }
+
+                Instruction {
+                    name:
+                        InstructionName::PUSH
+                        | InstructionName::PUSH_Data
+                        | InstructionName::PUSH_Dollar
+                        | InstructionName::PUSH_HashDollar
+                        | InstructionName::PUSH1
+                        | InstructionName::PUSH2
+                        | InstructionName::PUSH3
+                        | InstructionName::PUSH4
+                        | InstructionName::PUSH5
+                        | InstructionName::PUSH6
+                        | InstructionName::PUSH7
+                        | InstructionName::PUSH8
+                        | InstructionName::PUSH9
+                        | InstructionName::PUSH10
+                        | InstructionName::PUSH11
+                        | InstructionName::PUSH12
+                        | InstructionName::PUSH13
+                        | InstructionName::PUSH14
+                        | InstructionName::PUSH15
+                        | InstructionName::PUSH16
+                        | InstructionName::PUSH17
+                        | InstructionName::PUSH18
+                        | InstructionName::PUSH19
+                        | InstructionName::PUSH20
+                        | InstructionName::PUSH21
+                        | InstructionName::PUSH22
+                        | InstructionName::PUSH23
+                        | InstructionName::PUSH24
+                        | InstructionName::PUSH25
+                        | InstructionName::PUSH26
+                        | InstructionName::PUSH27
+                        | InstructionName::PUSH28
+                        | InstructionName::PUSH29
+                        | InstructionName::PUSH30
+                        | InstructionName::PUSH31
+                        | InstructionName::PUSH32,
+                    value: Some(ref constant),
+                } => {
+                    block.stack.push(StackElement::Value);
+                    block_element.stack = block.stack.clone();
+                }
+
+                ref instruction if instruction.output_size() == 1 => {
+                    block.stack.push(StackElement::Value);
+                    block_element.stack = block.stack.clone();
+                    for _ in 0..instruction.input_size(&version) {
+                        block.stack.pop();
+                    }
+                }
+
                 ref instruction => {
-                    block
-                        .stack
-                        .extend(vec![StackElement::Value; instruction.output_size()]);
                     block_element.stack = block.stack.clone();
                     for _ in 0..instruction.input_size(&version) {
                         block.stack.pop();
@@ -516,14 +572,17 @@ impl std::fmt::Display for Function {
             for (index, block) in blocks.iter().enumerate() {
                 writeln!(
                     f,
-                    "block_{}/{}: {} {:?}",
-                    *tag,
-                    index,
-                    if block.predecessors.is_empty() {
-                        "".to_owned()
-                    } else {
-                        format!("(predecessors: {:?})", block.predecessors)
-                    },
+                    "{:92}{}",
+                    format!(
+                        "block_{}/{}: {}",
+                        *tag,
+                        index,
+                        if block.predecessors.is_empty() {
+                            "".to_owned()
+                        } else {
+                            format!("(predecessors: {:?})", block.predecessors)
+                        }
+                    ),
                     block.initial_stack,
                 )?;
                 write!(f, "{}", block)?;
