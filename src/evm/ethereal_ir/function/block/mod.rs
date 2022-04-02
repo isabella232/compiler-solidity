@@ -17,6 +17,8 @@ use self::element::Element;
 ///
 #[derive(Debug, Clone)]
 pub struct Block {
+    /// The Solidity compiler version.
+    pub solc_version: semver::Version,
     /// The block unique identifier, represented by a tag in the bytecode.
     /// Is 0 in the initial block.
     pub tag: usize,
@@ -39,7 +41,10 @@ impl Block {
     ///
     /// Assembles a block from the sequence of instructions.
     ///
-    pub fn try_from_instructions(slice: &[Instruction]) -> anyhow::Result<(Self, usize)> {
+    pub fn try_from_instructions(
+        solc_version: semver::Version,
+        slice: &[Instruction],
+    ) -> anyhow::Result<(Self, usize)> {
         let mut cursor = 0;
 
         let tag: usize = match slice[cursor].name {
@@ -57,6 +62,7 @@ impl Block {
         };
 
         let mut block = Self {
+            solc_version: solc_version.clone(),
             tag,
             elements: Vec::with_capacity(Self::ELEMENTS_VECTOR_DEFAULT_CAPACITY),
             predecessors: HashSet::with_capacity(Self::PREDECESSORS_HASHSET_DEFAULT_CAPACITY),
@@ -65,7 +71,7 @@ impl Block {
         };
 
         while cursor < slice.len() {
-            let element: Element = slice[cursor].to_owned().into();
+            let element: Element = Element::new(solc_version.clone(), slice[cursor].to_owned());
             block.elements.push(element);
 
             match slice[cursor].name {

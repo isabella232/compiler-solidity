@@ -8,7 +8,7 @@
 pub fn unconditional<'ctx, 'dep, D>(
     context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     destination: usize,
-    selector: String,
+    stack_hash: md5::Digest,
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
 where
     D: compiler_llvm_context::Dependency,
@@ -16,7 +16,7 @@ where
     let block = context
         .function()
         .evm()
-        .block_by_stack_pattern(destination, selector.as_str())?;
+        .find_block(destination, &stack_hash)?;
     context.build_unconditional_branch(block.inner);
 
     Ok(None)
@@ -28,7 +28,7 @@ where
 pub fn conditional<'ctx, 'dep, D>(
     context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     destination: usize,
-    selector: String,
+    stack_hash: md5::Digest,
     stack_height: usize,
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
 where
@@ -49,7 +49,7 @@ where
     let then_block = context
         .function()
         .evm()
-        .block_by_stack_pattern(destination, selector.as_str())?;
+        .find_block(destination, &stack_hash)?;
     let join_block =
         context.append_basic_block(format!("conditional_{}_join_block", destination).as_str());
 

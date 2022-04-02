@@ -137,11 +137,12 @@ dependencies = [
 [[package]]
 name = "compiler-llvm-context"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#cf1f6c87c98f301768df1e45653535f04532135f"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#2d61cf190d7ac132a418bec08f62bd65be4aa42c"
 dependencies = [
  "anyhow",
  "compiler-common",
  "inkwell",
+ "md5",
  "semver 1.0.7",
 ]
 
@@ -155,6 +156,7 @@ dependencies = [
  "compiler-llvm-context",
  "hex",
  "inkwell",
+ "md5",
  "rand",
  "regex",
  "semver 1.0.7",
@@ -419,6 +421,12 @@ checksum = "6389c490849ff5bc16be905ae24bc913a9c8892e19b2341dbc175e14c341c2b8"
 dependencies = [
  "cfg-if",
 ]
+
+[[package]]
+name = "md5"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "490cc448043f947bae3cbee9c203358d62dbee0db12107a74be5c30ccfd09771"
 
 [[package]]
 name = "memchr"
