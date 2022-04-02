@@ -68,8 +68,7 @@ impl Function {
 
         let mut queue = vec![];
 
-        let visited_element =
-            VisitedElement::new(queue_element.tag, queue_element.stack.to_string());
+        let visited_element = VisitedElement::new(queue_element.tag, queue_element.stack.hash());
         if visited.contains(&visited_element) {
             return Ok(());
         }
@@ -404,19 +403,25 @@ impl Function {
                         | InstructionName::PUSH29
                         | InstructionName::PUSH30
                         | InstructionName::PUSH31
-                        | InstructionName::PUSH32,
+                        | InstructionName::PUSH32
+                        | InstructionName::PUSHLIB
+                        | InstructionName::PUSHDEPLOYADDRESS,
                     value: Some(ref constant),
                 } => {
-                    block.stack.push(StackElement::Value);
+                    block
+                        .stack
+                        .push(StackElement::Constant(constant.to_owned()));
                     block_element.stack = block.stack.clone();
                 }
 
                 ref instruction if instruction.output_size() == 1 => {
                     block.stack.push(StackElement::Value);
                     block_element.stack = block.stack.clone();
+                    let output = block.stack.pop().expect("Always exists");
                     for _ in 0..instruction.input_size(&version) {
                         block.stack.pop();
                     }
+                    block.stack.push(output);
                 }
 
                 ref instruction => {
@@ -442,10 +447,9 @@ impl Function {
         let tag = block.tag;
 
         if let Some(entry) = self.blocks.get_mut(&tag) {
-            if entry
-                .iter()
-                .all(|existing_block| existing_block.initial_stack != block.initial_stack)
-            {
+            if entry.iter().all(|existing_block| {
+                existing_block.initial_stack.hash() != block.initial_stack.hash()
+            }) {
                 entry.push(block);
             }
         } else {
@@ -513,9 +517,7 @@ where
                 let inner = context.append_basic_block(format!("block_{}/{}", tag, index).as_str());
                 let block = compiler_llvm_context::FunctionBlock::new_evm(
                     inner,
-                    compiler_llvm_context::FunctionBlockEVMData::new(
-                        block.initial_stack.to_string(),
-                    ),
+                    compiler_llvm_context::FunctionBlockEVMData::new(block.initial_stack.hash()),
                 );
                 context.function_mut().evm_mut().insert_block(*tag, block);
             }
@@ -531,7 +533,10 @@ where
             stack_variables.push(pointer);
         }
         context.evm_mut().stack = stack_variables;
-        let entry_block = context.function().evm().block_by_stack_pattern(0, "")?;
+        let entry_block = context
+            .function()
+            .evm()
+            .find_block(0, &Stack::default().hash())?;
         context.build_unconditional_branch(entry_block.inner);
 
         for (tag, blocks) in self.blocks.into_iter() {

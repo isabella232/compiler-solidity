@@ -9,15 +9,15 @@
 pub struct VisitedElement {
     /// The block tag.
     pub tag: usize,
-    /// The initial stack pattern.
-    pub stack_pattern: String,
+    /// The initial stack state hash.
+    pub stack_hash: md5::Digest,
 }
 
 impl VisitedElement {
     ///
     /// A shortcut constructor.
     ///
-    pub fn new(tag: usize, stack_pattern: String) -> Self {
-        Self { tag, stack_pattern }
+    pub fn new(tag: usize, stack_hash: md5::Digest) -> Self {
+        Self { tag, stack_hash }
     }
 }

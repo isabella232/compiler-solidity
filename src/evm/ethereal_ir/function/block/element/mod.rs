@@ -16,6 +16,8 @@ use self::stack::Stack;
 ///
 #[derive(Debug, Clone)]
 pub struct Element {
+    /// The Solidity compiler version.
+    pub solc_version: semver::Version,
     /// The instruction.
     pub instruction: Instruction,
     /// The stack data.
@@ -23,6 +25,17 @@ pub struct Element {
 }
 
 impl Element {
+    ///
+    /// A shortcut constructor.
+    ///
+    pub fn new(solc_version: semver::Version, instruction: Instruction) -> Self {
+        Self {
+            solc_version,
+            instruction,
+            stack: Stack::new(),
+        }
+    }
+
     ///
     /// Pops the specified number of arguments.
     ///
@@ -42,15 +55,6 @@ impl Element {
             arguments.push(value);
         }
         arguments
-    }
-}
-
-impl From<Instruction> for Element {
-    fn from(instruction: Instruction) -> Self {
-        Self {
-            instruction,
-            stack: Stack::new(),
-        }
     }
 }
 
@@ -461,7 +465,7 @@ where
                 crate::evm::assembly::instruction::jump::unconditional(
                     context,
                     destination,
-                    self.stack.to_string(),
+                    self.stack.hash(),
                 )
             }
             InstructionName::JUMP => {
@@ -470,7 +474,7 @@ where
                 crate::evm::assembly::instruction::jump::unconditional(
                     context,
                     destination,
-                    self.stack.to_string(),
+                    self.stack.hash(),
                 )
             }
             InstructionName::JUMPI => {
@@ -480,7 +484,7 @@ where
                 crate::evm::assembly::instruction::jump::conditional(
                     context,
                     destination,
-                    self.stack.to_string(),
+                    self.stack.hash(),
                     self.stack.elements.len(),
                 )
             }
@@ -1047,6 +1051,32 @@ where
 
 impl std::fmt::Display for Element {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{:88}{}", self.instruction.to_string(), self.stack,)
+        let input_size = self.instruction.input_size(&self.solc_version);
+        let output_size = self.instruction.output_size();
+
+        let mut stack = self.stack.to_owned();
+        let output = Stack::new_with_elements(
+            stack
+                .elements
+                .drain(stack.elements.len() - output_size..)
+                .collect(),
+        );
+        let input = Stack::new_with_elements(
+            stack
+                .elements
+                .drain(stack.elements.len() - input_size..)
+                .collect(),
+        );
+
+        write!(f, "{:88}{}", self.instruction.to_string(), stack)?;
+        if input_size != 0 {
+            write!(f, " - {}", input)?;
+        }
+        if output_size != 0 {
+            write!(f, " + {}", output)?;
+        }
+        writeln!(f)?;
+
+        Ok(())
     }
 }

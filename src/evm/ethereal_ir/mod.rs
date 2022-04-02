@@ -42,7 +42,8 @@ impl EtherealIR {
         let mut offset = 0;
 
         while offset < instructions.len() {
-            let (block, size) = Block::try_from_instructions(&instructions[offset..])?;
+            let (block, size) =
+                Block::try_from_instructions(solc_version.clone(), &instructions[offset..])?;
             blocks.insert(block.tag, block);
             offset += size;
         }

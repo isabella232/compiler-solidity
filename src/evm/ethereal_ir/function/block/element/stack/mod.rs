@@ -9,7 +9,7 @@ use self::element::Element;
 ///
 /// The Ethereal IR block element stack.
 ///
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Default, Clone)]
 pub struct Stack {
     /// The stack elements.
     pub elements: Vec<Element>,
@@ -26,6 +26,29 @@ impl Stack {
         Self {
             elements: Vec::with_capacity(Self::DEFAULT_STACK_SIZE),
         }
+    }
+
+    ///
+    /// A shortcut constructor.
+    ///
+    pub fn new_with_elements(elements: Vec<Element>) -> Self {
+        Self { elements }
+    }
+
+    ///
+    /// The stack state hash, which acts as a block identifier.
+    ///
+    /// Each block clone has its own initial stack state, which uniquely identifies the block.
+    ///
+    pub fn hash(&self) -> md5::Digest {
+        let mut hash_context = md5::Context::new();
+        for element in self.elements.iter() {
+            match element {
+                Element::Tag(tag) => hash_context.consume((*tag).to_ne_bytes()),
+                _ => hash_context.consume([0]),
+            }
+        }
+        hash_context.compute()
     }
 
     ///
@@ -73,12 +96,12 @@ impl std::fmt::Display for Stack {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[{}]",
+            "[ {} ]",
             self.elements
                 .iter()
                 .map(Element::to_string)
                 .collect::<Vec<String>>()
-                .join("|")
+                .join(" | ")
         )
     }
 }
