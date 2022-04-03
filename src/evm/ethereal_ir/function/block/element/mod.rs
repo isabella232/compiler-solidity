@@ -827,14 +827,15 @@ where
                     .try_into()
                     .expect("Always valid");
 
-                if let Some(compiler_common::SIZE_FIELD) = arguments_with_original[1]
+                match arguments_with_original[1]
                     .original
                     .as_ref()
                     .map(|original| original.len())
                 {
-                    compiler_llvm_context::memory::store(context, [arguments[0], arguments[1]])
-                } else {
-                    compiler_llvm_context::calldata::copy(context, arguments)
+                    Some(length) if length == compiler_common::SIZE_FIELD * 2 => {
+                        compiler_llvm_context::memory::store(context, [arguments[0], arguments[1]])
+                    }
+                    _ => compiler_llvm_context::calldata::copy(context, arguments),
                 }
             }
             InstructionName::PUSHSIZE => Ok(Some(context.field_const(0).as_basic_value_enum())),
@@ -999,12 +1000,29 @@ where
             }
 
             InstructionName::CREATE => {
-                let _arguments = self.pop_arguments_llvm(context);
-                Ok(Some(context.field_const(0).as_basic_value_enum()))
+                let arguments = self.pop_arguments_llvm(context);
+
+                let value = arguments[0].into_int_value();
+                let input_offset = arguments[1].into_int_value();
+                let input_size = arguments[2].into_int_value();
+
+                compiler_llvm_context::create::create(context, value, input_offset, input_size)
             }
             InstructionName::CREATE2 => {
-                let _arguments = self.pop_arguments_llvm(context);
-                Ok(Some(context.field_const(0).as_basic_value_enum()))
+                let arguments = self.pop_arguments_llvm(context);
+
+                let value = arguments[0].into_int_value();
+                let input_offset = arguments[1].into_int_value();
+                let input_size = arguments[2].into_int_value();
+                let salt = arguments[3].into_int_value();
+
+                compiler_llvm_context::create::create2(
+                    context,
+                    value,
+                    input_offset,
+                    input_size,
+                    Some(salt),
+                )
             }
 
             InstructionName::ADDRESS => compiler_llvm_context::contract_context::get(
