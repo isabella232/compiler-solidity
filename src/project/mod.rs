@@ -87,7 +87,7 @@ impl Project {
             .to_owned();
         let module_name = match source {
             Source::Yul(ref yul) => yul.object.identifier.to_owned(),
-            Source::EVM(_) => contract_path.to_owned(),
+            Source::EVM(ref evm) => evm.source_id.to_string(),
         };
         let mut context = match source {
             Source::Yul(_) => compiler_llvm_context::Context::new(
@@ -274,8 +274,8 @@ impl Project {
 impl compiler_llvm_context::Dependency for Project {
     fn compile(
         &mut self,
-        name: &str,
-        parent_name: &str,
+        identifier: &str,
+        parent_identifier: &str,
         optimization_level_middle: inkwell::OptimizationLevel,
         optimization_level_back: inkwell::OptimizationLevel,
         dump_flags: Vec<compiler_llvm_context::DumpFlag>,
@@ -285,15 +285,15 @@ impl compiler_llvm_context::Dependency for Project {
             .iter()
             .find_map(|(path, contract)| {
                 if match contract.source {
-                    Source::Yul(ref yul) => yul.object.identifier.as_str() == name,
-                    Source::EVM(_) => contract.path.as_str() == name,
+                    Source::Yul(ref yul) => yul.object.identifier.as_str() == identifier,
+                    Source::EVM(ref evm) => evm.source_id.to_string().as_str() == identifier,
                 } {
                     Some(path.to_owned())
                 } else {
                     None
                 }
             })
-            .unwrap_or_else(|| panic!("Dependency `{}` not found", name));
+            .ok_or_else(|| anyhow::anyhow!("Dependency `{}` not found", identifier))?;
 
         let dump_flags = DumpFlag::initialize(
             dump_flags.contains(&compiler_llvm_context::DumpFlag::Yul),
@@ -309,14 +309,16 @@ impl compiler_llvm_context::Dependency for Project {
                 optimization_level_back,
                 dump_flags,
             )
-            .unwrap_or_else(|error| panic!("Dependency `{}` compiling error: {:?}", name, error));
+            .map_err(|error| {
+                anyhow::anyhow!("Dependency `{}` compiling error: {:?}", identifier, error)
+            })?;
 
         self.contracts
             .iter_mut()
             .find_map(|(_path, contract)| {
                 if match contract.source {
-                    Source::Yul(ref yul) => yul.object.identifier.as_str() == parent_name,
-                    Source::EVM(_) => contract.path.as_str() == parent_name,
+                    Source::Yul(ref yul) => yul.object.identifier.as_str() == parent_identifier,
+                    Source::EVM(ref evm) => evm.source_id.to_string().as_str() == parent_identifier,
                 } {
                     Some(contract)
                 } else {
@@ -327,8 +329,8 @@ impl compiler_llvm_context::Dependency for Project {
             .ok_or_else(|| {
                 anyhow::anyhow!(
                     "Parent `{}` of dependency `{}` not found",
-                    parent_name,
-                    name
+                    parent_identifier,
+                    identifier
                 )
             })?
             .insert_factory_dependency(hash.clone(), contract_path);

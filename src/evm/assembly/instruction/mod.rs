@@ -120,8 +120,8 @@ impl Instruction {
             Name::PUSH => 1,
             Name::PUSH_Data => 1,
             Name::PUSH_Tag => 1,
-            Name::PUSH_Dollar => 1,
-            Name::PUSH_HashDollar => 1,
+            Name::PUSH_ContractHash => 1,
+            Name::PUSH_ContractHashSize => 1,
             Name::PUSHLIB => 1,
             Name::PUSHDEPLOYADDRESS => 1,
 

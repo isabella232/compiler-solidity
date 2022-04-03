@@ -34,7 +34,9 @@ pub fn conditional<'ctx, 'dep, D>(
 where
     D: compiler_llvm_context::Dependency,
 {
-    let condition_pointer = context.evm().stack[stack_height];
+    let condition_pointer = context.evm().stack[stack_height]
+        .to_llvm()
+        .into_pointer_value();
     let condition = context.build_load(
         condition_pointer,
         format!("conditional_{}_condition", destination).as_str(),
