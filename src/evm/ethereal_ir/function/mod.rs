@@ -414,6 +414,49 @@ impl Function {
                     block_element.stack = block.stack.clone();
                 }
 
+                ref instruction @ Instruction {
+                    name: InstructionName::SHL | InstructionName::SHR,
+                    ..
+                } => {
+                    block.stack.push(
+                        match block.stack.elements.get(block.stack.elements.len() - 2) {
+                            Some(StackElement::Tag(tag)) => StackElement::Tag(*tag),
+                            _ => StackElement::Value,
+                        },
+                    );
+                    block_element.stack = block.stack.clone();
+                    let output = block.stack.pop().expect("Always exists");
+                    for _ in 0..instruction.input_size(&version) {
+                        block.stack.pop();
+                    }
+                    block.stack.push(output);
+                }
+                ref instruction @ Instruction {
+                    name: InstructionName::AND,
+                    ..
+                } => {
+                    let input_size = instruction.input_size(&version);
+                    block.stack.push(
+                        match block
+                            .stack
+                            .elements
+                            .iter()
+                            .rev()
+                            .take(input_size)
+                            .find(|element| matches!(element, StackElement::Tag(_)))
+                        {
+                            Some(StackElement::Tag(tag)) => StackElement::Tag(*tag),
+                            _ => StackElement::Value,
+                        },
+                    );
+                    block_element.stack = block.stack.clone();
+                    let output = block.stack.pop().expect("Always exists");
+                    for _ in 0..instruction.input_size(&version) {
+                        block.stack.pop();
+                    }
+                    block.stack.push(output);
+                }
+
                 ref instruction if instruction.output_size() == 1 => {
                     block.stack.push(StackElement::Value);
                     block_element.stack = block.stack.clone();
