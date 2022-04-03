@@ -320,7 +320,7 @@ impl FunctionCall {
             Name::CodeSize => compiler_llvm_context::calldata::size(context),
             Name::CodeCopy => {
                 let arguments = self.pop_arguments_llvm::<D, 3>(context)?;
-                compiler_llvm_context::calldata::codecopy(context, arguments)
+                compiler_llvm_context::calldata::copy(context, arguments)
             }
             Name::ExtCodeSize => {
                 let _arguments = self.pop_arguments_llvm::<D, 1>(context)?;

@@ -11,6 +11,8 @@ use crate::evm::assembly::Assembly;
 #[allow(non_camel_case_types)]
 #[allow(clippy::upper_case_acronyms)]
 pub struct EVM {
+    /// The source code ID.
+    pub source_id: usize,
     /// The EVM legacy assembly source code.
     pub assembly: Assembly,
 }
@@ -19,8 +21,11 @@ impl EVM {
     ///
     /// A shortcut constructor.
     ///
-    pub fn new(assembly: Assembly) -> Self {
-        Self { assembly }
+    pub fn new(source_id: usize, assembly: Assembly) -> Self {
+        Self {
+            source_id,
+            assembly,
+        }
     }
 }
 

@@ -82,6 +82,14 @@ impl Output {
                         ProjectContractSource::new_yul(ir_optimized, object)
                     }
                     SolcPipeline::EVM => {
+                        let source_id = self
+                            .sources
+                            .as_ref()
+                            .ok_or_else(|| "Contract source IDs not found".to_owned())?
+                            .get(path.as_str())
+                            .ok_or_else(|| format!("Contract `{}` source ID not found", full_path))?
+                            .id;
+
                         let evm = match contract.evm {
                             Some(evm) => evm,
                             None => continue,
@@ -91,7 +99,7 @@ impl Output {
                             None => continue,
                         };
 
-                        ProjectContractSource::new_evm(assembly)
+                        ProjectContractSource::new_evm(source_id, assembly)
                     }
                 };
 

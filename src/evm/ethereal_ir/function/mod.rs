@@ -6,6 +6,7 @@ pub mod block;
 pub mod queue_element;
 pub mod visited_element;
 
+use inkwell::values::BasicValue;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -370,8 +371,8 @@ impl Function {
                     name:
                         InstructionName::PUSH
                         | InstructionName::PUSH_Data
-                        | InstructionName::PUSH_Dollar
-                        | InstructionName::PUSH_HashDollar
+                        | InstructionName::PUSH_ContractHash
+                        | InstructionName::PUSH_ContractHashSize
                         | InstructionName::PUSH1
                         | InstructionName::PUSH2
                         | InstructionName::PUSH3
@@ -573,7 +574,9 @@ where
                 context.field_type(),
                 format!("stack_var_{:03}", stack_index).as_str(),
             );
-            stack_variables.push(pointer);
+            stack_variables.push(compiler_llvm_context::Argument::new(
+                pointer.as_basic_value_enum(),
+            ));
         }
         context.evm_mut().stack = stack_variables;
         let entry_block = context
