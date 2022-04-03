@@ -48,24 +48,22 @@ pub fn push_contract_hash_size<'ctx, 'dep, D>(
 where
     D: compiler_llvm_context::Dependency,
 {
-    return Ok(Some(context.field_const(0).as_basic_value_enum()));
-    //
-    // let mut identifier = value.trim_start_matches('0');
-    // if identifier.is_empty() {
-    //     identifier = "0";
-    // }
-    //
-    // let parent = context.module().get_name().to_str().expect("Always valid");
-    //
-    // if identifier == parent {
-    //     return Ok(Some(context.field_const(0).as_basic_value_enum()));
-    // }
-    //
-    // Ok(Some(
-    //     context
-    //         .field_const(compiler_common::SIZE_FIELD as u64)
-    //         .as_basic_value_enum(),
-    // ))
+    let mut identifier = value.trim_start_matches('0');
+    if identifier.is_empty() {
+        identifier = "0";
+    }
+
+    let parent = context.module().get_name().to_str().expect("Always valid");
+
+    if identifier == parent {
+        return Ok(Some(context.field_const(0).as_basic_value_enum()));
+    }
+
+    Ok(Some(
+        context
+            .field_const(compiler_common::SIZE_FIELD as u64)
+            .as_basic_value_enum(),
+    ))
 }
 
 ///
@@ -78,25 +76,23 @@ pub fn push_contract_hash<'ctx, 'dep, D>(
 where
     D: compiler_llvm_context::Dependency,
 {
-    return Ok(Some(context.field_const(0).as_basic_value_enum()));
-    //
-    // let mut identifier = value.trim_start_matches('0');
-    // if identifier.is_empty() {
-    //     identifier = "0";
-    // }
-    //
-    // let parent = context.module().get_name().to_str().expect("Always valid");
-    //
-    // if identifier == parent {
-    //     return Ok(Some(context.field_const(0).as_basic_value_enum()));
-    // }
-    //
-    // let hash_value = context
-    //     .compile_dependency(identifier)
-    //     .map(|hash| context.field_const_str(hash.as_str()))
-    //     .map(inkwell::values::BasicValueEnum::IntValue)?;
-    //
-    // Ok(Some(hash_value))
+    let mut identifier = value.trim_start_matches('0');
+    if identifier.is_empty() {
+        identifier = "0";
+    }
+
+    let parent = context.module().get_name().to_str().expect("Always valid");
+
+    if identifier == parent {
+        return Ok(Some(context.field_const(0).as_basic_value_enum()));
+    }
+
+    let hash_value = context
+        .compile_dependency(identifier)
+        .map(|hash| context.field_const_str(hash.as_str()))
+        .map(inkwell::values::BasicValueEnum::IntValue)?;
+
+    Ok(Some(hash_value))
 }
 
 ///
