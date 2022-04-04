@@ -35,7 +35,7 @@ impl EtherealIR {
     ///
     pub fn new(
         solc_version: semver::Version,
-        instructions: Vec<Instruction>,
+        instructions: &[Instruction],
         code_type: compiler_llvm_context::CodeType,
     ) -> anyhow::Result<Self> {
         let mut blocks = HashMap::with_capacity(Self::BLOCKS_HASHMAP_DEFAULT_CAPACITY);
