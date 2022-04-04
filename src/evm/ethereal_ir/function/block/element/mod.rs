@@ -815,25 +815,29 @@ where
             }
             InstructionName::CODESIZE => compiler_llvm_context::calldata::size(context),
             InstructionName::CODECOPY => {
+                let mut arguments =
+                    Vec::with_capacity(self.instruction.input_size(&self.solc_version));
                 let arguments_with_original: [compiler_llvm_context::Argument<'ctx>; 3] = self
-                    .to_owned()
                     .pop_arguments(context)
                     .try_into()
                     .expect("Always valid");
-                let arguments: [inkwell::values::BasicValueEnum<'ctx>; 3] = self
-                    .pop_arguments_llvm(context)
-                    .try_into()
-                    .expect("Always valid");
+                for (index, argument) in arguments_with_original.iter().enumerate() {
+                    let pointer = argument.value.into_pointer_value();
+                    let value = context.build_load(pointer, format!("argument_{}", index).as_str());
+                    arguments.push(value);
+                }
 
-                let full_path = arguments_with_original[1].original.as_deref();
                 let parent = context.module().get_name().to_str().expect("Always valid");
 
-                if let Some(compiler_llvm_context::CodeType::Deploy) = context.code_type {
-                    compiler_llvm_context::calldata::copy(context, arguments)
-                } else if full_path == Some(parent) {
-                    compiler_llvm_context::memory::store(context, [arguments[0], arguments[1]])
-                } else {
-                    Ok(None)
+                match arguments_with_original[1].original.as_deref() {
+                    Some(full_path) if full_path != parent => {
+                        compiler_llvm_context::memory::store(context, [arguments[0], arguments[1]])
+                    }
+                    Some(_full_path) => Ok(None),
+                    None => compiler_llvm_context::calldata::copy(
+                        context,
+                        arguments.try_into().expect("Always valid"),
+                    ),
                 }
             }
             InstructionName::PUSHSIZE => Ok(Some(context.field_const(0).as_basic_value_enum())),

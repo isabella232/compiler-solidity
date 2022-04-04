@@ -63,6 +63,7 @@ where
         let mut constructor_ethereal_ir = EtherealIR::new(
             context.evm().version.to_owned(),
             self.code
+                .as_deref()
                 .ok_or_else(|| anyhow::anyhow!("Constructor instructions not found"))?,
             compiler_llvm_context::CodeType::Deploy,
         )?;
@@ -95,7 +96,7 @@ where
         };
         let mut runtime_ethereal_ir = EtherealIR::new(
             context.evm().version.to_owned(),
-            runtime_instructions,
+            runtime_instructions.as_slice(),
             compiler_llvm_context::CodeType::Runtime,
         )?;
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EthIR) {
