@@ -2,7 +2,6 @@
 //! The function call subexpression.
 //!
 
-pub mod create;
 pub mod name;
 
 use inkwell::types::BasicType;
@@ -492,17 +491,25 @@ impl FunctionCall {
                     Some(salt),
                 )
             }
-            Name::DataSize => {
-                let arguments = self.pop_arguments::<D, 1>(context)?;
-                create::datasize(context, arguments)
-            }
             Name::DataOffset => {
-                let arguments = self.pop_arguments::<D, 1>(context)?;
-                create::dataoffset(context, arguments)
+                let mut arguments = self.pop_arguments::<D, 1>(context)?;
+                let identifier = arguments[0]
+                    .original
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("`dataoffset` object identifier is missing"))?;
+                compiler_llvm_context::create::contract_hash(context, identifier)
+            }
+            Name::DataSize => {
+                let mut arguments = self.pop_arguments::<D, 1>(context)?;
+                let identifier = arguments[0]
+                    .original
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("`dataoffset` object identifier is missing"))?;
+                compiler_llvm_context::create::contract_hash_size(context, identifier)
             }
             Name::DataCopy => {
                 let arguments = self.pop_arguments_llvm::<D, 3>(context)?;
-                create::datacopy(context, arguments)
+                compiler_llvm_context::memory::store(context, [arguments[0], arguments[1]])
             }
 
             Name::LinkerSymbol => {

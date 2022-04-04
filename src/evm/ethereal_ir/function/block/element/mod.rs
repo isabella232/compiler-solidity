@@ -111,16 +111,14 @@ where
                     .value
                     .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
             ),
+            InstructionName::PUSH_ContractHash => compiler_llvm_context::create::contract_hash(
+                context,
+                self.instruction
+                    .value
+                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
+            ),
             InstructionName::PUSH_ContractHashSize => {
-                crate::evm::assembly::instruction::stack::push_contract_hash_size(
-                    context,
-                    self.instruction
-                        .value
-                        .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-                )
-            }
-            InstructionName::PUSH_ContractHash => {
-                crate::evm::assembly::instruction::stack::push_contract_hash(
+                compiler_llvm_context::create::contract_hash_size(
                     context,
                     self.instruction
                         .value

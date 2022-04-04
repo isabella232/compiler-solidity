@@ -144,10 +144,10 @@ pub enum Name {
     Create2,
     /// returns the size in the data area
     DataSize,
-    /// returns the offset in the data area
-    DataOffset,
     ///  is equivalent to `CodeCopy`
     DataCopy,
+    /// returns the offset in the data area
+    DataOffset,
 
     /// `linkersymbol` is a stub call
     LinkerSymbol,

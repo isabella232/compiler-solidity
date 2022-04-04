@@ -137,7 +137,7 @@ dependencies = [
 [[package]]
 name = "compiler-llvm-context"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#6b5bb5ac4853f79dd366c827ec74bd4f942172c2"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#6569c6a47954cb5d44e0df46825ba83c81a8aa67"
 dependencies = [
  "anyhow",
  "compiler-common",
