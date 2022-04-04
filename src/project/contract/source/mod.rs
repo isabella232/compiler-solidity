@@ -35,8 +35,8 @@ impl Source {
     ///
     /// A shortcut constructor.
     ///
-    pub fn new_evm(source_identifier: String, assembly: Assembly) -> Self {
-        Self::EVM(EVM::new(source_identifier, assembly))
+    pub fn new_evm(full_path: String, assembly: Assembly) -> Self {
+        Self::EVM(EVM::new(full_path, assembly))
     }
 }
 

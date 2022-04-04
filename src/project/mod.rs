@@ -87,7 +87,7 @@ impl Project {
             .to_owned();
         let module_name = match source {
             Source::Yul(ref yul) => yul.object.identifier.to_owned(),
-            Source::EVM(ref evm) => evm.source_identifier.to_owned(),
+            Source::EVM(ref evm) => evm.full_path.to_owned(),
         };
         let mut context = match source {
             Source::Yul(_) => compiler_llvm_context::Context::new(
@@ -286,7 +286,7 @@ impl compiler_llvm_context::Dependency for Project {
             .find_map(|(path, contract)| {
                 if match contract.source {
                     Source::Yul(ref yul) => yul.object.identifier.as_str() == identifier,
-                    Source::EVM(ref evm) => evm.source_identifier.as_str() == identifier,
+                    Source::EVM(ref evm) => evm.full_path.as_str() == identifier,
                 } {
                     Some(path.to_owned())
                 } else {
@@ -318,7 +318,7 @@ impl compiler_llvm_context::Dependency for Project {
             .find_map(|(_path, contract)| {
                 if match contract.source {
                     Source::Yul(ref yul) => yul.object.identifier.as_str() == parent_identifier,
-                    Source::EVM(ref evm) => evm.source_identifier.as_str() == parent_identifier,
+                    Source::EVM(ref evm) => evm.full_path.as_str() == parent_identifier,
                 } {
                     Some(contract)
                 } else {
