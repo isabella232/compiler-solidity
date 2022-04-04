@@ -39,63 +39,6 @@ where
 }
 
 ///
-/// Translates the contract hash size push.
-///
-pub fn push_contract_hash_size<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
-    value: String,
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
-where
-    D: compiler_llvm_context::Dependency,
-{
-    let mut identifier = value.trim_start_matches('0');
-    if identifier.is_empty() {
-        identifier = "0";
-    }
-
-    let parent = context.module().get_name().to_str().expect("Always valid");
-
-    if identifier == parent {
-        return Ok(Some(context.field_const(0).as_basic_value_enum()));
-    }
-
-    Ok(Some(
-        context
-            .field_const(compiler_common::SIZE_FIELD as u64)
-            .as_basic_value_enum(),
-    ))
-}
-
-///
-/// Translates the contract hash push.
-///
-pub fn push_contract_hash<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
-    value: String,
-) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
-where
-    D: compiler_llvm_context::Dependency,
-{
-    let mut identifier = value.trim_start_matches('0');
-    if identifier.is_empty() {
-        identifier = "0";
-    }
-
-    let parent = context.module().get_name().to_str().expect("Always valid");
-
-    if identifier == parent {
-        return Ok(Some(context.field_const(0).as_basic_value_enum()));
-    }
-
-    let hash_value = context
-        .compile_dependency(identifier)
-        .map(|hash| context.field_const_str(hash.as_str()))
-        .map(inkwell::values::BasicValueEnum::IntValue)?;
-
-    Ok(Some(hash_value))
-}
-
-///
 /// Translates the stack memory duplicate.
 ///
 pub fn dup<'ctx, 'dep, D>(
