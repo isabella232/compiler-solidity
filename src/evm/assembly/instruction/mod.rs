@@ -6,6 +6,8 @@ pub mod jump;
 pub mod name;
 pub mod stack;
 
+use std::collections::HashMap;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -248,6 +250,29 @@ impl Instruction {
 
             _ => 0,
         }
+    }
+
+    ///
+    /// Replaces the contract indexes with their full paths.
+    ///
+    pub fn replace_contract_identifiers(
+        instructions: &mut [Self],
+        mapping: &HashMap<String, String>,
+    ) -> Result<(), String> {
+        for instruction in instructions.iter_mut() {
+            if let Instruction {
+                name: Name::PUSH_ContractHash | Name::PUSH_ContractHashSize,
+                value: Some(value),
+            } = instruction
+            {
+                *value = mapping
+                    .get(value.as_str())
+                    .cloned()
+                    .ok_or_else(|| format!("Index `{}` contract path not found", value))?;
+            }
+        }
+
+        Ok(())
     }
 }
 

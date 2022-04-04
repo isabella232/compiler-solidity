@@ -22,12 +22,15 @@ use self::instruction::Instruction;
 ///
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Assembly {
+    /// The metadata string.
+    #[serde(rename = ".auxdata")]
+    pub auxdata: Option<String>,
     /// The constructor code instructions.
     #[serde(rename = ".code")]
-    pub code: Vec<Instruction>,
+    pub code: Option<Vec<Instruction>>,
     /// The runtime code.
     #[serde(rename = ".data")]
-    pub data: BTreeMap<String, Data>,
+    pub data: Option<BTreeMap<String, Data>>,
 }
 
 impl<D> compiler_llvm_context::WriteLLVM<D> for Assembly
@@ -52,14 +55,15 @@ where
         Ok(())
     }
 
-    fn into_llvm(mut self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
+    fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EVM) {
             println!("Constructor EVM:");
             println!("{}", self);
         }
         let mut constructor_ethereal_ir = EtherealIR::new(
             context.evm().version.to_owned(),
-            self.code,
+            self.code
+                .ok_or_else(|| anyhow::anyhow!("Constructor instructions not found"))?,
             compiler_llvm_context::CodeType::Deploy,
         )?;
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EthIR) {
@@ -72,14 +76,26 @@ where
         constructor.into_llvm(context)?;
         constructor_ethereal_ir.into_llvm(context)?;
 
-        let data = self.data.remove("0").expect("Always exists");
+        let data = self
+            .data
+            .ok_or_else(|| anyhow::anyhow!("Runtime data not found"))?
+            .remove("0")
+            .expect("Always exists");
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EVM) {
             println!("Runtime EVM:");
             println!("{}", data);
         };
+        let runtime_instructions = match data {
+            Data::Assembly(assembly) => assembly
+                .code
+                .ok_or_else(|| anyhow::anyhow!("Runtime instructions not found"))?,
+            Data::Hash(hash) => {
+                anyhow::bail!("Expected runtime instructions, found hash `{}`", hash)
+            }
+        };
         let mut runtime_ethereal_ir = EtherealIR::new(
             context.evm().version.to_owned(),
-            data.try_into_instructions()?,
+            runtime_instructions,
             compiler_llvm_context::CodeType::Runtime,
         )?;
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EthIR) {
@@ -98,10 +114,12 @@ where
 
 impl std::fmt::Display for Assembly {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (index, instruction) in self.code.iter().enumerate() {
-            match instruction.name {
-                InstructionName::Tag => writeln!(f, "{:03} {}", index, instruction)?,
-                _ => writeln!(f, "{:03}     {}", index, instruction)?,
+        if let Some(instructions) = self.code.as_ref() {
+            for (index, instruction) in instructions.iter().enumerate() {
+                match instruction.name {
+                    InstructionName::Tag => writeln!(f, "{:03} {}", index, instruction)?,
+                    _ => writeln!(f, "{:03}     {}", index, instruction)?,
+                }
             }
         }
 

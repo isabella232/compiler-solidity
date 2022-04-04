@@ -827,15 +827,15 @@ where
                     .try_into()
                     .expect("Always valid");
 
-                match arguments_with_original[1]
-                    .original
-                    .as_ref()
-                    .map(|original| original.len())
-                {
-                    Some(length) if length == compiler_common::SIZE_FIELD * 2 => {
-                        compiler_llvm_context::memory::store(context, [arguments[0], arguments[1]])
-                    }
-                    _ => compiler_llvm_context::calldata::copy(context, arguments),
+                let full_path = arguments_with_original[1].original.as_deref();
+                let parent = context.module().get_name().to_str().expect("Always valid");
+
+                if let Some(compiler_llvm_context::CodeType::Deploy) = context.code_type {
+                    compiler_llvm_context::calldata::copy(context, arguments)
+                } else if full_path == Some(parent) {
+                    compiler_llvm_context::memory::store(context, [arguments[0], arguments[1]])
+                } else {
+                    Ok(None)
                 }
             }
             InstructionName::PUSHSIZE => Ok(Some(context.field_const(0).as_basic_value_enum())),
