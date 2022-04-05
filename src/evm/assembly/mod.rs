@@ -6,6 +6,7 @@ pub mod data;
 pub mod instruction;
 
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -28,9 +29,115 @@ pub struct Assembly {
     /// The constructor code instructions.
     #[serde(rename = ".code")]
     pub code: Option<Vec<Instruction>>,
-    /// The runtime code.
+    /// The selector code representation.
     #[serde(rename = ".data")]
     pub data: Option<BTreeMap<String, Data>>,
+
+    /// The full contract path.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub full_path: Option<String>,
+}
+
+impl Assembly {
+    ///
+    /// Gets the contract `keccak256` hash.
+    ///
+    pub fn keccak256(&self) -> String {
+        let json = serde_json::to_vec(self).expect("Always valid");
+        compiler_common::keccak256(json.as_slice())
+    }
+
+    ///
+    /// Sets the full contract path.
+    ///
+    pub fn set_full_path(&mut self, full_path: String) {
+        self.full_path = Some(full_path);
+    }
+
+    ///
+    /// Returns the full contract path if it is set, or `<undefined>` otherwise.
+    ///
+    pub fn full_path(&self) -> String {
+        self.full_path
+            .to_owned()
+            .unwrap_or_else(|| "<undefined>".to_owned())
+    }
+
+    ///
+    /// Replaces the constructor dependencies with full contract path and returns the list.
+    ///
+    pub fn constructor_dependencies_pass(
+        &mut self,
+        full_path: &str,
+        hash_path_mapping: &HashMap<String, String>,
+    ) -> Result<HashMap<String, String>, String> {
+        let mut constructor_index_path_mapping = HashMap::with_capacity(hash_path_mapping.len());
+        let index = "0".repeat(compiler_common::SIZE_FIELD * 2);
+        constructor_index_path_mapping.insert(index, full_path.to_owned());
+
+        let constructor_dependencies = match self.data.as_mut() {
+            Some(constructor_dependencies) => constructor_dependencies,
+            None => return Ok(constructor_index_path_mapping),
+        };
+        for (index, data) in constructor_dependencies.iter_mut() {
+            if index == "0" {
+                continue;
+            }
+
+            let hash = data.keccak256();
+            let full_path = hash_path_mapping
+                .get(hash.as_str())
+                .cloned()
+                .ok_or_else(|| format!("Contract path not found for hash `{}`", hash))?;
+
+            let mut index_extended = "0".repeat(compiler_common::SIZE_FIELD * 2 - index.len());
+            index_extended.push_str(index.as_str());
+            constructor_index_path_mapping.insert(index_extended, full_path.clone());
+
+            *data = Data::Hash(full_path.clone());
+        }
+
+        Ok(constructor_index_path_mapping)
+    }
+
+    ///
+    /// Replaces the selector dependencies with full contract path and returns the list.
+    ///
+    pub fn selector_dependencies_pass(
+        &mut self,
+        full_path: &str,
+        hash_path_mapping: &HashMap<String, String>,
+    ) -> Result<HashMap<String, String>, String> {
+        let mut selector_index_path_mapping = HashMap::with_capacity(hash_path_mapping.len());
+        let index = "0".repeat(compiler_common::SIZE_FIELD * 2);
+        selector_index_path_mapping.insert(index, full_path.to_owned());
+
+        let selector_dependencies = match self
+            .data
+            .as_mut()
+            .and_then(|data| data.get_mut("0"))
+            .and_then(|data| data.get_assembly_mut())
+            .and_then(|assembly| assembly.data.as_mut())
+        {
+            Some(selector_dependencies) => selector_dependencies,
+            None => return Ok(selector_index_path_mapping),
+        };
+        for (index, data) in selector_dependencies.iter_mut() {
+            let hash = data.keccak256();
+            let full_path = hash_path_mapping
+                .get(hash.as_str())
+                .cloned()
+                .ok_or_else(|| format!("Contract path not found for hash `{}`", hash))?;
+
+            let mut index_extended = "0".repeat(compiler_common::SIZE_FIELD * 2 - index.len());
+            index_extended.push_str(index.as_str());
+            selector_index_path_mapping.insert(index_extended, full_path.clone());
+
+            *data = Data::Hash(full_path.clone());
+        }
+
+        Ok(selector_index_path_mapping)
+    }
 }
 
 impl<D> compiler_llvm_context::WriteLLVM<D> for Assembly
@@ -56,9 +163,10 @@ where
     }
 
     fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
+        let full_path = self.full_path();
+
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EVM) {
-            println!("Constructor EVM:");
-            println!("{}", self);
+            println!("Contract `{}` constructor EVM:\n\n{}", full_path, self);
         }
         let mut constructor_ethereal_ir = EtherealIR::new(
             context.evm().version.to_owned(),
@@ -68,7 +176,10 @@ where
             compiler_llvm_context::CodeType::Deploy,
         )?;
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EthIR) {
-            println!("Constructor Ethereal IR:\n\n{}", constructor_ethereal_ir);
+            println!(
+                "Contract `{}` constructor Ethereal IR:\n\n{}",
+                full_path, constructor_ethereal_ir
+            );
         }
         let constructor = compiler_llvm_context::ConstructorFunction::new(EntryLink::new(
             compiler_llvm_context::CodeType::Deploy,
@@ -79,35 +190,37 @@ where
 
         let data = self
             .data
-            .ok_or_else(|| anyhow::anyhow!("Runtime data not found"))?
+            .ok_or_else(|| anyhow::anyhow!("Selector data not found"))?
             .remove("0")
             .expect("Always exists");
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EVM) {
-            println!("Runtime EVM:");
-            println!("{}", data);
+            println!("Contract `{}` selector EVM:\n\n{}", full_path, data);
         };
-        let runtime_instructions = match data {
+        let selector_instructions = match data {
             Data::Assembly(assembly) => assembly
                 .code
-                .ok_or_else(|| anyhow::anyhow!("Runtime instructions not found"))?,
+                .ok_or_else(|| anyhow::anyhow!("Selector instructions not found"))?,
             Data::Hash(hash) => {
-                anyhow::bail!("Expected runtime instructions, found hash `{}`", hash)
+                anyhow::bail!("Expected selector instructions, found hash `{}`", hash)
             }
         };
-        let mut runtime_ethereal_ir = EtherealIR::new(
+        let mut selector_ethereal_ir = EtherealIR::new(
             context.evm().version.to_owned(),
-            runtime_instructions.as_slice(),
+            selector_instructions.as_slice(),
             compiler_llvm_context::CodeType::Runtime,
         )?;
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EthIR) {
-            println!("Runtime Ethereal IR:\n\n{}", runtime_ethereal_ir);
+            println!(
+                "Contract `{}` selector Ethereal IR:\n\n{}",
+                full_path, selector_ethereal_ir
+            );
         }
         let selector = compiler_llvm_context::SelectorFunction::new(EntryLink::new(
             compiler_llvm_context::CodeType::Runtime,
         ));
-        runtime_ethereal_ir.declare(context)?;
+        selector_ethereal_ir.declare(context)?;
         selector.into_llvm(context)?;
-        runtime_ethereal_ir.into_llvm(context)?;
+        selector_ethereal_ir.into_llvm(context)?;
 
         Ok(())
     }
