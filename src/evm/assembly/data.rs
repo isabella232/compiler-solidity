@@ -1,5 +1,5 @@
 //!
-//! The JSON assembly runtime code representation.
+//! The inner JSON legacy assembly code element representation.
 //!
 
 use serde::Deserialize;
@@ -8,7 +8,7 @@ use serde::Serialize;
 use crate::evm::assembly::Assembly;
 
 ///
-/// The JSON assembly runtime code representation.
+/// The inner JSON legacy assembly code element representation.
 ///
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
@@ -21,12 +21,31 @@ pub enum Data {
 
 impl Data {
     ///
-    /// Gets the `auxdata` string.
+    /// Returns the inner assembly reference if it is present.
     ///
-    pub fn get_auxdata(&self) -> Option<&str> {
+    pub fn get_assembly(&self) -> Option<&Assembly> {
         match self {
-            Self::Assembly(assembly) => assembly.auxdata.as_deref(),
+            Self::Assembly(ref assembly) => Some(assembly),
             Self::Hash(_) => None,
+        }
+    }
+    ///
+    /// Returns the inner assembly mutable reference if it is present.
+    ///
+    pub fn get_assembly_mut(&mut self) -> Option<&mut Assembly> {
+        match self {
+            Self::Assembly(ref mut assembly) => Some(assembly),
+            Self::Hash(_) => None,
+        }
+    }
+
+    ///
+    /// Gets the contract `keccak256` hash.
+    ///
+    pub fn keccak256(&self) -> String {
+        match self {
+            Self::Assembly(assembly) => assembly.keccak256(),
+            Self::Hash(hash) => hash.to_owned(),
         }
     }
 }
