@@ -24,6 +24,9 @@ pub struct Compiler {
 }
 
 impl Compiler {
+    /// The default executable name.
+    pub const DEFAULT_EXECUTABLE_NAME: &'static str = "solc";
+
     ///
     /// A shortcut constructor.
     ///
@@ -139,5 +142,35 @@ impl Compiler {
         }
 
         Ok(String::from_utf8_lossy(solc_pipeline.stdout.as_slice()).to_string())
+    }
+
+    ///
+    /// The `solc --version` mini-parser.
+    ///
+    pub fn version(&self) -> Result<semver::Version, String> {
+        let mut solc_command = std::process::Command::new(self.executable.as_str());
+        solc_command.arg("--version");
+        let solc_pipeline = solc_command
+            .output()
+            .map_err(|error| format!("solc subprocess error: {:?}", error))?;
+        if !solc_pipeline.status.success() {
+            return Err(String::from_utf8_lossy(solc_pipeline.stderr.as_slice()).to_string());
+        }
+
+        let stdout = String::from_utf8_lossy(solc_pipeline.stdout.as_slice());
+        let version: semver::Version = stdout
+            .lines()
+            .nth(1)
+            .ok_or_else(|| "solc version parsing: not enough lines".to_owned())?
+            .split(' ')
+            .nth(1)
+            .ok_or_else(|| "solc version parsing: not enough words in the 2nd line".to_owned())?
+            .split('+')
+            .next()
+            .ok_or_else(|| "solc version parsing: metadata dropping".to_owned())?
+            .parse()
+            .map_err(|error| format!("solc version parsing: {}", error))?;
+
+        Ok(version)
     }
 }

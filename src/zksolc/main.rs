@@ -79,16 +79,22 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         }
     };
 
-    if let Some(errors) = &solc_output.errors {
+    if let Some(errors) = solc_output.errors.as_deref() {
+        let mut cannot_compile = false;
         for error in errors.iter() {
-            if arguments.standard_json {
-                if error.severity.as_str() == "error" {
+            if error.severity.as_str() == "error" {
+                cannot_compile = true;
+                if arguments.standard_json {
                     serde_json::to_writer(std::io::stdout(), &solc_output)?;
                     return Ok(());
                 }
-            } else {
-                eprintln!("{}", error);
             }
+
+            eprintln!("{}", error);
+        }
+
+        if cannot_compile {
+            std::process::exit(compiler_common::EXIT_CODE_FAILURE);
         }
     }
 

@@ -49,12 +49,19 @@ impl Output {
         pipeline: SolcPipeline,
         dump_flags: &[DumpFlag],
     ) -> Result<Project, String> {
-        let input_contracts = self
-            .contracts
-            .ok_or_else(|| "Solidity compiler error".to_owned())?;
-        let mut project_contracts = HashMap::with_capacity(input_contracts.len());
+        let files = match self.contracts {
+            Some(files) => files,
+            None => {
+                return Err(self
+                    .errors
+                    .as_ref()
+                    .map(|errors| serde_json::to_string_pretty(errors).expect("Always valid"))
+                    .unwrap_or_else(|| "Unknown error".to_owned()))
+            }
+        };
+        let mut project_contracts = HashMap::with_capacity(files.len());
 
-        for (path, contracts) in input_contracts.into_iter() {
+        for (path, contracts) in files.into_iter() {
             for (name, contract) in contracts.into_iter() {
                 let full_path = format!("{}:{}", path, name);
 
