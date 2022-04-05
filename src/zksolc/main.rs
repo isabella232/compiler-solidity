@@ -37,7 +37,9 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         *path = path.canonicalize()?;
     }
 
-    let solc_executable = arguments.solc.unwrap_or_else(|| "solc".to_string());
+    let solc_executable = arguments
+        .solc
+        .unwrap_or_else(|| compiler_solidity::SolcCompiler::DEFAULT_EXECUTABLE_NAME.to_string());
     let solc = compiler_solidity::SolcCompiler::new(solc_executable);
     let solc_version = match solc.version() {
         Ok(version) => version,
@@ -81,16 +83,22 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         }
     };
 
-    if let Some(errors) = &solc_output.errors {
+    if let Some(errors) = solc_output.errors.as_deref() {
+        let mut cannot_compile = false;
         for error in errors.iter() {
-            if arguments.standard_json {
-                if error.severity.as_str() == "error" {
+            if error.severity.as_str() == "error" {
+                cannot_compile = true;
+                if arguments.standard_json {
                     serde_json::to_writer(std::io::stdout(), &solc_output)?;
                     return Ok(());
                 }
-            } else {
-                eprintln!("{}", error);
             }
+
+            eprintln!("{}", error);
+        }
+
+        if cannot_compile {
+            std::process::exit(compiler_common::EXIT_CODE_FAILURE);
         }
     }
 

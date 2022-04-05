@@ -56,9 +56,16 @@ impl Output {
             self.preprocess_dependencies()?;
         }
 
-        let files = self
-            .contracts
-            .ok_or_else(|| "There are no files in the output".to_owned())?;
+        let files = match self.contracts {
+            Some(files) => files,
+            None => {
+                return Err(self
+                    .errors
+                    .as_ref()
+                    .map(|errors| serde_json::to_string_pretty(errors).expect("Always valid"))
+                    .unwrap_or_else(|| "Unknown error".to_owned()))
+            }
+        };
         let mut project_contracts = HashMap::with_capacity(files.len());
 
         for (path, contracts) in files.into_iter() {
