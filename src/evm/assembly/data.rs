@@ -17,6 +17,8 @@ pub enum Data {
     Assembly(Assembly),
     /// The hash representation.
     Hash(String),
+    /// The full contract path after the factory dependencies replacing pass.
+    Path(String),
 }
 
 impl Data {
@@ -27,6 +29,7 @@ impl Data {
         match self {
             Self::Assembly(ref assembly) => Some(assembly),
             Self::Hash(_) => None,
+            Self::Path(_) => None,
         }
     }
     ///
@@ -36,6 +39,7 @@ impl Data {
         match self {
             Self::Assembly(ref mut assembly) => Some(assembly),
             Self::Hash(_) => None,
+            Self::Path(_) => None,
         }
     }
 
@@ -45,7 +49,8 @@ impl Data {
     pub fn keccak256(&self) -> String {
         match self {
             Self::Assembly(assembly) => assembly.keccak256(),
-            Self::Hash(hash) => hash.to_owned(),
+            Self::Hash(hash) => panic!("Expected assembly, found hash `{}`", hash),
+            Self::Path(path) => panic!("Expected assembly, found path `{}`", path),
         }
     }
 }
@@ -53,8 +58,9 @@ impl Data {
 impl std::fmt::Display for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Assembly(assembly) => writeln!(f, "{}", assembly),
-            Self::Hash(value) => writeln!(f, "{}", value),
+            Self::Assembly(inner) => writeln!(f, "{}", inner),
+            Self::Hash(inner) => writeln!(f, "Hash `{}`", inner),
+            Self::Path(inner) => writeln!(f, "Path `{}`", inner),
         }
     }
 }
