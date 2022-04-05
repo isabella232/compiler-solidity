@@ -253,22 +253,22 @@ impl Instruction {
     }
 
     ///
-    /// Replaces the contract indexes with their full paths.
+    /// Replaces the instruction data aliases with the actual data.
     ///
-    pub fn replace_contract_identifiers(
+    pub fn replace_data_aliases(
         instructions: &mut [Self],
         mapping: &HashMap<String, String>,
     ) -> Result<(), String> {
         for instruction in instructions.iter_mut() {
             if let Instruction {
-                name: Name::PUSH_ContractHash | Name::PUSH_ContractHashSize,
+                name: Name::PUSH_ContractHash | Name::PUSH_ContractHashSize | Name::PUSH_Data,
                 value: Some(value),
             } = instruction
             {
                 *value = mapping
                     .get(value.as_str())
                     .cloned()
-                    .ok_or_else(|| format!("Index `{}` contract path not found", value))?;
+                    .ok_or_else(|| format!("Alias `{}` data not found", value))?;
             }
         }
 

@@ -69,35 +69,45 @@ impl Assembly {
     pub fn constructor_dependencies_pass(
         &mut self,
         full_path: &str,
-        hash_path_mapping: &HashMap<String, String>,
+        hash_data_mapping: &HashMap<String, String>,
     ) -> Result<HashMap<String, String>, String> {
-        let mut constructor_index_path_mapping = HashMap::with_capacity(hash_path_mapping.len());
+        let mut index_path_mapping = HashMap::with_capacity(hash_data_mapping.len());
         let index = "0".repeat(compiler_common::SIZE_FIELD * 2);
-        constructor_index_path_mapping.insert(index, full_path.to_owned());
+        index_path_mapping.insert(index, full_path.to_owned());
 
-        let constructor_dependencies = match self.data.as_mut() {
-            Some(constructor_dependencies) => constructor_dependencies,
-            None => return Ok(constructor_index_path_mapping),
+        let dependencies = match self.data.as_mut() {
+            Some(dependencies) => dependencies,
+            None => return Ok(index_path_mapping),
         };
-        for (index, data) in constructor_dependencies.iter_mut() {
+        for (index, data) in dependencies.iter_mut() {
             if index == "0" {
                 continue;
             }
 
-            let hash = data.keccak256();
-            let full_path = hash_path_mapping
-                .get(hash.as_str())
-                .cloned()
-                .ok_or_else(|| format!("Contract path not found for hash `{}`", hash))?;
+            *data = match data {
+                Data::Assembly(assembly) => {
+                    let hash = assembly.keccak256();
+                    let full_path = hash_data_mapping
+                        .get(hash.as_str())
+                        .cloned()
+                        .ok_or_else(|| format!("Contract path not found for hash `{}`", hash))?;
 
-            let mut index_extended = "0".repeat(compiler_common::SIZE_FIELD * 2 - index.len());
-            index_extended.push_str(index.as_str());
-            constructor_index_path_mapping.insert(index_extended, full_path.clone());
+                    let mut index_extended =
+                        "0".repeat(compiler_common::SIZE_FIELD * 2 - index.len());
+                    index_extended.push_str(index.as_str());
+                    index_path_mapping.insert(index_extended, full_path.clone());
 
-            *data = Data::Hash(full_path.clone());
+                    Data::Path(full_path)
+                }
+                Data::Hash(hash) => {
+                    index_path_mapping.insert(index.to_owned(), hash.to_owned());
+                    continue;
+                }
+                _ => continue,
+            };
         }
 
-        Ok(constructor_index_path_mapping)
+        Ok(index_path_mapping)
     }
 
     ///
@@ -106,37 +116,47 @@ impl Assembly {
     pub fn selector_dependencies_pass(
         &mut self,
         full_path: &str,
-        hash_path_mapping: &HashMap<String, String>,
+        hash_data_mapping: &HashMap<String, String>,
     ) -> Result<HashMap<String, String>, String> {
-        let mut selector_index_path_mapping = HashMap::with_capacity(hash_path_mapping.len());
+        let mut index_path_mapping = HashMap::with_capacity(hash_data_mapping.len());
         let index = "0".repeat(compiler_common::SIZE_FIELD * 2);
-        selector_index_path_mapping.insert(index, full_path.to_owned());
+        index_path_mapping.insert(index, full_path.to_owned());
 
-        let selector_dependencies = match self
+        let dependencies = match self
             .data
             .as_mut()
             .and_then(|data| data.get_mut("0"))
             .and_then(|data| data.get_assembly_mut())
             .and_then(|assembly| assembly.data.as_mut())
         {
-            Some(selector_dependencies) => selector_dependencies,
-            None => return Ok(selector_index_path_mapping),
+            Some(dependencies) => dependencies,
+            None => return Ok(index_path_mapping),
         };
-        for (index, data) in selector_dependencies.iter_mut() {
-            let hash = data.keccak256();
-            let full_path = hash_path_mapping
-                .get(hash.as_str())
-                .cloned()
-                .ok_or_else(|| format!("Contract path not found for hash `{}`", hash))?;
+        for (index, data) in dependencies.iter_mut() {
+            *data = match data {
+                Data::Assembly(assembly) => {
+                    let hash = assembly.keccak256();
+                    let full_path = hash_data_mapping
+                        .get(hash.as_str())
+                        .cloned()
+                        .ok_or_else(|| format!("Contract path not found for hash `{}`", hash))?;
 
-            let mut index_extended = "0".repeat(compiler_common::SIZE_FIELD * 2 - index.len());
-            index_extended.push_str(index.as_str());
-            selector_index_path_mapping.insert(index_extended, full_path.clone());
+                    let mut index_extended =
+                        "0".repeat(compiler_common::SIZE_FIELD * 2 - index.len());
+                    index_extended.push_str(index.as_str());
+                    index_path_mapping.insert(index_extended, full_path.clone());
 
-            *data = Data::Hash(full_path.clone());
+                    Data::Path(full_path)
+                }
+                Data::Hash(hash) => {
+                    index_path_mapping.insert(index.to_owned(), hash.to_owned());
+                    continue;
+                }
+                _ => continue,
+            };
         }
 
-        Ok(selector_index_path_mapping)
+        Ok(index_path_mapping)
     }
 }
 
@@ -202,6 +222,9 @@ where
                 .ok_or_else(|| anyhow::anyhow!("Selector instructions not found"))?,
             Data::Hash(hash) => {
                 anyhow::bail!("Expected selector instructions, found hash `{}`", hash)
+            }
+            Data::Path(path) => {
+                anyhow::bail!("Expected selector instructions, found path `{}`", path)
             }
         };
         let mut selector_ethereal_ir = EtherealIR::new(

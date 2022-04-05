@@ -93,19 +93,45 @@ where
         let original = self.instruction.value.clone();
 
         let value = match self.instruction.name {
-            InstructionName::PUSH => crate::evm::assembly::instruction::stack::push(
+            InstructionName::PUSH
+            | InstructionName::PUSH1
+            | InstructionName::PUSH2
+            | InstructionName::PUSH3
+            | InstructionName::PUSH4
+            | InstructionName::PUSH5
+            | InstructionName::PUSH6
+            | InstructionName::PUSH7
+            | InstructionName::PUSH8
+            | InstructionName::PUSH9
+            | InstructionName::PUSH10
+            | InstructionName::PUSH11
+            | InstructionName::PUSH12
+            | InstructionName::PUSH13
+            | InstructionName::PUSH14
+            | InstructionName::PUSH15
+            | InstructionName::PUSH16
+            | InstructionName::PUSH17
+            | InstructionName::PUSH18
+            | InstructionName::PUSH19
+            | InstructionName::PUSH20
+            | InstructionName::PUSH21
+            | InstructionName::PUSH22
+            | InstructionName::PUSH23
+            | InstructionName::PUSH24
+            | InstructionName::PUSH25
+            | InstructionName::PUSH26
+            | InstructionName::PUSH27
+            | InstructionName::PUSH28
+            | InstructionName::PUSH29
+            | InstructionName::PUSH30
+            | InstructionName::PUSH31
+            | InstructionName::PUSH32 => crate::evm::assembly::instruction::stack::push(
                 context,
                 self.instruction
                     .value
                     .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
             ),
             InstructionName::PUSH_Tag => crate::evm::assembly::instruction::stack::push_tag(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH_Data => crate::evm::assembly::instruction::stack::push(
                 context,
                 self.instruction
                     .value
@@ -137,202 +163,21 @@ where
                         .as_basic_value_enum(),
                 ))
             }
+            InstructionName::PUSH_Data => {
+                let value = self
+                    .instruction
+                    .value
+                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?;
+
+                if value.len() > compiler_common::SIZE_FIELD * 2 {
+                    Ok(Some(context.field_const(0).as_basic_value_enum()))
+                } else {
+                    crate::evm::assembly::instruction::stack::push(context, value)
+                }
+            }
             InstructionName::PUSHDEPLOYADDRESS => {
                 Ok(Some(context.field_const(0).as_basic_value_enum()))
             }
-
-            InstructionName::PUSH1 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH2 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH3 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH4 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH5 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH6 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH7 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH8 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH9 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH10 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH11 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH12 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH13 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH14 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH15 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH16 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH17 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH18 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH19 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH20 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH21 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH22 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH23 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH24 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH25 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH26 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH27 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH28 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH29 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH30 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH31 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
-            InstructionName::PUSH32 => crate::evm::assembly::instruction::stack::push(
-                context,
-                self.instruction
-                    .value
-                    .ok_or_else(|| anyhow::anyhow!("Instruction value missing"))?,
-            ),
 
             InstructionName::DUP1 => {
                 crate::evm::assembly::instruction::stack::dup(context, 1, self.stack.elements.len())
@@ -830,10 +675,37 @@ where
                 let parent = context.module().get_name().to_str().expect("Always valid");
 
                 match arguments_with_original[1].original.as_deref() {
-                    Some(full_path) if full_path != parent => {
+                    Some(original)
+                        if original != parent
+                            && original.len() <= compiler_common::SIZE_FIELD * 2 =>
+                    {
                         compiler_llvm_context::memory::store(context, [arguments[0], arguments[1]])
                     }
-                    Some(_full_path) => Ok(None),
+                    Some(original) if original != parent => {
+                        for (index, chunk) in original
+                            .chars()
+                            .collect::<Vec<char>>()
+                            .rchunks(compiler_common::SIZE_FIELD * 2)
+                            .enumerate()
+                        {
+                            let datacopy_destination = context.builder().build_int_add(
+                                arguments[0].into_int_value(),
+                                context.field_const((compiler_common::SIZE_FIELD * index) as u64),
+                                format!("datacopy_destination_index_{}", index).as_str(),
+                            );
+                            let datacopy_value =
+                                context.field_const_str(chunk.iter().collect::<String>().as_str());
+                            compiler_llvm_context::memory::store(
+                                context,
+                                [
+                                    datacopy_destination.as_basic_value_enum(),
+                                    datacopy_value.as_basic_value_enum(),
+                                ],
+                            )?;
+                        }
+                        Ok(None)
+                    }
+                    Some(_original) => Ok(None),
                     None => compiler_llvm_context::calldata::copy(
                         context,
                         arguments.try_into().expect("Always valid"),

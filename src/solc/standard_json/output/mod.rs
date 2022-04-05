@@ -53,7 +53,7 @@ impl Output {
         dump_flags: &[DumpFlag],
     ) -> Result<Project, String> {
         if let SolcPipeline::EVM = pipeline {
-            self.preprocess_factory_dependencies()?;
+            self.preprocess_dependencies()?;
         }
 
         let files = self
@@ -110,9 +110,9 @@ impl Output {
     }
 
     ///
-    /// The pass, which replaces with factory dependency indexes with actual contract paths.
+    /// The pass, which replaces with dependency indexes with actual data.
     ///
-    fn preprocess_factory_dependencies(&mut self) -> Result<(), String> {
+    fn preprocess_dependencies(&mut self) -> Result<(), String> {
         let files = match self.contracts.as_mut() {
             Some(files) => files,
             None => return Ok(()),
@@ -145,7 +145,7 @@ impl Output {
                 };
 
                 let full_path = format!("{}:{}", path, name);
-                Self::preprocess_factory_dependency_level(
+                Self::preprocess_dependency_level(
                     full_path.as_str(),
                     assembly,
                     &hash_path_mapping,
@@ -157,9 +157,9 @@ impl Output {
     }
 
     ///
-    /// Preprocesses an assembly JSON structure factory dependency data map.
+    /// Preprocesses an assembly JSON structure dependency data map.
     ///
-    fn preprocess_factory_dependency_level(
+    fn preprocess_dependency_level(
         full_path: &str,
         assembly: &mut Assembly,
         hash_path_mapping: &HashMap<String, String>,
@@ -169,7 +169,7 @@ impl Output {
         let constructor_index_path_mapping =
             assembly.constructor_dependencies_pass(full_path, hash_path_mapping)?;
         if let Some(constructor_instructions) = assembly.code.as_deref_mut() {
-            Instruction::replace_contract_identifiers(
+            Instruction::replace_data_aliases(
                 constructor_instructions,
                 &constructor_index_path_mapping,
             )?;
@@ -184,10 +184,7 @@ impl Output {
             .and_then(|data| data.get_assembly_mut())
             .and_then(|assembly| assembly.code.as_deref_mut())
         {
-            Instruction::replace_contract_identifiers(
-                selector_instructions,
-                &selector_index_path_mapping,
-            )?;
+            Instruction::replace_data_aliases(selector_instructions, &selector_index_path_mapping)?;
         }
 
         Ok(())
