@@ -22,6 +22,9 @@ pub struct Compiler {
 }
 
 impl Compiler {
+    /// The default executable name.
+    pub const DEFAULT_EXECUTABLE_NAME: &'static str = "solc";
+
     ///
     /// A shortcut constructor.
     ///
@@ -157,6 +160,9 @@ impl Compiler {
             .split(' ')
             .nth(1)
             .ok_or_else(|| "solc version parsing: not enough words in the 2nd line".to_owned())?
+            .split('+')
+            .next()
+            .ok_or_else(|| "solc version parsing: metadata dropping".to_owned())?
             .parse()
             .map_err(|error| format!("solc version parsing: {}", error))?;
 
