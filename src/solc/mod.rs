@@ -45,30 +45,30 @@ impl Compiler {
         include_paths: Vec<String>,
         allow_paths: Option<String>,
     ) -> anyhow::Result<StandardJsonOutput> {
-        let mut solc_command = std::process::Command::new(self.executable.as_str());
-        solc_command.stdin(std::process::Stdio::piped());
-        solc_command.stdout(std::process::Stdio::piped());
-        solc_command.arg("--standard-json");
+        let mut command = std::process::Command::new(self.executable.as_str());
+        command.stdin(std::process::Stdio::piped());
+        command.stdout(std::process::Stdio::piped());
+        command.arg("--standard-json");
 
         if let Some(base_path) = base_path {
-            solc_command.arg("--base-path");
-            solc_command.arg(base_path);
+            command.arg("--base-path");
+            command.arg(base_path);
         }
         for include_path in include_paths.into_iter() {
-            solc_command.arg("--include-path");
-            solc_command.arg(include_path);
+            command.arg("--include-path");
+            command.arg(include_path);
         }
         if let Some(allow_paths) = allow_paths {
-            solc_command.arg("--allow-paths");
-            solc_command.arg(allow_paths);
+            command.arg("--allow-paths");
+            command.arg(allow_paths);
         }
 
         let input_json = serde_json::to_vec(&input).expect("Always valid");
 
-        let solc_process = solc_command.spawn().map_err(|error| {
+        let process = command.spawn().map_err(|error| {
             anyhow::anyhow!("{} subprocess spawning error: {:?}", self.executable, error)
         })?;
-        solc_process
+        process
             .stdin
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("{} stdin getting error", self.executable))?
@@ -77,18 +77,18 @@ impl Compiler {
                 anyhow::anyhow!("{} stdin writing error: {:?}", self.executable, error)
             })?;
 
-        let solc_output = solc_process.wait_with_output().map_err(|error| {
+        let output = process.wait_with_output().map_err(|error| {
             anyhow::anyhow!("{} subprocess output error: {:?}", self.executable, error)
         })?;
-        if !solc_output.status.success() {
+        if !output.status.success() {
             anyhow::bail!(
                 "{} error: {}",
                 self.executable,
-                String::from_utf8_lossy(solc_output.stderr.as_slice()).to_string()
+                String::from_utf8_lossy(output.stderr.as_slice()).to_string()
             );
         }
 
-        let output = serde_json::from_slice(solc_output.stdout.as_slice()).expect("Always valid");
+        let output = serde_json::from_slice(output.stdout.as_slice()).expect("Always valid");
 
         Ok(output)
     }
@@ -101,23 +101,22 @@ impl Compiler {
         paths: &[PathBuf],
         combined_json_argument: &str,
     ) -> anyhow::Result<CombinedJson> {
-        let mut solc_command = std::process::Command::new(self.executable.as_str());
-        solc_command.args(paths);
-        solc_command.arg("--combined-json");
-        solc_command.arg(combined_json_argument);
-        let solc_output = solc_command.output().map_err(|error| {
+        let mut command = std::process::Command::new(self.executable.as_str());
+        command.args(paths);
+        command.arg("--combined-json");
+        command.arg(combined_json_argument);
+        let output = command.output().map_err(|error| {
             anyhow::anyhow!("{} subprocess error: {:?}", self.executable, error)
         })?;
-        if !solc_output.status.success() {
+        if !output.status.success() {
             anyhow::bail!(
                 "{} error: {}",
                 self.executable,
-                String::from_utf8_lossy(solc_output.stderr.as_slice()).to_string()
+                String::from_utf8_lossy(output.stderr.as_slice()).to_string()
             );
         }
 
-        let combined_json =
-            serde_json::from_slice(solc_output.stdout.as_slice()).expect("Always valid");
+        let combined_json = serde_json::from_slice(output.stdout.as_slice()).expect("Always valid");
 
         Ok(combined_json)
     }
@@ -131,46 +130,46 @@ impl Compiler {
         output_abi: bool,
         output_hashes: bool,
     ) -> anyhow::Result<String> {
-        let mut solc_command = std::process::Command::new(self.executable.as_str());
-        solc_command.args(paths);
+        let mut command = std::process::Command::new(self.executable.as_str());
+        command.args(paths);
         if output_abi {
-            solc_command.arg("--abi");
+            command.arg("--abi");
         }
         if output_hashes {
-            solc_command.arg("--hashes");
+            command.arg("--hashes");
         }
-        let solc_output = solc_command.output().map_err(|error| {
+        let output = command.output().map_err(|error| {
             anyhow::anyhow!("{} subprocess error: {:?}", self.executable, error)
         })?;
-        if !solc_output.status.success() {
+        if !output.status.success() {
             anyhow::bail!(
                 "{} error: {}",
                 self.executable,
-                String::from_utf8_lossy(solc_output.stderr.as_slice()).to_string()
+                String::from_utf8_lossy(output.stderr.as_slice()).to_string()
             );
         }
 
-        Ok(String::from_utf8_lossy(solc_output.stdout.as_slice()).to_string())
+        Ok(String::from_utf8_lossy(output.stdout.as_slice()).to_string())
     }
 
     ///
     /// The `solc --version` mini-parser.
     ///
     pub fn version(&self) -> anyhow::Result<semver::Version> {
-        let mut solc_command = std::process::Command::new(self.executable.as_str());
-        solc_command.arg("--version");
-        let solc_output = solc_command.output().map_err(|error| {
+        let mut command = std::process::Command::new(self.executable.as_str());
+        command.arg("--version");
+        let output = command.output().map_err(|error| {
             anyhow::anyhow!("{} subprocess error: {:?}", self.executable, error)
         })?;
-        if !solc_output.status.success() {
+        if !output.status.success() {
             anyhow::bail!(
                 "{} error: {}",
                 self.executable,
-                String::from_utf8_lossy(solc_output.stderr.as_slice()).to_string()
+                String::from_utf8_lossy(output.stderr.as_slice()).to_string()
             );
         }
 
-        let stdout = String::from_utf8_lossy(solc_output.stdout.as_slice());
+        let stdout = String::from_utf8_lossy(output.stdout.as_slice());
         let version: semver::Version = stdout
             .lines()
             .nth(1)

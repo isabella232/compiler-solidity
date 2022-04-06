@@ -37,10 +37,10 @@ fn main_inner() -> anyhow::Result<()> {
         *path = path.canonicalize()?;
     }
 
-    let solc_executable = arguments
-        .solc
-        .unwrap_or_else(|| compiler_solidity::SolcCompiler::DEFAULT_EXECUTABLE_NAME.to_string());
-    let solc = compiler_solidity::SolcCompiler::new(solc_executable);
+    let solc =
+        compiler_solidity::SolcCompiler::new(arguments.solc.unwrap_or_else(|| {
+            compiler_solidity::SolcCompiler::DEFAULT_EXECUTABLE_NAME.to_owned()
+        }));
     let solc_version = solc.version()?;
 
     let output_selection =
