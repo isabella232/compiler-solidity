@@ -2,7 +2,6 @@
 //! The YUL source code identifier.
 //!
 
-use crate::error::Error;
 use crate::yul::lexer::lexeme::symbol::Symbol;
 use crate::yul::lexer::lexeme::Lexeme;
 use crate::yul::lexer::Lexer;
@@ -26,7 +25,7 @@ impl Identifier {
     pub fn parse_list(
         lexer: &mut Lexer,
         mut initial: Option<Lexeme>,
-    ) -> Result<(Vec<String>, Option<Lexeme>), Error> {
+    ) -> anyhow::Result<(Vec<String>, Option<Lexeme>)> {
         let mut result = Vec::new();
 
         let mut expected_comma = false;
@@ -52,7 +51,7 @@ impl Identifier {
     pub fn parse_typed_list(
         lexer: &mut Lexer,
         mut initial: Option<Lexeme>,
-    ) -> Result<(Vec<Self>, Option<Lexeme>), Error> {
+    ) -> anyhow::Result<(Vec<Self>, Option<Lexeme>)> {
         let mut result = Vec::new();
 
         let mut expected_comma = false;

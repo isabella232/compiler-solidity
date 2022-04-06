@@ -4,14 +4,12 @@
 
 use inkwell::values::BasicValue;
 
-use crate::error::Error;
 use crate::yul::lexer::lexeme::literal::boolean::Boolean as BooleanLiteral;
 use crate::yul::lexer::lexeme::literal::integer::Integer as IntegerLiteral;
 use crate::yul::lexer::lexeme::literal::Literal as LexicalLiteral;
 use crate::yul::lexer::lexeme::symbol::Symbol;
 use crate::yul::lexer::lexeme::Lexeme;
 use crate::yul::lexer::Lexer;
-use crate::yul::parser::error::Error as ParserError;
 use crate::yul::parser::r#type::Type;
 
 ///
@@ -29,13 +27,13 @@ impl Literal {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> anyhow::Result<Self> {
         let lexeme = crate::yul::parser::take_or_next(initial, lexer)?;
 
         let literal = match lexeme {
             Lexeme::Literal(literal) => literal,
             lexeme => {
-                return Err(ParserError::expected_one_of(vec!["{literal}"], lexeme, None).into())
+                anyhow::bail!("Expected one of {:?}, found `{}`", ["{literal}"], lexeme);
             }
         };
 

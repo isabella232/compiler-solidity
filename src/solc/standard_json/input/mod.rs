@@ -11,8 +11,6 @@ use std::path::PathBuf;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::error::Error;
-
 use self::settings::Settings;
 use self::source::Source;
 
@@ -42,7 +40,7 @@ impl Input {
         library_map: Vec<String>,
         output_selection: serde_json::Value,
         optimize: bool,
-    ) -> Result<Self, Error> {
+    ) -> anyhow::Result<Self> {
         let mut sources = HashMap::with_capacity(paths.len());
         for path in paths.iter() {
             let source = Source::try_from(path.as_path())?;
@@ -68,7 +66,7 @@ impl Input {
         libraries: HashMap<String, HashMap<String, String>>,
         output_selection: serde_json::Value,
         optimize: bool,
-    ) -> Result<Self, Error> {
+    ) -> anyhow::Result<Self> {
         let sources = sources
             .into_iter()
             .map(|(path, content)| (path, Source::from(content)))

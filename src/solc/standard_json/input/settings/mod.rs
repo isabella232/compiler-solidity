@@ -10,8 +10,6 @@ use std::collections::HashMap;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::error::Error;
-
 use self::optimizer::Optimizer;
 use self::selection::Selection;
 
@@ -81,27 +79,23 @@ impl Settings {
     ///
     pub fn parse_libraries(
         input: Vec<String>,
-    ) -> Result<HashMap<String, HashMap<String, String>>, Error> {
+    ) -> anyhow::Result<HashMap<String, HashMap<String, String>>> {
         let mut libraries = HashMap::with_capacity(input.len());
         for (index, library) in input.into_iter().enumerate() {
             let mut path_and_address = library.split('=');
             let path = path_and_address
                 .next()
-                .ok_or_else(|| format!("The library #{} path is missing", index))
-                .map_err(Error::LibraryInput)?;
+                .ok_or_else(|| anyhow::anyhow!("The library #{} path is missing", index))?;
             let mut file_and_contract = path.split(':');
             let file = file_and_contract
                 .next()
-                .ok_or_else(|| format!("The library `{}` file name is missing", path))
-                .map_err(Error::LibraryInput)?;
-            let contract = file_and_contract
-                .next()
-                .ok_or_else(|| format!("The library `{}` contract name is missing", path))
-                .map_err(Error::LibraryInput)?;
+                .ok_or_else(|| anyhow::anyhow!("The library `{}` file name is missing", path))?;
+            let contract = file_and_contract.next().ok_or_else(|| {
+                anyhow::anyhow!("The library `{}` contract name is missing", path)
+            })?;
             let address = path_and_address
                 .next()
-                .ok_or_else(|| format!("The library `{}` address is missing", path))
-                .map_err(Error::LibraryInput)?;
+                .ok_or_else(|| anyhow::anyhow!("The library `{}` address is missing", path))?;
             libraries
                 .entry(file.to_owned())
                 .or_insert_with(HashMap::new)

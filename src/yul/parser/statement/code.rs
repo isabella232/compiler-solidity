@@ -2,11 +2,9 @@
 //! The YUL code.
 //!
 
-use crate::error::Error;
 use crate::yul::lexer::lexeme::keyword::Keyword;
 use crate::yul::lexer::lexeme::Lexeme;
 use crate::yul::lexer::Lexer;
-use crate::yul::parser::error::Error as ParserError;
 use crate::yul::parser::statement::block::Block;
 
 ///
@@ -22,12 +20,12 @@ impl Code {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> anyhow::Result<Self> {
         let lexeme = crate::yul::parser::take_or_next(initial, lexer)?;
 
         match lexeme {
             Lexeme::Keyword(Keyword::Code) => {}
-            lexeme => return Err(ParserError::expected_one_of(vec!["code"], lexeme, None).into()),
+            lexeme => anyhow::bail!("Expected one of {:?}, found `{}`", ["code"], lexeme),
         }
 
         let block = Block::parse(lexer, None)?;

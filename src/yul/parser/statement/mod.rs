@@ -13,11 +13,9 @@ pub mod object;
 pub mod switch;
 pub mod variable_declaration;
 
-use crate::error::Error;
 use crate::yul::lexer::lexeme::keyword::Keyword;
 use crate::yul::lexer::lexeme::Lexeme;
 use crate::yul::lexer::Lexer;
-use crate::yul::parser::error::Error as ParserError;
 
 use self::assignment::Assignment;
 use self::block::Block;
@@ -70,7 +68,7 @@ impl Statement {
     pub fn parse(
         lexer: &mut Lexer,
         initial: Option<Lexeme>,
-    ) -> Result<(Self, Option<Lexeme>), Error> {
+    ) -> anyhow::Result<(Self, Option<Lexeme>)> {
         let lexeme = crate::yul::parser::take_or_next(initial, lexer)?;
 
         match lexeme {
@@ -101,15 +99,16 @@ impl Statement {
             Lexeme::Keyword(Keyword::Continue) => Ok((Statement::Continue, None)),
             Lexeme::Keyword(Keyword::Break) => Ok((Statement::Break, None)),
             Lexeme::Keyword(Keyword::Leave) => Ok((Statement::Leave, None)),
-            lexeme => Err(ParserError::expected_one_of(
-                vec![
-                    "object", "code", "function", "let", "if", "switch", "for", "break",
-                    "continue", "leave",
-                ],
-                lexeme,
-                None,
-            )
-            .into()),
+            lexeme => {
+                anyhow::bail!(
+                    "Expected one of {:?}, found `{}`",
+                    [
+                        "object", "code", "function", "let", "if", "switch", "for", "continue",
+                        "break", "leave",
+                    ],
+                    lexeme
+                );
+            }
         }
     }
 }
