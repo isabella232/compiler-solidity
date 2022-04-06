@@ -2,11 +2,9 @@
 //! The assignment expression statement.
 //!
 
-use crate::error::Error;
 use crate::yul::lexer::lexeme::symbol::Symbol;
 use crate::yul::lexer::lexeme::Lexeme;
 use crate::yul::lexer::Lexer;
-use crate::yul::parser::error::Error as ParserError;
 use crate::yul::parser::identifier::Identifier;
 use crate::yul::parser::statement::expression::Expression;
 
@@ -25,13 +23,13 @@ impl Assignment {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> anyhow::Result<Self> {
         let lexeme = crate::yul::parser::take_or_next(initial, lexer)?;
 
         let identifier = match lexeme {
             Lexeme::Identifier(identifier) => identifier,
             lexeme => {
-                return Err(ParserError::expected_one_of(vec!["{identifier}"], lexeme, None).into())
+                anyhow::bail!("Expected one of {:?}, found `{}`", ["{identifier}"], lexeme);
             }
         };
 
@@ -51,7 +49,7 @@ impl Assignment {
                 match crate::yul::parser::take_or_next(next, lexer)? {
                     Lexeme::Symbol(Symbol::Assignment) => {}
                     lexeme => {
-                        return Err(ParserError::expected_one_of(vec![":="], lexeme, None).into())
+                        anyhow::bail!("Expected one of {:?}, found `{}`", [":="], lexeme);
                     }
                 }
 
@@ -60,7 +58,7 @@ impl Assignment {
                     initializer: Expression::parse(lexer, None)?,
                 })
             }
-            lexeme => Err(ParserError::expected_one_of(vec![":=", ","], lexeme, None).into()),
+            lexeme => anyhow::bail!("Expected one of {:?}, found `{}`", [":=", ","], lexeme),
         }
     }
 }

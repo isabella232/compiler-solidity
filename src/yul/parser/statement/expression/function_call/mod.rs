@@ -7,11 +7,9 @@ pub mod name;
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
 
-use crate::error::Error;
 use crate::yul::lexer::lexeme::symbol::Symbol;
 use crate::yul::lexer::lexeme::Lexeme;
 use crate::yul::lexer::Lexer;
-use crate::yul::parser::error::Error as ParserError;
 use crate::yul::parser::statement::expression::Expression;
 
 use self::name::Name;
@@ -31,13 +29,13 @@ impl FunctionCall {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> anyhow::Result<Self> {
         let lexeme = crate::yul::parser::take_or_next(initial, lexer)?;
 
         let name = match lexeme {
             Lexeme::Identifier(identifier) => Name::from(identifier.as_str()),
             lexeme => {
-                return Err(ParserError::expected_one_of(vec!["{identifier}"], lexeme, None).into())
+                anyhow::bail!("Expected one of {:?}, found `{}`", ["{identifier}"], lexeme);
             }
         };
 

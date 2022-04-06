@@ -2,7 +2,6 @@
 //! The for-loop statement.
 //!
 
-use crate::error::Error;
 use crate::yul::lexer::lexeme::Lexeme;
 use crate::yul::lexer::Lexer;
 use crate::yul::parser::statement::block::Block;
@@ -27,7 +26,7 @@ impl ForLoop {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> anyhow::Result<Self> {
         let lexeme = crate::yul::parser::take_or_next(initial, lexer)?;
 
         let initializer = Block::parse(lexer, Some(lexeme))?;

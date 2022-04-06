@@ -8,8 +8,6 @@ use std::path::Path;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::error::Error;
-
 ///
 /// The `solc --standard-json` input source representation.
 ///
@@ -27,15 +25,18 @@ impl From<String> for Source {
 }
 
 impl TryFrom<&Path> for Source {
-    type Error = Error;
+    type Error = anyhow::Error;
 
     fn try_from(path: &Path) -> Result<Self, Self::Error> {
         let content = if path.to_string_lossy() == "-" {
             let mut solidity_code = String::with_capacity(16384);
-            std::io::stdin().read_to_string(&mut solidity_code)?;
+            std::io::stdin()
+                .read_to_string(&mut solidity_code)
+                .map_err(|error| anyhow::anyhow!("<stdin> reading error: {}", error))?;
             solidity_code
         } else {
-            std::fs::read_to_string(path)?
+            std::fs::read_to_string(path)
+                .map_err(|error| anyhow::anyhow!("File {:?} reading error: {}", path, error))?
         };
 
         Ok(Self { content })

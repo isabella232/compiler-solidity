@@ -2,13 +2,11 @@
 //! The YUL object.
 //!
 
-use crate::error::Error;
 use crate::yul::lexer::lexeme::keyword::Keyword;
 use crate::yul::lexer::lexeme::literal::Literal;
 use crate::yul::lexer::lexeme::symbol::Symbol;
 use crate::yul::lexer::lexeme::Lexeme;
 use crate::yul::lexer::Lexer;
-use crate::yul::parser::error::Error as ParserError;
 use crate::yul::parser::statement::code::Code;
 
 ///
@@ -30,25 +28,25 @@ impl Object {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> anyhow::Result<Self> {
         let lexeme = crate::yul::parser::take_or_next(initial, lexer)?;
 
         match lexeme {
             Lexeme::Keyword(Keyword::Object) => {}
-            lexeme => return Err(ParserError::expected_one_of(vec!["object"], lexeme, None).into()),
+            lexeme => anyhow::bail!("Expected one of {:?}, found `{}`", ["object"], lexeme),
         }
 
         let identifier = match lexer.next()? {
             Lexeme::Literal(Literal::String(literal)) => literal.inner,
             lexeme => {
-                return Err(ParserError::expected_one_of(vec!["{string}"], lexeme, None).into())
+                anyhow::bail!("Expected one of {:?}, found `{}`", ["{string}"], lexeme);
             }
         };
         let is_selector = identifier.ends_with("_deployed");
 
         match lexer.next()? {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
-            lexeme => return Err(ParserError::expected_one_of(vec!["{"], lexeme, None).into()),
+            lexeme => anyhow::bail!("Expected one of {:?}, found `{}`", ["{"], lexeme),
         }
 
         let code = Code::parse(lexer, None)?;
@@ -82,9 +80,7 @@ impl Object {
                     let _metadata = lexer.next()?;
                 }
                 lexeme => {
-                    return Err(
-                        ParserError::expected_one_of(vec!["object", "}"], lexeme, None).into(),
-                    )
+                    anyhow::bail!("Expected one of {:?}, found `{}`", ["object", "}"], lexeme);
                 }
             }
         }

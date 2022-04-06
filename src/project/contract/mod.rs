@@ -9,7 +9,6 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use crate::error::Error;
 use crate::solc::combined_json::contract::Contract as CombinedJsonContract;
 
 use self::source::Source;
@@ -67,7 +66,7 @@ impl Contract {
         output_assembly: bool,
         output_binary: bool,
         overwrite: bool,
-    ) -> Result<(), Error> {
+    ) -> anyhow::Result<()> {
         let file_name = Self::short_path(self.path.as_str());
 
         if output_assembly {
@@ -81,14 +80,18 @@ impl Contract {
 
             if file_path.exists() && !overwrite {
                 eprintln!(
-                    "Refusing to overwrite existing file {:?} (use --overwrite to force).",
+                    "Refusing to overwrite an existing file {:?} (use --overwrite to force).",
                     file_path
                 );
             } else {
                 File::create(&file_path)
-                    .map_err(Error::FileSystem)?
+                    .map_err(|error| {
+                        anyhow::anyhow!("File {:?} creating error: {}", file_path, error)
+                    })?
                     .write_all(self.assembly.as_ref().expect("Always exists").as_bytes())
-                    .map_err(Error::FileSystem)?;
+                    .map_err(|error| {
+                        anyhow::anyhow!("File {:?} writing error: {}", file_path, error)
+                    })?;
             }
         }
 
@@ -99,14 +102,18 @@ impl Contract {
 
             if file_path.exists() && !overwrite {
                 eprintln!(
-                    "Refusing to overwrite existing file {:?} (use --overwrite to force).",
+                    "Refusing to overwrite an existing file {:?} (use --overwrite to force).",
                     file_path
                 );
             } else {
                 File::create(&file_path)
-                    .map_err(Error::FileSystem)?
+                    .map_err(|error| {
+                        anyhow::anyhow!("File {:?} creating error: {}", file_path, error)
+                    })?
                     .write_all(self.bytecode.as_ref().expect("Always exists").as_slice())
-                    .map_err(Error::FileSystem)?;
+                    .map_err(|error| {
+                        anyhow::anyhow!("File {:?} writing error: {}", file_path, error)
+                    })?;
             }
         }
 
@@ -119,7 +126,7 @@ impl Contract {
     pub fn write_to_combined_json(
         self,
         combined_json_contract: &mut CombinedJsonContract,
-    ) -> Result<(), Error> {
+    ) -> anyhow::Result<()> {
         let hexadecimal_bytecode = self.bytecode.map(hex::encode).expect("Always exists");
         match (
             combined_json_contract.bin.as_mut(),

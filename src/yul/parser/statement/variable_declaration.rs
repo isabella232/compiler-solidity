@@ -5,7 +5,6 @@
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
 
-use crate::error::Error;
 use crate::yul::lexer::lexeme::symbol::Symbol;
 use crate::yul::lexer::lexeme::Lexeme;
 use crate::yul::lexer::Lexer;
@@ -30,7 +29,7 @@ impl VariableDeclaration {
     pub fn parse(
         lexer: &mut Lexer,
         initial: Option<Lexeme>,
-    ) -> Result<(Self, Option<Lexeme>), Error> {
+    ) -> anyhow::Result<(Self, Option<Lexeme>)> {
         let lexeme = crate::yul::parser::take_or_next(initial, lexer)?;
 
         let (bindings, next) = Identifier::parse_typed_list(lexer, Some(lexeme))?;

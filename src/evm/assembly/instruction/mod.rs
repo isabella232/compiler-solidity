@@ -258,7 +258,7 @@ impl Instruction {
     pub fn replace_data_aliases(
         instructions: &mut [Self],
         mapping: &HashMap<String, String>,
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         for instruction in instructions.iter_mut() {
             if let Instruction {
                 name: Name::PUSH_ContractHash | Name::PUSH_ContractHashSize | Name::PUSH_Data,
@@ -268,7 +268,7 @@ impl Instruction {
                 *value = mapping
                     .get(value.as_str())
                     .cloned()
-                    .ok_or_else(|| format!("Alias `{}` data not found", value))?;
+                    .ok_or_else(|| anyhow::anyhow!("Alias `{}` data not found", value))?;
             }
         }
 

@@ -5,11 +5,9 @@
 pub mod function_call;
 pub mod literal;
 
-use crate::error::Error;
 use crate::yul::lexer::lexeme::symbol::Symbol;
 use crate::yul::lexer::lexeme::Lexeme;
 use crate::yul::lexer::Lexer;
-use crate::yul::parser::error::Error as ParserError;
 
 use self::function_call::FunctionCall;
 use self::literal::Literal;
@@ -31,19 +29,18 @@ impl Expression {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> anyhow::Result<Self> {
         let lexeme = crate::yul::parser::take_or_next(initial, lexer)?;
 
         let identifier = match lexeme {
             Lexeme::Literal(_) => return Ok(Self::Literal(Literal::parse(lexer, Some(lexeme))?)),
             Lexeme::Identifier(identifier) => identifier,
             lexeme => {
-                return Err(ParserError::expected_one_of(
-                    vec!["{literal}", "{identifier}"],
-                    lexeme,
-                    None,
-                )
-                .into())
+                anyhow::bail!(
+                    "Expected one of {:?}, found `{}`",
+                    ["{literal}", "{identifier}"],
+                    lexeme
+                );
             }
         };
 

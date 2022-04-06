@@ -70,7 +70,7 @@ impl Assembly {
         &mut self,
         full_path: &str,
         hash_data_mapping: &HashMap<String, String>,
-    ) -> Result<HashMap<String, String>, String> {
+    ) -> anyhow::Result<HashMap<String, String>> {
         let mut index_path_mapping = HashMap::with_capacity(hash_data_mapping.len());
         let index = "0".repeat(compiler_common::SIZE_FIELD * 2);
         index_path_mapping.insert(index, full_path.to_owned());
@@ -87,10 +87,13 @@ impl Assembly {
             *data = match data {
                 Data::Assembly(assembly) => {
                     let hash = assembly.keccak256();
-                    let full_path = hash_data_mapping
-                        .get(hash.as_str())
-                        .cloned()
-                        .ok_or_else(|| format!("Contract path not found for hash `{}`", hash))?;
+                    let full_path =
+                        hash_data_mapping
+                            .get(hash.as_str())
+                            .cloned()
+                            .ok_or_else(|| {
+                                anyhow::anyhow!("Contract path not found for hash `{}`", hash)
+                            })?;
 
                     let mut index_extended =
                         "0".repeat(compiler_common::SIZE_FIELD * 2 - index.len());
@@ -117,7 +120,7 @@ impl Assembly {
         &mut self,
         full_path: &str,
         hash_data_mapping: &HashMap<String, String>,
-    ) -> Result<HashMap<String, String>, String> {
+    ) -> anyhow::Result<HashMap<String, String>> {
         let mut index_path_mapping = HashMap::with_capacity(hash_data_mapping.len());
         let index = "0".repeat(compiler_common::SIZE_FIELD * 2);
         index_path_mapping.insert(index, full_path.to_owned());
@@ -136,10 +139,13 @@ impl Assembly {
             *data = match data {
                 Data::Assembly(assembly) => {
                     let hash = assembly.keccak256();
-                    let full_path = hash_data_mapping
-                        .get(hash.as_str())
-                        .cloned()
-                        .ok_or_else(|| format!("Contract path not found for hash `{}`", hash))?;
+                    let full_path =
+                        hash_data_mapping
+                            .get(hash.as_str())
+                            .cloned()
+                            .ok_or_else(|| {
+                                anyhow::anyhow!("Contract path not found for hash `{}`", hash)
+                            })?;
 
                     let mut index_extended =
                         "0".repeat(compiler_common::SIZE_FIELD * 2 - index.len());

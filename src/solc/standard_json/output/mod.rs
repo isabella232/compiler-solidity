@@ -51,7 +51,7 @@ impl Output {
         pipeline: SolcPipeline,
         version: semver::Version,
         dump_flags: &[DumpFlag],
-    ) -> Result<Project, String> {
+    ) -> anyhow::Result<Project> {
         if let SolcPipeline::EVM = pipeline {
             self.preprocess_dependencies()?;
         }
@@ -59,11 +59,13 @@ impl Output {
         let files = match self.contracts {
             Some(files) => files,
             None => {
-                return Err(self
-                    .errors
-                    .as_ref()
-                    .map(|errors| serde_json::to_string_pretty(errors).expect("Always valid"))
-                    .unwrap_or_else(|| "Unknown error".to_owned()))
+                anyhow::bail!(
+                    "{}",
+                    self.errors
+                        .as_ref()
+                        .map(|errors| serde_json::to_string_pretty(errors).expect("Always valid"))
+                        .unwrap_or_else(|| "Unknown error".to_owned())
+                );
             }
         };
         let mut project_contracts = HashMap::with_capacity(files.len());
@@ -89,7 +91,7 @@ impl Output {
 
                         let mut lexer = Lexer::new(ir_optimized.clone());
                         let object = Object::parse(&mut lexer, None).map_err(|error| {
-                            format!("Contract `{}` parsing error: {:?}", full_path, error)
+                            anyhow::anyhow!("Contract `{}` parsing error: {:?}", full_path, error)
                         })?;
 
                         ProjectContractSource::new_yul(ir_optimized, object)
@@ -119,7 +121,7 @@ impl Output {
     ///
     /// The pass, which replaces with dependency indexes with actual data.
     ///
-    fn preprocess_dependencies(&mut self) -> Result<(), String> {
+    fn preprocess_dependencies(&mut self) -> anyhow::Result<()> {
         let files = match self.contracts.as_mut() {
             Some(files) => files,
             None => return Ok(()),
@@ -170,7 +172,7 @@ impl Output {
         full_path: &str,
         assembly: &mut Assembly,
         hash_path_mapping: &HashMap<String, String>,
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         assembly.set_full_path(full_path.to_owned());
 
         let constructor_index_path_mapping =

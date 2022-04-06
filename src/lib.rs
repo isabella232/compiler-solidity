@@ -3,18 +3,12 @@
 //!
 
 pub(crate) mod dump_flag;
-pub(crate) mod error;
 pub(crate) mod evm;
 pub(crate) mod project;
 pub(crate) mod solc;
 pub(crate) mod yul;
 
-// TODO: move jumps
-// TODO: print predecessor index
-// TODO: improve stack printing
-
 pub use self::dump_flag::DumpFlag;
-pub use self::error::Error;
 pub use self::project::contract::Contract as ProjectContract;
 pub use self::project::Project;
 pub use self::solc::combined_json::contract::Contract as SolcCombinedJsonContract;
@@ -29,10 +23,6 @@ pub use self::solc::standard_json::output::contract::evm::EVM as SolcStandardJso
 pub use self::solc::standard_json::output::contract::Contract as SolcStandardJsonOutputContract;
 pub use self::solc::standard_json::output::Output as SolcStandardJsonOutput;
 pub use self::solc::Compiler as SolcCompiler;
-pub use self::yul::lexer::lexeme::Lexeme as YulLexeme;
-pub use self::yul::lexer::Lexer as YulLexer;
-pub use self::yul::parser::error::Error as YulParserError;
-pub use self::yul::parser::statement::object::Object as YulObject;
 
 ///
 /// Initializes the zkEVM target machine.
