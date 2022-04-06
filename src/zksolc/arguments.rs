@@ -56,7 +56,7 @@ pub struct Arguments {
 
     /// Path to the `solc` executable.
     /// By default, the one in $PATH is used.
-    #[structopt(long = compiler_solidity::SolcCompiler::DEFAULT_EXECUTABLE_NAME)]
+    #[structopt(long = "solc")]
     pub solc: Option<String>,
 
     /// Direct string or file containing library addresses.

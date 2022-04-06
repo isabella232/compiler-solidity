@@ -159,7 +159,7 @@ impl Project {
             .write_to_memory_buffer(context.module(), inkwell::targets::FileType::Assembly)
             .map_err(|error| {
                 anyhow::anyhow!(
-                    "The contract `{}` LLVM IR verification error: {}",
+                    "The contract `{}` assembly generating error: {}",
                     contract_path,
                     error
                 )
@@ -173,7 +173,7 @@ impl Project {
         let assembly =
             zkevm_assembly::Assembly::try_from(assembly_text.clone()).map_err(|error| {
                 anyhow::anyhow!(
-                    "Dependency `{}` assembly parsing error: {}",
+                    "The contract `{}` assembly parsing error: {}",
                     contract_path,
                     error
                 )
