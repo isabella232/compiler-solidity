@@ -12,6 +12,8 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::dump_flag::DumpFlag;
+use crate::evm::assembly::instruction::Instruction;
+use crate::evm::assembly::Assembly;
 use crate::project::contract::source::Source as ProjectContractSource;
 use crate::project::contract::Contract as ProjectContract;
 use crate::project::Project;
@@ -44,19 +46,26 @@ impl Output {
     /// Converts the `solc` JSON output into a convenient project representation.
     ///
     pub fn try_into_project(
-        self,
+        mut self,
         libraries: HashMap<String, HashMap<String, String>>,
         pipeline: SolcPipeline,
+        version: semver::Version,
         dump_flags: &[DumpFlag],
-    ) -> Result<Project, String> {
+    ) -> anyhow::Result<Project> {
+        if let SolcPipeline::EVM = pipeline {
+            self.preprocess_dependencies()?;
+        }
+
         let files = match self.contracts {
             Some(files) => files,
             None => {
-                return Err(self
-                    .errors
-                    .as_ref()
-                    .map(|errors| serde_json::to_string_pretty(errors).expect("Always valid"))
-                    .unwrap_or_else(|| "Unknown error".to_owned()))
+                anyhow::bail!(
+                    "{}",
+                    self.errors
+                        .as_ref()
+                        .map(|errors| serde_json::to_string_pretty(errors).expect("Always valid"))
+                        .unwrap_or_else(|| "Unknown error".to_owned())
+                );
             }
         };
         let mut project_contracts = HashMap::with_capacity(files.len());
@@ -82,7 +91,7 @@ impl Output {
 
                         let mut lexer = Lexer::new(ir_optimized.clone());
                         let object = Object::parse(&mut lexer, None).map_err(|error| {
-                            format!("Contract `{}` parsing error: {:?}", full_path, error)
+                            anyhow::anyhow!("Contract `{}` parsing error: {:?}", full_path, error)
                         })?;
 
                         ProjectContractSource::new_yul(ir_optimized, object)
@@ -97,7 +106,7 @@ impl Output {
                             None => continue,
                         };
 
-                        ProjectContractSource::new_evm(assembly)
+                        ProjectContractSource::new_evm(full_path.clone(), assembly)
                     }
                 };
 
@@ -106,6 +115,87 @@ impl Output {
             }
         }
 
-        Ok(Project::new(project_contracts, libraries))
+        Ok(Project::new(version, project_contracts, libraries))
+    }
+
+    ///
+    /// The pass, which replaces with dependency indexes with actual data.
+    ///
+    fn preprocess_dependencies(&mut self) -> anyhow::Result<()> {
+        let files = match self.contracts.as_mut() {
+            Some(files) => files,
+            None => return Ok(()),
+        };
+        let files_length = files.len();
+        let mut hash_path_mapping = HashMap::with_capacity(files_length);
+
+        for (path, contracts) in files.iter() {
+            for (name, contract) in contracts.iter() {
+                let full_path = format!("{}:{}", path, name);
+                let hash = match contract
+                    .evm
+                    .as_ref()
+                    .and_then(|evm| evm.assembly.as_ref())
+                    .map(|assembly| assembly.keccak256())
+                {
+                    Some(hash) => hash,
+                    None => continue,
+                };
+
+                hash_path_mapping.insert(hash, full_path);
+            }
+        }
+
+        for (path, contracts) in files.iter_mut() {
+            for (name, contract) in contracts.iter_mut() {
+                let assembly = match contract.evm.as_mut().and_then(|evm| evm.assembly.as_mut()) {
+                    Some(assembly) => assembly,
+                    None => continue,
+                };
+
+                let full_path = format!("{}:{}", path, name);
+                Self::preprocess_dependency_level(
+                    full_path.as_str(),
+                    assembly,
+                    &hash_path_mapping,
+                )?;
+            }
+        }
+
+        Ok(())
+    }
+
+    ///
+    /// Preprocesses an assembly JSON structure dependency data map.
+    ///
+    fn preprocess_dependency_level(
+        full_path: &str,
+        assembly: &mut Assembly,
+        hash_path_mapping: &HashMap<String, String>,
+    ) -> anyhow::Result<()> {
+        assembly.set_full_path(full_path.to_owned());
+
+        let constructor_index_path_mapping =
+            assembly.constructor_dependencies_pass(full_path, hash_path_mapping)?;
+        if let Some(constructor_instructions) = assembly.code.as_deref_mut() {
+            Instruction::replace_data_aliases(
+                constructor_instructions,
+                &constructor_index_path_mapping,
+            )?;
+        };
+
+        let selector_index_path_mapping =
+            assembly.selector_dependencies_pass(full_path, hash_path_mapping)?;
+        if let Some(selector_instructions) = assembly
+            .data
+            .as_mut()
+            .and_then(|data_map| data_map.get_mut("0"))
+            .and_then(|data| data.get_assembly_mut())
+            .and_then(|assembly| assembly.code.as_deref_mut())
+        {
+            Instruction::replace_data_aliases(selector_instructions, &selector_index_path_mapping)?;
+        }
+
+        Ok(())
     }
 }

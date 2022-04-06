@@ -2,10 +2,8 @@
 //! The compiler lexer.
 //!
 
-pub mod error;
 pub mod lexeme;
 
-use self::error::Error;
 use self::lexeme::comment::Comment;
 use self::lexeme::keyword::Keyword;
 use self::lexeme::literal::boolean::Boolean as BooleanLiteral;
@@ -48,7 +46,7 @@ impl Lexer {
     /// Advances the lexer, returning the next lexeme.
     ///
     #[allow(clippy::should_implement_trait)]
-    pub fn next(&mut self) -> Result<Lexeme, Error> {
+    pub fn next(&mut self) -> anyhow::Result<Lexeme> {
         if let Some(peeked) = self.peeked.take() {
             return Ok(peeked);
         }
@@ -84,8 +82,7 @@ impl Lexer {
                         } else if Lexeme::is_identifier(string.as_str()) {
                             Lexeme::Identifier(string)
                         } else {
-                            dbg!(&string);
-                            return Err(Error::invalid_lexeme(string));
+                            anyhow::bail!("Invalid lexeme `{}`", string);
                         }
                     }
                 };
@@ -95,7 +92,7 @@ impl Lexer {
                 let lexeme = match Symbol::try_from(r#match.as_str()) {
                     Ok(symbol) => Lexeme::Symbol(symbol),
                     Err(string) => {
-                        return Err(Error::invalid_lexeme(string));
+                        anyhow::bail!("Invalid lexeme `{}`", string);
                     }
                 };
                 self.index += r#match.as_str().len();
@@ -112,7 +109,7 @@ impl Lexer {
     ///
     /// Peeks the next lexeme without advancing the iterator.
     ///
-    pub fn peek(&mut self) -> Result<Lexeme, Error> {
+    pub fn peek(&mut self) -> anyhow::Result<Lexeme> {
         match self.peeked {
             Some(ref peeked) => Ok(peeked.clone()),
             None => {

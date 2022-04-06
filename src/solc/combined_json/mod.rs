@@ -12,8 +12,6 @@ use std::path::Path;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::error::Error;
-
 use self::contract::Contract;
 
 ///
@@ -65,22 +63,26 @@ impl CombinedJson {
     ///
     /// Writes the JSON to the specified directory.
     ///
-    pub fn write_to_directory(self, output_directory: &Path, overwrite: bool) -> Result<(), Error> {
+    pub fn write_to_directory(
+        self,
+        output_directory: &Path,
+        overwrite: bool,
+    ) -> anyhow::Result<()> {
         let mut file_path = output_directory.to_owned();
         file_path.push(format!("combined.{}", compiler_common::EXTENSION_JSON));
 
         if file_path.exists() && !overwrite {
             eprintln!(
-                "Refusing to overwrite existing file {:?} (use --overwrite to force).",
+                "Refusing to overwrite an existing file {:?} (use --overwrite to force).",
                 file_path
             );
             return Ok(());
         }
 
         File::create(&file_path)
-            .map_err(Error::FileSystem)?
+            .map_err(|error| anyhow::anyhow!("File {:?} creating error: {}", file_path, error))?
             .write_all(serde_json::to_vec(&self).expect("Always valid").as_slice())
-            .map_err(Error::FileSystem)?;
+            .map_err(|error| anyhow::anyhow!("File {:?} writing error: {}", file_path, error))?;
 
         Ok(())
     }

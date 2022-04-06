@@ -1,6 +1,6 @@
 [package]
 name = "compiler-solidity"
-version = "0.8.12"
+version = "0.8.13"
 authors = [
     "Alex Zarudnyy <a.zarudnyy@matterlabs.dev>",
 ]
@@ -15,7 +15,6 @@ path = "src/zksolc/main.rs"
 [dependencies]
 structopt = { version = "0.3", default-features = false }
 colored = "2.0"
-log = "0.4"
 anyhow = "1.0"
 
 serde = { version = "1.0", "features" = [ "derive" ] }
@@ -24,6 +23,7 @@ rand = "0.8"
 regex = "1.5"
 semver = "1.0"
 hex = "0.4"
+md5 = "0.7"
 
 zkevm-assembly = { git = "ssh://git@github.com/matter-labs/zkEVM-assembly" }
 compiler-common = { git = "ssh://git@github.com/matter-labs/compiler-common" }

@@ -106,6 +106,10 @@ pub enum Name {
     Return,
     /// end execution, revert state changes, return data `mem[p…(p+s))`
     Revert,
+    /// stop execution, identical to `return(0, 0)`
+    Stop,
+    /// end execution with invalid instruction
+    Invalid,
 
     /// log without topics and data `mem[p…(p+s))`
     Log0,
@@ -140,15 +144,10 @@ pub enum Name {
     Create2,
     /// returns the size in the data area
     DataSize,
-    /// returns the offset in the data area
-    DataOffset,
     ///  is equivalent to `CodeCopy`
     DataCopy,
-
-    /// stop execution, identical to `return(0, 0)`
-    Stop,
-    /// end execution with invalid instruction
-    Invalid,
+    /// returns the offset in the data area
+    DataOffset,
 
     /// `linkersymbol` is a stub call
     LinkerSymbol,

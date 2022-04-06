@@ -16,18 +16,18 @@ use crate::evm::assembly::instruction::Instruction;
 pub enum Name {
     /// The eponymous EVM instruction.
     PUSH,
-    /// Pushes a `data` value.
-    #[serde(rename = "PUSH data")]
-    PUSH_Data,
     /// Pushes a constant tag index.
     #[serde(rename = "PUSH [tag]")]
     PUSH_Tag,
-    /// An unknown PUSH modification.
-    #[serde(rename = "PUSH [$]")]
-    PUSH_Dollar,
-    /// An unknown PUSH modification.
+    /// Pushes an unknown `data` value.
+    #[serde(rename = "PUSH data")]
+    PUSH_Data,
+    /// Pushes a contract hash size.
     #[serde(rename = "PUSH #[$]")]
-    PUSH_HashDollar,
+    PUSH_ContractHashSize,
+    /// Pushes a contract hash.
+    #[serde(rename = "PUSH [$]")]
+    PUSH_ContractHash,
 
     /// The eponymous EVM instruction.
     PUSH1,
@@ -301,6 +301,11 @@ pub enum Name {
     STATICCALL,
     /// The eponymous EVM instruction.
     DELEGATECALL,
+
+    /// The eponymous EVM instruction.
+    PUSHLIB,
+    /// The eponymous EVM instruction.
+    PUSHDEPLOYADDRESS,
 
     /// The eponymous EVM instruction.
     STOP,

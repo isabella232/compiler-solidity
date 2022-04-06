@@ -2,19 +2,14 @@
 //! The function call subexpression.
 //!
 
-pub mod contract;
-pub mod create;
 pub mod name;
-pub mod storage;
 
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
 
-use crate::error::Error;
 use crate::yul::lexer::lexeme::symbol::Symbol;
 use crate::yul::lexer::lexeme::Lexeme;
 use crate::yul::lexer::Lexer;
-use crate::yul::parser::error::Error as ParserError;
 use crate::yul::parser::statement::expression::Expression;
 
 use self::name::Name;
@@ -34,13 +29,13 @@ impl FunctionCall {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> anyhow::Result<Self> {
         let lexeme = crate::yul::parser::take_or_next(initial, lexer)?;
 
         let name = match lexeme {
             Lexeme::Identifier(identifier) => Name::from(identifier.as_str()),
             lexeme => {
-                return Err(ParserError::expected_one_of(vec!["{identifier}"], lexeme, None).into())
+                anyhow::bail!("Expected one of {:?}, found `{}`", ["{identifier}"], lexeme);
             }
         };
 
@@ -293,12 +288,21 @@ impl FunctionCall {
                 compiler_llvm_context::storage::store(context, arguments)
             }
             Name::LoadImmutable => {
-                let arguments = self.pop_arguments::<D, 1>(context)?;
-                storage::load_immutable(context, arguments)
+                let mut arguments = self.pop_arguments::<D, 1>(context)?;
+                let key = arguments[0]
+                    .original
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("`load_immutable` literal is missing"))?;
+                compiler_llvm_context::immutable::load(context, key)
             }
             Name::SetImmutable => {
-                let arguments = self.pop_arguments::<D, 3>(context)?;
-                storage::set_immutable(context, arguments)
+                let mut arguments = self.pop_arguments::<D, 3>(context)?;
+                let key = arguments[1]
+                    .original
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("`load_immutable` literal is missing"))?;
+                let value = arguments[2].value.into_int_value();
+                compiler_llvm_context::immutable::store(context, key, value)
             }
 
             Name::CallDataLoad => {
@@ -313,7 +317,7 @@ impl FunctionCall {
             Name::CodeSize => compiler_llvm_context::calldata::size(context),
             Name::CodeCopy => {
                 let arguments = self.pop_arguments_llvm::<D, 3>(context)?;
-                compiler_llvm_context::calldata::codecopy(context, arguments)
+                compiler_llvm_context::calldata::copy(context, arguments)
             }
             Name::ExtCodeSize => {
                 let _arguments = self.pop_arguments_llvm::<D, 1>(context)?;
@@ -416,25 +420,8 @@ impl FunctionCall {
                 )
             }
             Name::CallCode => {
-                let arguments = self.pop_arguments_llvm::<D, 7>(context)?;
-
-                let address = arguments[1].into_int_value();
-                let value = arguments[2].into_int_value();
-                let input_offset = arguments[3].into_int_value();
-                let input_size = arguments[4].into_int_value();
-                let output_offset = arguments[5].into_int_value();
-                let output_size = arguments[6].into_int_value();
-
-                compiler_llvm_context::contract::call(
-                    context,
-                    compiler_llvm_context::IntrinsicFunction::CallCode,
-                    address,
-                    Some(value),
-                    input_offset,
-                    input_size,
-                    output_offset,
-                    output_size,
-                )
+                let _arguments = self.pop_arguments_llvm::<D, 7>(context)?;
+                Ok(Some(context.field_const(0).as_basic_value_enum()))
             }
             Name::StaticCall => {
                 let arguments = self.pop_arguments_llvm::<D, 6>(context)?;
@@ -476,10 +463,6 @@ impl FunctionCall {
                     output_size,
                 )
             }
-            Name::LinkerSymbol => {
-                let arguments = self.pop_arguments::<D, 1>(context)?;
-                contract::linker_symbol(context, arguments)
-            }
 
             Name::Create => {
                 let arguments = self.pop_arguments_llvm::<D, 3>(context)?;
@@ -506,19 +489,40 @@ impl FunctionCall {
                     Some(salt),
                 )
             }
-            Name::DataSize => {
-                let arguments = self.pop_arguments::<D, 1>(context)?;
-                create::datasize(context, arguments)
-            }
             Name::DataOffset => {
-                let arguments = self.pop_arguments::<D, 1>(context)?;
-                create::dataoffset(context, arguments)
+                let mut arguments = self.pop_arguments::<D, 1>(context)?;
+                let identifier = arguments[0]
+                    .original
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("`dataoffset` object identifier is missing"))?;
+                compiler_llvm_context::create::contract_hash(context, identifier)
+            }
+            Name::DataSize => {
+                let mut arguments = self.pop_arguments::<D, 1>(context)?;
+                let identifier = arguments[0]
+                    .original
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("`dataoffset` object identifier is missing"))?;
+                compiler_llvm_context::create::contract_hash_size(context, identifier)
             }
             Name::DataCopy => {
                 let arguments = self.pop_arguments_llvm::<D, 3>(context)?;
-                create::datacopy(context, arguments)
+                compiler_llvm_context::memory::store(context, [arguments[0], arguments[1]])
             }
 
+            Name::LinkerSymbol => {
+                let mut arguments = self.pop_arguments::<D, 1>(context)?;
+                let path = arguments[0]
+                    .original
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("Linker symbol literal is missing"))?;
+
+                Ok(Some(
+                    context
+                        .resolve_library(path.as_str())?
+                        .as_basic_value_enum(),
+                ))
+            }
             Name::MemoryGuard => {
                 let arguments = self.pop_arguments_llvm::<D, 1>(context)?;
                 Ok(Some(arguments[0]))

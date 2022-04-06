@@ -4,8 +4,6 @@
 
 pub mod arguments;
 
-use std::str::FromStr;
-
 use self::arguments::Arguments;
 
 ///
@@ -15,7 +13,7 @@ fn main() {
     std::process::exit(match main_inner() {
         Ok(()) => compiler_common::EXIT_CODE_SUCCESS,
         Err(error) => {
-            eprintln!("{:?}", error);
+            eprintln!("{}", error);
             compiler_common::EXIT_CODE_FAILURE
         }
     })
@@ -24,7 +22,7 @@ fn main() {
 ///
 /// The auxiliary `main` function to facilitate the `?` error conversion operator.
 ///
-fn main_inner() -> Result<(), compiler_solidity::Error> {
+fn main_inner() -> anyhow::Result<()> {
     let mut arguments = Arguments::new();
 
     let dump_flags = compiler_solidity::DumpFlag::initialize(
@@ -39,11 +37,11 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         *path = path.canonicalize()?;
     }
 
-    let solc_executable = arguments.solc.unwrap_or_else(|| "solc".to_string());
-    let solc = compiler_solidity::SolcCompiler::new(
-        solc_executable,
-        semver::Version::from_str(env!("CARGO_PKG_VERSION")).expect("Always valid"),
-    );
+    let solc_executable = arguments
+        .solc
+        .unwrap_or_else(|| compiler_solidity::SolcCompiler::DEFAULT_EXECUTABLE_NAME.to_string());
+    let solc = compiler_solidity::SolcCompiler::new(solc_executable);
+    let solc_version = solc.version()?;
 
     let output_selection =
         compiler_solidity::SolcStandardJsonInputSettings::get_output_selection(vec![
@@ -66,18 +64,12 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     };
 
     let libraries = solc_input.settings.libraries.clone().unwrap_or_default();
-    let mut solc_output = match solc.standard_json(
+    let mut solc_output = solc.standard_json(
         solc_input,
         arguments.base_path,
         arguments.include_paths,
         arguments.allow_paths,
-    ) {
-        Ok(standard_json) => standard_json,
-        Err(stderr) => {
-            eprint!("{}", stderr);
-            std::process::exit(compiler_common::EXIT_CODE_FAILURE);
-        }
-    };
+    )?;
 
     if let Some(errors) = solc_output.errors.as_deref() {
         let mut cannot_compile = false;
@@ -94,29 +86,18 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
         }
 
         if cannot_compile {
-            std::process::exit(compiler_common::EXIT_CODE_FAILURE);
+            anyhow::bail!("Error(s) found. Compilation aborted");
         }
     }
 
     compiler_solidity::initialize_target();
-    let mut project = match solc_output.clone().try_into_project(
+    let mut project = solc_output.clone().try_into_project(
         libraries,
         compiler_solidity::SolcPipeline::Yul,
+        solc_version,
         dump_flags.as_slice(),
-    ) {
-        Ok(standard_json) => standard_json,
-        Err(error) => {
-            eprint!("{}", error);
-            std::process::exit(compiler_common::EXIT_CODE_FAILURE);
-        }
-    };
-    match project.compile_all(arguments.optimize, dump_flags) {
-        Ok(()) => {}
-        Err(error) => {
-            eprint!("{}", error);
-            std::process::exit(compiler_common::EXIT_CODE_FAILURE);
-        }
-    }
+    )?;
+    project.compile_all(arguments.optimize, dump_flags)?;
 
     if arguments.standard_json {
         if let Some(contracts) = solc_output.contracts.as_mut() {
@@ -147,13 +128,7 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
     }
 
     let combined_json = if let Some(combined_json) = arguments.combined_json {
-        match solc.combined_json(arguments.input_files.as_slice(), combined_json.as_str()) {
-            Ok(combined_json) => Some(combined_json),
-            Err(stderr) => {
-                eprint!("{}", stderr);
-                std::process::exit(compiler_common::EXIT_CODE_FAILURE);
-            }
-        }
+        Some(solc.combined_json(arguments.input_files.as_slice(), combined_json.as_str())?)
     } else {
         None
     };
@@ -205,19 +180,12 @@ fn main_inner() -> Result<(), compiler_solidity::Error> {
             }
         }
 
-        match solc.extra_output(
+        let extra_output = solc.extra_output(
             arguments.input_files.as_slice(),
             arguments.output_abi,
             arguments.output_hashes,
-        ) {
-            Ok(stdout) => {
-                print!("{}", stdout);
-            }
-            Err(stderr) => {
-                eprint!("{}", stderr);
-                std::process::exit(compiler_common::EXIT_CODE_FAILURE);
-            }
-        }
+        )?;
+        print!("{}", extra_output);
     } else {
         eprintln!("Compiler run successful. No output requested. Use --asm and --bin flags.");
     }

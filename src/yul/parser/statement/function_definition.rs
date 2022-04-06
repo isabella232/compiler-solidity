@@ -4,11 +4,9 @@
 
 use inkwell::types::BasicType;
 
-use crate::error::Error;
 use crate::yul::lexer::lexeme::symbol::Symbol;
 use crate::yul::lexer::lexeme::Lexeme;
 use crate::yul::lexer::Lexer;
-use crate::yul::parser::error::Error as ParserError;
 use crate::yul::parser::identifier::Identifier;
 use crate::yul::parser::statement::block::Block;
 
@@ -31,26 +29,26 @@ impl FunctionDefinition {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> anyhow::Result<Self> {
         let lexeme = crate::yul::parser::take_or_next(initial, lexer)?;
 
         let name = match lexeme {
             Lexeme::Identifier(name) => name,
             lexeme => {
-                return Err(ParserError::expected_one_of(vec!["{identifier}"], lexeme, None).into())
+                anyhow::bail!("Expected one of {:?}, found `{}`", ["{identifier}"], lexeme);
             }
         };
 
         match lexer.next()? {
             Lexeme::Symbol(Symbol::ParenthesisLeft) => {}
-            lexeme => return Err(ParserError::expected_one_of(vec!["("], lexeme, None).into()),
+            lexeme => anyhow::bail!("Expected one of {:?}, found `{}`", ["("], lexeme),
         }
 
         let (arguments, next) = Identifier::parse_typed_list(lexer, None)?;
 
         match crate::yul::parser::take_or_next(next, lexer)? {
             Lexeme::Symbol(Symbol::ParenthesisRight) => {}
-            lexeme => return Err(ParserError::expected_one_of(vec![")"], lexeme, None).into()),
+            lexeme => anyhow::bail!("Expected one of {:?}, found `{}`", [")"], lexeme),
         }
 
         let (result, next) = match lexer.peek()? {
@@ -60,7 +58,7 @@ impl FunctionDefinition {
             }
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => (vec![], None),
             lexeme => {
-                return Err(ParserError::expected_one_of(vec!["->", "{"], lexeme, None).into())
+                anyhow::bail!("Expected one of {:?}, found `{}`", ["->", "{"], lexeme);
             }
         };
 

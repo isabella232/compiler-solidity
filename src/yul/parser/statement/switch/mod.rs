@@ -4,11 +4,9 @@
 
 pub mod case;
 
-use crate::error::Error;
 use crate::yul::lexer::lexeme::keyword::Keyword;
 use crate::yul::lexer::lexeme::Lexeme;
 use crate::yul::lexer::Lexer;
-use crate::yul::parser::error::Error as ParserError;
 use crate::yul::parser::statement::block::Block;
 use crate::yul::parser::statement::expression::Expression;
 
@@ -43,7 +41,7 @@ impl Switch {
     ///
     /// The element parser, which acts like a constructor.
     ///
-    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> Result<Self, Error> {
+    pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> anyhow::Result<Self> {
         let lexeme = crate::yul::parser::take_or_next(initial, lexer)?;
         let mut state = State::CaseOrDefaultKeyword;
 
@@ -72,7 +70,11 @@ impl Switch {
         }
 
         if cases.is_empty() && default.is_none() {
-            return Err(ParserError::expected_one_of(vec!["case", "default"], lexeme, None).into());
+            anyhow::bail!(
+                "Expected one of {:?}, found `{}`",
+                ["case", "default"],
+                lexeme
+            );
         }
 
         Ok(Self {
