@@ -31,7 +31,7 @@ where
             .get(target_name.as_str())
             .expect("Always exists")
             .value;
-        context.build_invoke(target, &[], format!("call_link_{}", target_name).as_str());
+        context.build_call(target, &[], format!("call_link_{}", target_name).as_str());
 
         Ok(())
     }

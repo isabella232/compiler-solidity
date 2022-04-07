@@ -212,18 +212,15 @@ where
             _ => context.build_unconditional_branch(context.function().return_block),
         }
 
+        context.build_throw_block();
+        context.build_catch_block();
+
         match r#return {
             compiler_llvm_context::FunctionReturn::None => {
-                context.build_throw_block(false);
-                context.build_catch_block(false);
-
                 context.set_basic_block(context.function().return_block);
                 context.build_return(None);
             }
             compiler_llvm_context::FunctionReturn::Primitive { pointer } => {
-                context.build_throw_block(false);
-                context.build_catch_block(false);
-
                 context.set_basic_block(context.function().return_block);
                 let return_value = context.build_load(pointer, "return_value");
                 context.build_return(Some(&return_value));
@@ -232,9 +229,6 @@ where
                 pointer: return_pointer,
                 ..
             } => {
-                context.build_throw_block(false);
-                context.build_catch_block(false);
-
                 context.set_basic_block(context.function().return_block);
                 context.build_return(Some(&return_pointer));
             }

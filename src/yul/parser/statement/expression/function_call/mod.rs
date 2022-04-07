@@ -99,7 +99,7 @@ impl FunctionCall {
                     values.insert(0, pointer.as_basic_value_enum());
                 }
 
-                let return_value = context.build_invoke(
+                let return_value = context.build_call(
                     function.value,
                     values.as_slice(),
                     format!("{}_return_value", name).as_str(),

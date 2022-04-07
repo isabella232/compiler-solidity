@@ -30,6 +30,8 @@ zkevm-assembly = { git = "https://github.com/matter-labs/zkEVM-assembly", branch
 compiler-common = { git = "ssh://git@github.com/matter-labs/compiler-common", branch = "az/vm-v1.1" }
 compiler-llvm-context = { git = "ssh://git@github.com/matter-labs/compiler-llvm-context", branch = "az/vm-v1.1" }
 
+#compiler-llvm-context = { path = "../compiler-llvm-context" }
+
 [dependencies.inkwell]
 git = "ssh://git@github.com/matter-labs-forks/inkwell"
 branch = "master"
