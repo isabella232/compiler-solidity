@@ -42,10 +42,10 @@ impl Error {
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
 │ Warning: It seems like you are using ecrecover to validate signature of a user account. │
 │ zkSync 2.0 will come with native account abstraction support. It is highly recommended  │
-│ NOT to rely on the fact that the account has ECDSA private key attached to it and may   │
-│ be ruled by a multisig and use other signature scheme. You can read more about how you  │
-│ can get ready for the future AA launch here:                                            │
-│ https://v2-docs.zksync.io/dev/zksync-v2/aa.html#verifying-aa-signatures-within-our-sdk  │
+│ NOT to rely on the fact that the account has ECDSA private key attached to it, since    │
+│ they may be ruled by a multisig and use other signature scheme. You can read more about │
+│ how you can get ready for the future AA launch here:                                    │
+│ https://v2-docs.zksync.io/dev/zksync-v2/aa.html#important-account-abstraction-support   │
 └─────────────────────────────────────────────────────────────────────────────────────────┘"#
             .to_owned();
 
