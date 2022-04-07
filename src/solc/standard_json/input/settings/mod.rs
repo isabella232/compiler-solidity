@@ -10,6 +10,8 @@ use std::collections::HashMap;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::solc::pipeline::Pipeline as SolcPipeline;
+
 use self::optimizer::Optimizer;
 use self::selection::Selection;
 
@@ -47,12 +49,36 @@ impl Settings {
     ///
     /// Generates the output selection pattern.
     ///
-    pub fn get_output_selection(selections: Vec<Selection>) -> serde_json::Value {
-        serde_json::json!({
-            "*": {
-                "*": selections.iter().map(Selection::to_string).collect::<Vec<String>>()
-            }
-        })
+    pub fn get_output_selection(
+        mut files: Vec<String>,
+        pipeline: SolcPipeline,
+    ) -> serde_json::Value {
+        if files.is_empty() {
+            files.push("*".to_owned());
+        }
+
+        let general_selections = vec![Selection::AST];
+        let per_contract_selections = vec![
+            Selection::ABI,
+            match pipeline {
+                SolcPipeline::Yul => Selection::Yul,
+                SolcPipeline::EVM => Selection::EVM,
+            },
+        ];
+
+        let map = files
+            .into_iter()
+            .map(|file| {
+                (
+                    file,
+                    serde_json::json!({
+                        "": general_selections,
+                        "*": per_contract_selections,
+                    }),
+                )
+            })
+            .collect::<serde_json::Map<String, serde_json::Value>>();
+        serde_json::Value::Object(map)
     }
 
     ///

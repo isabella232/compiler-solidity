@@ -43,12 +43,14 @@ fn main_inner() -> anyhow::Result<()> {
         }));
     let solc_version = solc.version()?;
 
-    let output_selection =
-        compiler_solidity::SolcStandardJsonInputSettings::get_output_selection(vec![
-            compiler_solidity::SolcStandardJsonInputSettingsSelection::Yul,
-            compiler_solidity::SolcStandardJsonInputSettingsSelection::EVM,
-            compiler_solidity::SolcStandardJsonInputSettingsSelection::ABI,
-        ]);
+    let output_selection = compiler_solidity::SolcStandardJsonInputSettings::get_output_selection(
+        arguments
+            .input_files
+            .iter()
+            .map(|path| path.to_string_lossy().to_string())
+            .collect(),
+        compiler_solidity::SolcPipeline::Yul,
+    );
     let solc_input = if arguments.standard_json {
         let mut input: compiler_solidity::SolcStandardJsonInput =
             serde_json::from_reader(std::io::BufReader::new(std::io::stdin()))?;
@@ -91,7 +93,7 @@ fn main_inner() -> anyhow::Result<()> {
     }
 
     compiler_solidity::initialize_target();
-    let mut project = solc_output.clone().try_into_project(
+    let mut project = solc_output.try_into_project(
         libraries,
         compiler_solidity::SolcPipeline::Yul,
         solc_version,
@@ -100,29 +102,7 @@ fn main_inner() -> anyhow::Result<()> {
     project.compile_all(arguments.optimize, dump_flags)?;
 
     if arguments.standard_json {
-        if let Some(contracts) = solc_output.contracts.as_mut() {
-            for (path, contracts) in contracts.iter_mut() {
-                for (name, contract) in contracts.iter_mut() {
-                    if let Some(contract_data) =
-                        project.contracts.get(format!("{}:{}", path, name).as_str())
-                    {
-                        let bytecode = hex::encode(
-                            contract_data
-                                .bytecode
-                                .as_ref()
-                                .expect("Bytecode always exists"),
-                        );
-
-                        contract.ir_optimized = None;
-                        contract.evm = Some(compiler_solidity::SolcStandardJsonOutputContractEVM::new_zkevm_bytecode(bytecode));
-                        contract.factory_dependencies =
-                            Some(contract_data.factory_dependencies.clone());
-                        contract.hash = contract_data.hash.clone();
-                    }
-                }
-            }
-        }
-
+        project.write_to_standard_json(&mut solc_output)?;
         serde_json::to_writer(std::io::stdout(), &solc_output)?;
         return Ok(());
     }

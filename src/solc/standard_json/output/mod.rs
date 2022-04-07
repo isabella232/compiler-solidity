@@ -22,7 +22,7 @@ use crate::yul::lexer::Lexer;
 use crate::yul::parser::statement::object::Object;
 
 use self::contract::Contract;
-use self::error::Error as SolidityError;
+use self::error::Error as SolcStandardJsonOutputError;
 use self::source::Source;
 
 ///
@@ -38,7 +38,7 @@ pub struct Output {
     pub sources: Option<HashMap<String, Source>>,
     /// The compilation errors and warnings.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub errors: Option<Vec<SolidityError>>,
+    pub errors: Option<Vec<SolcStandardJsonOutputError>>,
 }
 
 impl Output {
@@ -46,17 +46,19 @@ impl Output {
     /// Converts the `solc` JSON output into a convenient project representation.
     ///
     pub fn try_into_project(
-        mut self,
+        &mut self,
         libraries: HashMap<String, HashMap<String, String>>,
         pipeline: SolcPipeline,
         version: semver::Version,
         dump_flags: &[DumpFlag],
     ) -> anyhow::Result<Project> {
+        self.preprocess_ast()?;
+
         if let SolcPipeline::EVM = pipeline {
             self.preprocess_dependencies()?;
         }
 
-        let files = match self.contracts {
+        let files = match self.contracts.as_ref() {
             Some(files) => files,
             None => {
                 anyhow::bail!(
@@ -64,19 +66,19 @@ impl Output {
                     self.errors
                         .as_ref()
                         .map(|errors| serde_json::to_string_pretty(errors).expect("Always valid"))
-                        .unwrap_or_else(|| "Unknown error".to_owned())
+                        .unwrap_or_else(|| "Unknown project assembling error".to_owned())
                 );
             }
         };
         let mut project_contracts = HashMap::with_capacity(files.len());
 
-        for (path, contracts) in files.into_iter() {
-            for (name, contract) in contracts.into_iter() {
+        for (path, contracts) in files.iter() {
+            for (name, contract) in contracts.iter() {
                 let full_path = format!("{}:{}", path, name);
 
                 let source = match pipeline {
                     SolcPipeline::Yul => {
-                        let ir_optimized = match contract.ir_optimized {
+                        let ir_optimized = match contract.ir_optimized.to_owned() {
                             Some(ir_optimized) => ir_optimized,
                             None => continue,
                         };
@@ -97,20 +99,18 @@ impl Output {
                         ProjectContractSource::new_yul(ir_optimized, object)
                     }
                     SolcPipeline::EVM => {
-                        let evm = match contract.evm {
-                            Some(evm) => evm,
-                            None => continue,
-                        };
-                        let assembly = match evm.assembly {
-                            Some(assembly) => assembly,
-                            None => continue,
-                        };
+                        let assembly =
+                            match contract.evm.as_ref().and_then(|evm| evm.assembly.as_ref()) {
+                                Some(assembly) => assembly.to_owned(),
+                                None => continue,
+                            };
 
                         ProjectContractSource::new_evm(full_path.clone(), assembly)
                     }
                 };
 
-                let project_contract = ProjectContract::new(full_path.clone(), name, source);
+                let project_contract =
+                    ProjectContract::new(full_path.clone(), name.to_owned(), source);
                 project_contracts.insert(full_path, project_contract);
             }
         }
@@ -195,6 +195,36 @@ impl Output {
         {
             Instruction::replace_data_aliases(selector_instructions, &selector_index_path_mapping)?;
         }
+
+        Ok(())
+    }
+
+    ///
+    /// Traverses the AST and returns the list of additional errors and warnings.
+    ///
+    fn preprocess_ast(&mut self) -> anyhow::Result<()> {
+        let mut messages = Vec::new();
+        for (path, source) in self
+            .sources
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("The contract sources not found in the project"))?
+        {
+            if let Some(ast) = source.ast.as_ref() {
+                let mut warnings = ast.get_warnings()?;
+                for warning in warnings.iter_mut() {
+                    warning.push_contract_path(path.as_str());
+                }
+                messages.extend(warnings);
+            }
+        }
+
+        self.errors = match self.errors.take() {
+            Some(mut errors) => {
+                errors.extend(messages);
+                Some(errors)
+            }
+            None => Some(messages),
+        };
 
         Ok(())
     }
