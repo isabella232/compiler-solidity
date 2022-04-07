@@ -203,12 +203,13 @@ impl Output {
     /// Traverses the AST and returns the list of additional errors and warnings.
     ///
     fn preprocess_ast(&mut self) -> anyhow::Result<()> {
+        let sources = match self.sources.as_ref() {
+            Some(sources) => sources,
+            None => return Ok(()),
+        };
+
         let mut messages = Vec::new();
-        for (path, source) in self
-            .sources
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("The contract sources not found in the project"))?
-        {
+        for (path, source) in sources.iter() {
             if let Some(ast) = source.ast.as_ref() {
                 let mut warnings = ast.get_warnings()?;
                 for warning in warnings.iter_mut() {

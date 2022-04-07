@@ -76,6 +76,10 @@ pub struct Arguments {
     #[structopt(long = "standard-json")]
     pub standard_json: bool,
 
+    /// Switch to Yul mode.
+    #[structopt(long = "yul")]
+    pub yul: bool,
+
     /// Output ABI specification of the contracts.
     #[structopt(long = "abi")]
     pub output_abi: bool,
@@ -119,6 +123,28 @@ impl Arguments {
     ///
     pub fn new() -> Self {
         Self::from_args()
+    }
+
+    ///
+    /// Validates the arguments.
+    ///
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if self.yul {
+            if self.combined_json.is_some() {
+                anyhow::bail!("The following options are invalid in Yul mode: --combined-json.");
+            }
+            if self.standard_json {
+                anyhow::bail!("The following options are invalid in Yul mode: --standard-json.");
+            }
+            if self.output_abi {
+                anyhow::bail!("The following options are invalid in Yul mode: --abi.");
+            }
+            if self.output_hashes {
+                anyhow::bail!("The following options are invalid in Yul mode: --hashes.");
+            }
+        }
+
+        Ok(())
     }
 }
 
