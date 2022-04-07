@@ -2,6 +2,7 @@
 //! The `solc --standard-json` input representation.
 //!
 
+pub mod language;
 pub mod settings;
 pub mod source;
 
@@ -11,6 +12,7 @@ use std::path::PathBuf;
 use serde::Deserialize;
 use serde::Serialize;
 
+use self::language::Language;
 use self::settings::Settings;
 use self::source::Source;
 
@@ -20,8 +22,8 @@ use self::source::Source;
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
-    /// The language name.
-    pub language: String,
+    /// The input language.
+    pub language: Language,
     /// The input source code files hashmap.
     pub sources: HashMap<String, Source>,
     /// The compiler settings.
@@ -29,13 +31,11 @@ pub struct Input {
 }
 
 impl Input {
-    /// The Solidity language identifier.
-    pub const LANGUAGE: &'static str = "Solidity";
-
     ///
     /// A shortcut constructor.
     ///
     pub fn try_from_paths(
+        language: Language,
         paths: &[PathBuf],
         library_map: Vec<String>,
         output_selection: serde_json::Value,
@@ -50,7 +50,7 @@ impl Input {
         let libraries = Settings::parse_libraries(library_map)?;
 
         Ok(Self {
-            language: Self::LANGUAGE.to_owned(),
+            language,
             sources,
             settings: Settings::new(libraries, output_selection, optimize),
         })
@@ -73,7 +73,7 @@ impl Input {
             .collect();
 
         Ok(Self {
-            language: Self::LANGUAGE.to_owned(),
+            language: Language::Solidity,
             sources,
             settings: Settings::new(libraries, output_selection, optimize),
         })

@@ -24,6 +24,7 @@ fn main() {
 ///
 fn main_inner() -> anyhow::Result<()> {
     let mut arguments = Arguments::new();
+    arguments.validate()?;
 
     let dump_flags = compiler_solidity::DumpFlag::initialize(
         arguments.dump_yul,
@@ -57,7 +58,13 @@ fn main_inner() -> anyhow::Result<()> {
         input.settings.output_selection = output_selection;
         input
     } else {
+        let language = if arguments.yul {
+            compiler_solidity::SolcStandardJsonInputLanguage::Yul
+        } else {
+            compiler_solidity::SolcStandardJsonInputLanguage::Solidity
+        };
         compiler_solidity::SolcStandardJsonInput::try_from_paths(
+            language,
             arguments.input_files.as_slice(),
             arguments.libraries,
             output_selection,

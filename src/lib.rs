@@ -14,6 +14,7 @@ pub use self::project::Project;
 pub use self::solc::combined_json::contract::Contract as SolcCombinedJsonContract;
 pub use self::solc::combined_json::CombinedJson as SolcCombinedJson;
 pub use self::solc::pipeline::Pipeline as SolcPipeline;
+pub use self::solc::standard_json::input::language::Language as SolcStandardJsonInputLanguage;
 pub use self::solc::standard_json::input::settings::selection::Selection as SolcStandardJsonInputSettingsSelection;
 pub use self::solc::standard_json::input::settings::Settings as SolcStandardJsonInputSettings;
 pub use self::solc::standard_json::input::source::Source as SolcStandardJsonInputSource;

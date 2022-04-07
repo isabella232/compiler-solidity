@@ -2,12 +2,13 @@
 //! The `solc --standard-json` expected output selection.
 //!
 
+use serde::Deserialize;
 use serde::Serialize;
 
 ///
 /// The `solc --standard-json` expected output selection.
 ///
-#[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
 #[allow(non_camel_case_types)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum Selection {
