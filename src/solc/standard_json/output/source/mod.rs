@@ -7,7 +7,7 @@ pub mod ast;
 use serde::Deserialize;
 use serde::Serialize;
 
-use self::ast::Ast;
+use self::ast::AST;
 
 ///
 /// The `solc --standard-json` output source.
@@ -18,5 +18,5 @@ pub struct Source {
     /// The source code ID.
     pub id: usize,
     /// The source code AST.
-    pub ast: Option<Ast>,
+    pub ast: Option<AST>,
 }

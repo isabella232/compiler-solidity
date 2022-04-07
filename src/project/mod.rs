@@ -13,6 +13,8 @@ use compiler_llvm_context::WriteLLVM;
 use crate::dump_flag::DumpFlag;
 use crate::project::contract::source::Source;
 use crate::solc::combined_json::CombinedJson;
+use crate::solc::standard_json::output::contract::evm::EVM as StandardJsonOutputContractEVM;
+use crate::solc::standard_json::output::Output as StandardJsonOutput;
 use crate::yul::lexer::Lexer;
 use crate::yul::parser::statement::object::Object;
 
@@ -260,6 +262,43 @@ impl Project {
                 .ok_or_else(|| anyhow::anyhow!("Contract `{}` not found in the project", path))?;
 
             contract.write_to_combined_json(combined_json_contract)?;
+        }
+
+        Ok(())
+    }
+
+    ///
+    /// Writes all contracts assembly and bytecode to the standard JSON.
+    ///
+    pub fn write_to_standard_json(
+        self,
+        standard_json: &mut StandardJsonOutput,
+    ) -> anyhow::Result<()> {
+        let contracts = match standard_json.contracts.as_mut() {
+            Some(contracts) => contracts,
+            None => return Ok(()),
+        };
+
+        for (path, contracts) in contracts.iter_mut() {
+            for (name, contract) in contracts.iter_mut() {
+                let full_name = format!("{}:{}", path, name);
+
+                if let Some(contract_data) = self.contracts.get(full_name.as_str()) {
+                    let bytecode = hex::encode(
+                        contract_data
+                            .bytecode
+                            .as_ref()
+                            .expect("Bytecode always exists"),
+                    );
+
+                    contract.ir_optimized = None;
+                    contract.evm =
+                        Some(StandardJsonOutputContractEVM::new_zkevm_bytecode(bytecode));
+                    contract.factory_dependencies =
+                        Some(contract_data.factory_dependencies.to_owned());
+                    contract.hash = contract_data.hash.to_owned();
+                }
+            }
         }
 
         Ok(())
