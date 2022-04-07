@@ -167,12 +167,14 @@ fn main_inner() -> anyhow::Result<()> {
             }
         }
 
-        let extra_output = solc.extra_output(
-            arguments.input_files.as_slice(),
-            arguments.output_abi,
-            arguments.output_hashes,
-        )?;
-        print!("{}", extra_output);
+        if arguments.output_abi || arguments.output_hashes {
+            let extra_output = solc.extra_output(
+                arguments.input_files.as_slice(),
+                arguments.output_abi,
+                arguments.output_hashes,
+            )?;
+            print!("{}", extra_output);
+        }
     } else {
         eprintln!("Compiler run successful. No output requested. Use --asm and --bin flags.");
     }
