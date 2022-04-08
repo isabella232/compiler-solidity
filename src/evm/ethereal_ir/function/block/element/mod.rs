@@ -90,7 +90,7 @@ where
         context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
     ) -> anyhow::Result<()> {
         let input_size = self.instruction.input_size(&context.evm().version);
-        let original = self.instruction.value.clone();
+        let mut original = self.instruction.value.clone();
 
         let value = match self.instruction.name {
             InstructionName::PUSH
@@ -179,67 +179,101 @@ where
                 Ok(Some(context.field_const(0).as_basic_value_enum()))
             }
 
-            InstructionName::DUP1 => {
-                crate::evm::assembly::instruction::stack::dup(context, 1, self.stack.elements.len())
-            }
-            InstructionName::DUP2 => {
-                crate::evm::assembly::instruction::stack::dup(context, 2, self.stack.elements.len())
-            }
-            InstructionName::DUP3 => {
-                crate::evm::assembly::instruction::stack::dup(context, 3, self.stack.elements.len())
-            }
-            InstructionName::DUP4 => {
-                crate::evm::assembly::instruction::stack::dup(context, 4, self.stack.elements.len())
-            }
-            InstructionName::DUP5 => {
-                crate::evm::assembly::instruction::stack::dup(context, 5, self.stack.elements.len())
-            }
-            InstructionName::DUP6 => {
-                crate::evm::assembly::instruction::stack::dup(context, 6, self.stack.elements.len())
-            }
-            InstructionName::DUP7 => {
-                crate::evm::assembly::instruction::stack::dup(context, 7, self.stack.elements.len())
-            }
-            InstructionName::DUP8 => {
-                crate::evm::assembly::instruction::stack::dup(context, 8, self.stack.elements.len())
-            }
-            InstructionName::DUP9 => {
-                crate::evm::assembly::instruction::stack::dup(context, 9, self.stack.elements.len())
-            }
+            InstructionName::DUP1 => crate::evm::assembly::instruction::stack::dup(
+                context,
+                1,
+                self.stack.elements.len(),
+                &mut original,
+            ),
+            InstructionName::DUP2 => crate::evm::assembly::instruction::stack::dup(
+                context,
+                2,
+                self.stack.elements.len(),
+                &mut original,
+            ),
+            InstructionName::DUP3 => crate::evm::assembly::instruction::stack::dup(
+                context,
+                3,
+                self.stack.elements.len(),
+                &mut original,
+            ),
+            InstructionName::DUP4 => crate::evm::assembly::instruction::stack::dup(
+                context,
+                4,
+                self.stack.elements.len(),
+                &mut original,
+            ),
+            InstructionName::DUP5 => crate::evm::assembly::instruction::stack::dup(
+                context,
+                5,
+                self.stack.elements.len(),
+                &mut original,
+            ),
+            InstructionName::DUP6 => crate::evm::assembly::instruction::stack::dup(
+                context,
+                6,
+                self.stack.elements.len(),
+                &mut original,
+            ),
+            InstructionName::DUP7 => crate::evm::assembly::instruction::stack::dup(
+                context,
+                7,
+                self.stack.elements.len(),
+                &mut original,
+            ),
+            InstructionName::DUP8 => crate::evm::assembly::instruction::stack::dup(
+                context,
+                8,
+                self.stack.elements.len(),
+                &mut original,
+            ),
+            InstructionName::DUP9 => crate::evm::assembly::instruction::stack::dup(
+                context,
+                9,
+                self.stack.elements.len(),
+                &mut original,
+            ),
             InstructionName::DUP10 => crate::evm::assembly::instruction::stack::dup(
                 context,
                 10,
                 self.stack.elements.len(),
+                &mut original,
             ),
             InstructionName::DUP11 => crate::evm::assembly::instruction::stack::dup(
                 context,
                 11,
                 self.stack.elements.len(),
+                &mut original,
             ),
             InstructionName::DUP12 => crate::evm::assembly::instruction::stack::dup(
                 context,
                 12,
                 self.stack.elements.len(),
+                &mut original,
             ),
             InstructionName::DUP13 => crate::evm::assembly::instruction::stack::dup(
                 context,
                 13,
                 self.stack.elements.len(),
+                &mut original,
             ),
             InstructionName::DUP14 => crate::evm::assembly::instruction::stack::dup(
                 context,
                 14,
                 self.stack.elements.len(),
+                &mut original,
             ),
             InstructionName::DUP15 => crate::evm::assembly::instruction::stack::dup(
                 context,
                 15,
                 self.stack.elements.len(),
+                &mut original,
             ),
             InstructionName::DUP16 => crate::evm::assembly::instruction::stack::dup(
                 context,
                 16,
                 self.stack.elements.len(),
+                &mut original,
             ),
 
             InstructionName::SWAP1 => crate::evm::assembly::instruction::stack::swap(
@@ -674,15 +708,17 @@ where
 
                 let parent = context.module().get_name().to_str().expect("Always valid");
 
-                match arguments_with_original[1].original.as_deref() {
-                    Some(original)
-                        if original != parent
-                            && original.len() <= compiler_common::SIZE_FIELD * 2 =>
+                let original_destination = arguments_with_original[0].original.as_deref();
+                let original_source = arguments_with_original[1].original.as_deref();
+
+                match original_source {
+                    Some(source)
+                        if source != parent && source.len() <= compiler_common::SIZE_FIELD * 2 =>
                     {
                         compiler_llvm_context::memory::store(context, [arguments[0], arguments[1]])
                     }
-                    Some(original) if original != parent => {
-                        for (index, chunk) in original
+                    Some(source) if source != parent => {
+                        for (index, chunk) in source
                             .chars()
                             .collect::<Vec<char>>()
                             .rchunks(compiler_common::SIZE_FIELD * 2)
@@ -705,7 +741,16 @@ where
                         }
                         Ok(None)
                     }
-                    Some(_original) => Ok(None),
+                    Some(_source) => match original_destination {
+                        Some(length) if length == "B" => compiler_llvm_context::memory::store_byte(
+                            context,
+                            [
+                                context.field_const_str_hex(length).as_basic_value_enum(),
+                                context.field_const_str_hex("73").as_basic_value_enum(),
+                            ],
+                        ),
+                        _ => Ok(None),
+                    },
                     None => compiler_llvm_context::calldata::copy(
                         context,
                         arguments.try_into().expect("Always valid"),
