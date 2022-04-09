@@ -90,25 +90,43 @@ impl Function {
             match block_element.instruction {
                 Instruction {
                     name: InstructionName::PUSH_Tag,
-                    value: Some(ref tag),
+                    value: Some(ref mut tag),
                 } => {
-                    let tag: usize = tag.parse().expect("Always valid");
-                    block.stack.push(Element::Tag(tag));
+                    let element = match tag.parse() {
+                        Ok(tag) => Element::Tag(tag),
+                        Err(_) => {
+                            *tag = "0".to_owned();
+                            Element::Tag(0)
+                        }
+                    };
+                    block.stack.push(element);
+
                     block_element.stack = block.stack.clone();
                 }
-                Instruction {
+                ref mut instruction @ Instruction {
                     name: InstructionName::JUMP,
                     ..
                 } => {
                     queue_element.predecessor = Some(queue_element.tag);
 
                     block_element.stack = block.stack.clone();
-                    let destination = block.stack.pop_tag()?;
-                    queue.push(QueueElement::new(
-                        destination,
-                        queue_element.predecessor,
-                        block.stack.to_owned(),
-                    ));
+                    let destination = block.stack.pop_tag();
+                    match destination {
+                        Ok(destination) => {
+                            queue.push(QueueElement::new(
+                                destination,
+                                queue_element.predecessor,
+                                block.stack.to_owned(),
+                            ));
+                        }
+                        Err(_) => {
+                            *instruction = Instruction {
+                                name: InstructionName::INVALID,
+                                value: None,
+                            };
+                            break;
+                        }
+                    }
                 }
                 Instruction {
                     name: InstructionName::JUMPI,
@@ -433,7 +451,7 @@ impl Function {
                     block.stack.push(output);
                 }
                 ref instruction @ Instruction {
-                    name: InstructionName::AND,
+                    name: InstructionName::OR | InstructionName::XOR | InstructionName::AND,
                     ..
                 } => {
                     let input_size = instruction.input_size(&version);
@@ -444,7 +462,7 @@ impl Function {
                             .iter()
                             .rev()
                             .take(input_size)
-                            .find(|element| matches!(element, StackElement::Tag(_)))
+                            .find(|element| matches!(element, StackElement::Tag(tag) if *tag != 0))
                         {
                             Some(StackElement::Tag(tag)) => StackElement::Tag(*tag),
                             _ => StackElement::Value,
