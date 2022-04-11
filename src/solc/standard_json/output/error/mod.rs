@@ -61,6 +61,33 @@ impl Error {
     }
 
     ///
+    /// Returns the `extcodesize` usage warning.
+    ///
+    pub fn warning_extcodesize(src: Option<&str>) -> Self {
+        let message = r#"
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│ Warning: It seems like your code or one of its dependencies uses extcodesize. This      │
+│ opcode is most often used for the following:                                            │
+│     - to detect whether an address belongs to a smart contracts or not                  │
+│     - to detect whether or not the constructor execution has ended                      │
+│ zkSync 2.0 will support account abstraction by default (so every account will be a      │
+│ smart contract, even private-key controlled EOAs). So none of the use-cases above will  │
+│ work. Please do your best to avoid differentiating between contracts and non-contracts. │
+└─────────────────────────────────────────────────────────────────────────────────────────┘"#
+            .to_owned();
+
+        Self {
+            component: "general".to_owned(),
+            error_code: None,
+            formatted_message: message.clone(),
+            message,
+            severity: "warning".to_owned(),
+            source_location: src.map(SourceLocation::from_str).and_then(Result::ok),
+            r#type: "Warning".to_owned(),
+        }
+    }
+
+    ///
     /// Appends the contract path to the message..
     ///
     pub fn push_contract_path(&mut self, path: &str) {

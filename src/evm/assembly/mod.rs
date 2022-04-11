@@ -200,7 +200,14 @@ where
                 .as_deref()
                 .ok_or_else(|| anyhow::anyhow!("Constructor instructions not found"))?,
             compiler_llvm_context::CodeType::Deploy,
-        )?;
+        )
+        .map_err(|error| {
+            anyhow::anyhow!(
+                "The contract `{}` constructor Ethereal IR generator error: {}",
+                full_path,
+                error
+            )
+        })?;
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EthIR) {
             println!(
                 "Contract `{}` constructor Ethereal IR:\n\n{}",
@@ -237,7 +244,14 @@ where
             context.evm().version.to_owned(),
             selector_instructions.as_slice(),
             compiler_llvm_context::CodeType::Runtime,
-        )?;
+        )
+        .map_err(|error| {
+            anyhow::anyhow!(
+                "The contract `{}` selector Ethereal IR generator error: {}",
+                full_path,
+                error
+            )
+        })?;
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EthIR) {
             println!(
                 "Contract `{}` selector Ethereal IR:\n\n{}",
