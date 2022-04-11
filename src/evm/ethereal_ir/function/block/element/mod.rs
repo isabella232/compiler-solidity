@@ -718,19 +718,25 @@ where
                         compiler_llvm_context::memory::store(context, [arguments[0], arguments[1]])
                     }
                     Some(source) if source != parent => {
+                        let mut offset = 0;
                         for (index, chunk) in source
                             .chars()
                             .collect::<Vec<char>>()
-                            .rchunks(compiler_common::SIZE_FIELD * 2)
+                            .chunks(compiler_common::SIZE_FIELD * 2)
                             .enumerate()
                         {
+                            let mut value_string = chunk.iter().collect::<String>();
+                            value_string.push_str(
+                                "0".repeat((compiler_common::SIZE_FIELD * 2) - chunk.len())
+                                    .as_str(),
+                            );
+
                             let datacopy_destination = context.builder().build_int_add(
                                 arguments[0].into_int_value(),
-                                context.field_const((compiler_common::SIZE_FIELD * index) as u64),
+                                context.field_const(offset as u64),
                                 format!("datacopy_destination_index_{}", index).as_str(),
                             );
-                            let datacopy_value =
-                                context.field_const_str(chunk.iter().collect::<String>().as_str());
+                            let datacopy_value = context.field_const_str(value_string.as_str());
                             compiler_llvm_context::memory::store(
                                 context,
                                 [
@@ -738,10 +744,11 @@ where
                                     datacopy_value.as_basic_value_enum(),
                                 ],
                             )?;
+                            offset += chunk.len() / 2;
                         }
                         Ok(None)
                     }
-                    Some(_source) => match original_destination {
+                    Some(source) if source == parent => match original_destination {
                         Some(length) if length == "B" => compiler_llvm_context::memory::store_byte(
                             context,
                             [
@@ -751,6 +758,7 @@ where
                         ),
                         _ => Ok(None),
                     },
+                    Some(_source) => Ok(None),
                     None => compiler_llvm_context::calldata::copy(
                         context,
                         arguments.try_into().expect("Always valid"),
