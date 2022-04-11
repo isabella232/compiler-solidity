@@ -68,7 +68,7 @@ impl Project {
         let llvm = inkwell::context::Context::create();
         let target_machine = crate::target_machine(optimization_level_back).ok_or_else(|| {
             anyhow::anyhow!(
-                "LLVM target machine `{}` creation error",
+                "LLVM target machine `{}` initialization error",
                 compiler_common::VM_TARGET_NAME
             )
         })?;
@@ -119,14 +119,14 @@ impl Project {
 
         source.declare(&mut context).map_err(|error| {
             anyhow::anyhow!(
-                "The contract `{}` LLVM declaration pass error: {}",
+                "The contract `{}` LLVM IR generator declaration pass error: {}",
                 contract_path,
                 error
             )
         })?;
         source.into_llvm(&mut context).map_err(|error| {
             anyhow::anyhow!(
-                "The contract `{}` LLVM definition pass error: {}",
+                "The contract `{}` LLVM IR generator definition pass error: {}",
                 contract_path,
                 error
             )
