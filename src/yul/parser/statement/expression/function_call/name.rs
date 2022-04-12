@@ -190,6 +190,8 @@ pub enum Name {
     SelfBalance,
     /// current mining beneficiary
     CoinBase,
+    /// the base fee
+    BaseFee,
     /// like `codecopy(t, f, s)` but take code at address `a`
     ExtCodeCopy,
     /// code hash of address `a`
@@ -296,6 +298,7 @@ impl From<&str> for Name {
             "balance" => Self::Balance,
             "selfbalance" => Self::SelfBalance,
             "coinbase" => Self::CoinBase,
+            "basefee" => Self::BaseFee,
             "extcodecopy" => Self::ExtCodeCopy,
             "extcodehash" => Self::ExtCodeHash,
             "selfdestruct" => Self::SelfDestruct,

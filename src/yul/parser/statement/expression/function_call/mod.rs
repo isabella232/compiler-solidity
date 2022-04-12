@@ -568,6 +568,7 @@ impl FunctionCall {
             Name::Balance => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::SelfBalance => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::CoinBase => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            Name::BaseFee => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::ExtCodeCopy => {
                 let _arguments = self.pop_arguments_llvm::<D, 4>(context)?;
                 Ok(None)

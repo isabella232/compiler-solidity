@@ -384,7 +384,7 @@ where
             }
             InstructionName::JUMPI => {
                 let destination = self.stack.pop_tag()?;
-                self.stack.pop();
+                self.stack.pop()?;
 
                 crate::evm::assembly::instruction::jump::conditional(
                     context,

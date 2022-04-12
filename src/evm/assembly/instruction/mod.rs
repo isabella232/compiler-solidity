@@ -274,6 +274,16 @@ impl Instruction {
 
         Ok(())
     }
+
+    ///
+    /// Initializes an INVALID instruction to terminate an invalid unreachable block part.
+    ///
+    pub fn invalid() -> Self {
+        Self {
+            name: Name::INVALID,
+            value: None,
+        }
+    }
 }
 
 impl std::fmt::Display for Instruction {
