@@ -61,8 +61,10 @@ impl Stack {
     ///
     /// Pops a stack element.
     ///
-    pub fn pop(&mut self) -> Option<Element> {
-        self.elements.pop()
+    pub fn pop(&mut self) -> anyhow::Result<Element> {
+        self.elements
+            .pop()
+            .ok_or_else(|| anyhow::anyhow!("Stack underflow"))
     }
 
     ///
@@ -71,24 +73,37 @@ impl Stack {
     pub fn pop_tag(&mut self) -> anyhow::Result<usize> {
         match self.elements.pop() {
             Some(Element::Tag(tag)) => Ok(tag),
-            element => anyhow::bail!("Expected tag, found {:?}", element),
+            Some(element) => anyhow::bail!("Expected tag, found {}", element),
+            None => anyhow::bail!("Stack underflow"),
         }
     }
 
     ///
     /// Swaps two stack elements.
     ///
-    pub fn swap(&mut self, index: usize) {
+    pub fn swap(&mut self, index: usize) -> anyhow::Result<()> {
+        if self.elements.len() < index + 1 {
+            anyhow::bail!("Stack underflow");
+        }
+
         let length = self.elements.len();
         self.elements.swap(length - 1, length - 1 - index);
+
+        Ok(())
     }
 
     ///
     /// Duplicates a stack element.
     ///
-    pub fn dup(&mut self, index: usize) {
+    pub fn dup(&mut self, index: usize) -> anyhow::Result<()> {
+        if self.elements.len() < index {
+            anyhow::bail!("Stack underflow");
+        }
+
         let dupped = self.elements[self.elements.len() - index].to_owned();
         self.elements.push(dupped);
+
+        Ok(())
     }
 }
 
