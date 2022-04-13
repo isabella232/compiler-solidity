@@ -1,5 +1,5 @@
 //!
-//! Solidity to LLVM compiler library.
+//! Solidity to zkEVM compiler library.
 //!
 
 pub(crate) mod dump_flag;
