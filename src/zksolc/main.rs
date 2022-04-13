@@ -1,5 +1,5 @@
 //!
-//! YUL to LLVM compiler binary.
+//! Solidity to zkEVM compiler binary.
 //!
 
 pub mod arguments;

@@ -1,5 +1,5 @@
 //!
-//! Solidity to LLVM compiler arguments.
+//! Solidity to zkEVM compiler arguments.
 //!
 
 use std::path::PathBuf;
