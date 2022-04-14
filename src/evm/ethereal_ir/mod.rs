@@ -27,6 +27,9 @@ pub struct EtherealIR {
 }
 
 impl EtherealIR {
+    /// The `deploy address` immutable storage key.
+    pub const DEPLOY_ADDRESS_STORAGE_KEY: &'static str = "deploy_address";
+
     /// The blocks hashmap initial capacity.
     pub const BLOCKS_HASHMAP_DEFAULT_CAPACITY: usize = 64;
 
