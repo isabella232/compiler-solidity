@@ -8,6 +8,7 @@ use inkwell::values::BasicValue;
 
 use crate::evm::assembly::instruction::name::Name as InstructionName;
 use crate::evm::assembly::instruction::Instruction;
+use crate::evm::ethereal_ir::EtherealIR;
 
 use self::stack::Stack;
 
@@ -175,9 +176,10 @@ where
                     crate::evm::assembly::instruction::stack::push(context, value)
                 }
             }
-            InstructionName::PUSHDEPLOYADDRESS => {
-                Ok(Some(context.field_const(0).as_basic_value_enum()))
-            }
+            InstructionName::PUSHDEPLOYADDRESS => compiler_llvm_context::immutable::load(
+                context,
+                EtherealIR::DEPLOY_ADDRESS_STORAGE_KEY.to_owned(),
+            ),
 
             InstructionName::DUP1 => crate::evm::assembly::instruction::stack::dup(
                 context,
@@ -749,13 +751,29 @@ where
                         Ok(None)
                     }
                     Some(source) if source == parent => match original_destination {
-                        Some(length) if length == "B" => compiler_llvm_context::memory::store_byte(
-                            context,
-                            [
-                                context.field_const_str_hex(length).as_basic_value_enum(),
-                                context.field_const_str_hex("73").as_basic_value_enum(),
-                            ],
-                        ),
+                        Some(length) if length == "B" => {
+                            if let Some(compiler_llvm_context::CodeType::Deploy) = context.code_type
+                            {
+                                let address = compiler_llvm_context::contract_context::get(
+                                    context,
+                                    compiler_common::ContextValue::Address,
+                                )?
+                                .expect("Always exists");
+                                compiler_llvm_context::immutable::store(
+                                    context,
+                                    EtherealIR::DEPLOY_ADDRESS_STORAGE_KEY.to_owned(),
+                                    address.into_int_value(),
+                                )?;
+                            }
+
+                            compiler_llvm_context::memory::store_byte(
+                                context,
+                                [
+                                    context.field_const_str_hex(length).as_basic_value_enum(),
+                                    context.field_const_str_hex("73").as_basic_value_enum(),
+                                ],
+                            )
+                        }
                         _ => Ok(None),
                     },
                     Some(_source) => Ok(None),
