@@ -878,7 +878,7 @@ where
             InstructionName::CALL => {
                 let mut arguments = self.pop_arguments_llvm(context);
 
-                arguments.remove(0);
+                let gas = arguments.remove(0).into_int_value();
                 let address = arguments.remove(0).into_int_value();
                 let value = arguments.remove(0).into_int_value();
                 let input_offset = arguments.remove(0).into_int_value();
@@ -889,6 +889,7 @@ where
                 compiler_llvm_context::contract::call(
                     context,
                     context.runtime.far_call,
+                    gas,
                     address,
                     Some(value),
                     input_offset,
@@ -904,7 +905,7 @@ where
             InstructionName::STATICCALL => {
                 let mut arguments = self.pop_arguments_llvm(context);
 
-                arguments.remove(0);
+                let gas = arguments.remove(0).into_int_value();
                 let address = arguments.remove(0).into_int_value();
                 let input_offset = arguments.remove(0).into_int_value();
                 let input_size = arguments.remove(0).into_int_value();
@@ -914,6 +915,7 @@ where
                 compiler_llvm_context::contract::call(
                     context,
                     context.runtime.static_call,
+                    gas,
                     address,
                     None,
                     input_offset,
@@ -925,7 +927,7 @@ where
             InstructionName::DELEGATECALL => {
                 let mut arguments = self.pop_arguments_llvm(context);
 
-                arguments.remove(0);
+                let gas = arguments.remove(0).into_int_value();
                 let address = arguments.remove(0).into_int_value();
                 let input_offset = arguments.remove(0).into_int_value();
                 let input_size = arguments.remove(0).into_int_value();
@@ -935,6 +937,7 @@ where
                 compiler_llvm_context::contract::call(
                     context,
                     context.runtime.delegate_call,
+                    gas,
                     address,
                     None,
                     input_offset,

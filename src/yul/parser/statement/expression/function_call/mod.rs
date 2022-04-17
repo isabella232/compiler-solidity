@@ -401,6 +401,7 @@ impl FunctionCall {
             Name::Call => {
                 let arguments = self.pop_arguments_llvm::<D, 7>(context)?;
 
+                let gas = arguments[0].into_int_value();
                 let address = arguments[1].into_int_value();
                 let value = arguments[2].into_int_value();
                 let input_offset = arguments[3].into_int_value();
@@ -411,6 +412,7 @@ impl FunctionCall {
                 compiler_llvm_context::contract::call(
                     context,
                     context.runtime.far_call,
+                    gas,
                     address,
                     Some(value),
                     input_offset,
@@ -426,6 +428,7 @@ impl FunctionCall {
             Name::StaticCall => {
                 let arguments = self.pop_arguments_llvm::<D, 6>(context)?;
 
+                let gas = arguments[0].into_int_value();
                 let address = arguments[1].into_int_value();
                 let input_offset = arguments[2].into_int_value();
                 let input_size = arguments[3].into_int_value();
@@ -435,6 +438,7 @@ impl FunctionCall {
                 compiler_llvm_context::contract::call(
                     context,
                     context.runtime.static_call,
+                    gas,
                     address,
                     None,
                     input_offset,
@@ -446,6 +450,7 @@ impl FunctionCall {
             Name::DelegateCall => {
                 let arguments = self.pop_arguments_llvm::<D, 6>(context)?;
 
+                let gas = arguments[0].into_int_value();
                 let address = arguments[1].into_int_value();
                 let input_offset = arguments[2].into_int_value();
                 let input_size = arguments[3].into_int_value();
@@ -455,6 +460,7 @@ impl FunctionCall {
                 compiler_llvm_context::contract::call(
                     context,
                     context.runtime.delegate_call,
+                    gas,
                     address,
                     None,
                     input_offset,
