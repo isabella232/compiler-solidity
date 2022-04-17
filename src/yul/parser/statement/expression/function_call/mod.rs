@@ -534,35 +534,61 @@ impl FunctionCall {
             ),
             Name::Caller => compiler_llvm_context::contract_context::get(
                 context,
-                compiler_common::ContextValue::MessageSender,
+                compiler_common::ContextValue::Caller,
             ),
-            Name::Timestamp => compiler_llvm_context::contract_context::get(
+            Name::Timestamp => {
+                let meta_packed = compiler_llvm_context::contract_context::get(
+                    context,
+                    compiler_common::ContextValue::Meta,
+                )?
+                .expect("Context always returns a value");
+                let meta_shifted = context.builder().build_right_shift(
+                    meta_packed.into_int_value(),
+                    context.field_const(compiler_common::BITLENGTH_X64 as u64),
+                    false,
+                    "meta_shifted",
+                );
+                let block_timestamp = context.builder().build_and(
+                    meta_shifted,
+                    context.field_const(u64::MAX),
+                    "block_number",
+                );
+                Ok(Some(block_timestamp.as_basic_value_enum()))
+            }
+            Name::Number => {
+                let meta_packed = compiler_llvm_context::contract_context::get(
+                    context,
+                    compiler_common::ContextValue::Meta,
+                )?
+                .expect("Context always returns a value");
+                let block_number = context.builder().build_and(
+                    meta_packed.into_int_value(),
+                    context.field_const(u64::MAX),
+                    "block_number",
+                );
+                Ok(Some(block_number.as_basic_value_enum()))
+            }
+            Name::Origin => compiler_llvm_context::contract_context::get(
                 context,
-                compiler_common::ContextValue::BlockTimestamp,
-            ),
-            Name::Number => compiler_llvm_context::contract_context::get(
-                context,
-                compiler_common::ContextValue::BlockNumber,
+                compiler_common::ContextValue::TxOrigin,
             ),
             Name::Gas => compiler_llvm_context::contract_context::get(
                 context,
-                compiler_common::ContextValue::GasLeft,
+                compiler_common::ContextValue::ErgsLeft,
             ),
 
             Name::GasLimit => Ok(Some(
                 context.field_const(u32::MAX as u64).as_basic_value_enum(),
             )),
-            Name::GasPrice => Ok(Some(context.field_const(0).as_basic_value_enum())),
-            Name::CallValue => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::MSize => Ok(Some(
                 context
                     .field_const(((1 << 16) * compiler_common::SIZE_FIELD) as u64)
                     .as_basic_value_enum(),
             )),
-            Name::Origin => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            Name::GasPrice => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            Name::CallValue => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::ChainId => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::BlockHash => Ok(Some(context.field_const(0).as_basic_value_enum())),
-
             Name::Difficulty => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::Pc => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::Balance => Ok(Some(context.field_const(0).as_basic_value_enum())),

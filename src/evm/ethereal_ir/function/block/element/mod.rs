@@ -976,43 +976,66 @@ where
             ),
             InstructionName::CALLER => compiler_llvm_context::contract_context::get(
                 context,
-                compiler_common::ContextValue::MessageSender,
+                compiler_common::ContextValue::Caller,
             ),
-            InstructionName::TIMESTAMP => compiler_llvm_context::contract_context::get(
+            InstructionName::TIMESTAMP => {
+                let meta_packed = compiler_llvm_context::contract_context::get(
+                    context,
+                    compiler_common::ContextValue::Meta,
+                )?
+                .expect("Context always returns a value");
+                let meta_shifted = context.builder().build_right_shift(
+                    meta_packed.into_int_value(),
+                    context.field_const(compiler_common::BITLENGTH_X64 as u64),
+                    false,
+                    "meta_shifted",
+                );
+                let block_timestamp = context.builder().build_and(
+                    meta_shifted,
+                    context.field_const(u64::MAX),
+                    "block_number",
+                );
+                Ok(Some(block_timestamp.as_basic_value_enum()))
+            }
+            InstructionName::NUMBER => {
+                let meta_packed = compiler_llvm_context::contract_context::get(
+                    context,
+                    compiler_common::ContextValue::Meta,
+                )?
+                .expect("Context always returns a value");
+                let block_number = context.builder().build_and(
+                    meta_packed.into_int_value(),
+                    context.field_const(u64::MAX),
+                    "block_number",
+                );
+                Ok(Some(block_number.as_basic_value_enum()))
+            }
+            InstructionName::ORIGIN => compiler_llvm_context::contract_context::get(
                 context,
-                compiler_common::ContextValue::BlockTimestamp,
-            ),
-            InstructionName::NUMBER => compiler_llvm_context::contract_context::get(
-                context,
-                compiler_common::ContextValue::BlockNumber,
+                compiler_common::ContextValue::TxOrigin,
             ),
             InstructionName::GAS => compiler_llvm_context::contract_context::get(
                 context,
-                compiler_common::ContextValue::GasLeft,
+                compiler_common::ContextValue::ErgsLeft,
             ),
 
             InstructionName::GASLIMIT => Ok(Some(
                 context.field_const(u32::MAX as u64).as_basic_value_enum(),
             )),
-            InstructionName::BASEFEE => Ok(Some(context.field_const(0).as_basic_value_enum())),
-            InstructionName::COINBASE => Ok(Some(context.field_const(0).as_basic_value_enum())),
-
-            InstructionName::CALLVALUE => Ok(Some(context.field_const(0).as_basic_value_enum())),
-            InstructionName::BALANCE => Ok(Some(context.field_const(0).as_basic_value_enum())),
-            InstructionName::SELFBALANCE => Ok(Some(context.field_const(0).as_basic_value_enum())),
-
-            InstructionName::ORIGIN => Ok(Some(context.field_const(0).as_basic_value_enum())),
-            InstructionName::CHAINID => Ok(Some(context.field_const(0).as_basic_value_enum())),
-            InstructionName::BLOCKHASH => Ok(Some(context.field_const(0).as_basic_value_enum())),
-
             InstructionName::MSIZE => Ok(Some(
                 context
                     .field_const(((1 << 16) * compiler_common::SIZE_FIELD) as u64)
                     .as_basic_value_enum(),
             )),
+            InstructionName::BASEFEE => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            InstructionName::COINBASE => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            InstructionName::CALLVALUE => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            InstructionName::BALANCE => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            InstructionName::SELFBALANCE => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            InstructionName::CHAINID => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            InstructionName::BLOCKHASH => Ok(Some(context.field_const(0).as_basic_value_enum())),
             InstructionName::DIFFICULTY => Ok(Some(context.field_const(0).as_basic_value_enum())),
             InstructionName::PC => Ok(Some(context.field_const(0).as_basic_value_enum())),
-
             InstructionName::EXTCODECOPY => {
                 let _arguments = self.pop_arguments_llvm(context);
                 Ok(None)
