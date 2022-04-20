@@ -754,11 +754,15 @@ where
                         Some(length) if length == "B" => {
                             if let Some(compiler_llvm_context::CodeType::Deploy) = context.code_type
                             {
-                                let address = compiler_llvm_context::contract_context::get(
-                                    context,
-                                    compiler_common::ContextValue::Address,
-                                )?
-                                .expect("Always exists");
+                                let address = context
+                                    .build_call(
+                                        context.get_intrinsic_function(
+                                            compiler_llvm_context::IntrinsicFunction::Address,
+                                        ),
+                                        &[],
+                                        "address",
+                                    )
+                                    .expect("Always exists");
                                 compiler_llvm_context::immutable::store(
                                     context,
                                     EtherealIR::DEPLOY_ADDRESS_STORAGE_KEY.to_owned(),
@@ -973,20 +977,25 @@ where
                 )
             }
 
-            InstructionName::ADDRESS => compiler_llvm_context::contract_context::get(
-                context,
-                compiler_common::ContextValue::Address,
-            ),
-            InstructionName::CALLER => compiler_llvm_context::contract_context::get(
-                context,
-                compiler_common::ContextValue::Caller,
-            ),
+            InstructionName::ADDRESS => Ok(context.build_call(
+                context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::Address),
+                &[],
+                "address",
+            )),
+            InstructionName::CALLER => Ok(context.build_call(
+                context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::Caller),
+                &[],
+                "caller",
+            )),
             InstructionName::TIMESTAMP => {
-                let meta_packed = compiler_llvm_context::contract_context::get(
-                    context,
-                    compiler_common::ContextValue::Meta,
-                )?
-                .expect("Context always returns a value");
+                let meta_packed = context
+                    .build_call(
+                        context
+                            .get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::Meta),
+                        &[],
+                        "meta",
+                    )
+                    .expect("Always exists");
                 let meta_shifted = context.builder().build_right_shift(
                     meta_packed.into_int_value(),
                     context.field_const(compiler_common::BITLENGTH_X64 as u64),
@@ -1001,11 +1010,14 @@ where
                 Ok(Some(block_timestamp.as_basic_value_enum()))
             }
             InstructionName::NUMBER => {
-                let meta_packed = compiler_llvm_context::contract_context::get(
-                    context,
-                    compiler_common::ContextValue::Meta,
-                )?
-                .expect("Context always returns a value");
+                let meta_packed = context
+                    .build_call(
+                        context
+                            .get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::Meta),
+                        &[],
+                        "meta",
+                    )
+                    .expect("Always exists");
                 let block_number = context.builder().build_and(
                     meta_packed.into_int_value(),
                     context.field_const(u64::MAX),
@@ -1013,14 +1025,16 @@ where
                 );
                 Ok(Some(block_number.as_basic_value_enum()))
             }
-            InstructionName::ORIGIN => compiler_llvm_context::contract_context::get(
-                context,
-                compiler_common::ContextValue::TxOrigin,
-            ),
-            InstructionName::GAS => compiler_llvm_context::contract_context::get(
-                context,
-                compiler_common::ContextValue::ErgsLeft,
-            ),
+            InstructionName::ORIGIN => Ok(context.build_call(
+                context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::TxOrigin),
+                &[],
+                "tx_origin",
+            )),
+            InstructionName::GAS => Ok(context.build_call(
+                context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::ErgsLeft),
+                &[],
+                "ergs_left",
+            )),
 
             InstructionName::GASLIMIT => Ok(Some(
                 context.field_const(u32::MAX as u64).as_basic_value_enum(),

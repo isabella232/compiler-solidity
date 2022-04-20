@@ -534,20 +534,25 @@ impl FunctionCall {
                 Ok(Some(arguments[0]))
             }
 
-            Name::Address => compiler_llvm_context::contract_context::get(
-                context,
-                compiler_common::ContextValue::Address,
-            ),
-            Name::Caller => compiler_llvm_context::contract_context::get(
-                context,
-                compiler_common::ContextValue::Caller,
-            ),
+            Name::Address => Ok(context.build_call(
+                context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::Address),
+                &[],
+                "address",
+            )),
+            Name::Caller => Ok(context.build_call(
+                context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::Caller),
+                &[],
+                "caller",
+            )),
             Name::Timestamp => {
-                let meta_packed = compiler_llvm_context::contract_context::get(
-                    context,
-                    compiler_common::ContextValue::Meta,
-                )?
-                .expect("Context always returns a value");
+                let meta_packed = context
+                    .build_call(
+                        context
+                            .get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::Meta),
+                        &[],
+                        "meta",
+                    )
+                    .expect("Always exists");
                 let meta_shifted = context.builder().build_right_shift(
                     meta_packed.into_int_value(),
                     context.field_const(compiler_common::BITLENGTH_X64 as u64),
@@ -562,11 +567,14 @@ impl FunctionCall {
                 Ok(Some(block_timestamp.as_basic_value_enum()))
             }
             Name::Number => {
-                let meta_packed = compiler_llvm_context::contract_context::get(
-                    context,
-                    compiler_common::ContextValue::Meta,
-                )?
-                .expect("Context always returns a value");
+                let meta_packed = context
+                    .build_call(
+                        context
+                            .get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::Meta),
+                        &[],
+                        "meta",
+                    )
+                    .expect("Always exists");
                 let block_number = context.builder().build_and(
                     meta_packed.into_int_value(),
                     context.field_const(u64::MAX),
@@ -574,14 +582,16 @@ impl FunctionCall {
                 );
                 Ok(Some(block_number.as_basic_value_enum()))
             }
-            Name::Origin => compiler_llvm_context::contract_context::get(
-                context,
-                compiler_common::ContextValue::TxOrigin,
-            ),
-            Name::Gas => compiler_llvm_context::contract_context::get(
-                context,
-                compiler_common::ContextValue::ErgsLeft,
-            ),
+            Name::Origin => Ok(context.build_call(
+                context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::TxOrigin),
+                &[],
+                "tx_origin",
+            )),
+            Name::Gas => Ok(context.build_call(
+                context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::ErgsLeft),
+                &[],
+                "ergs_left",
+            )),
 
             Name::GasLimit => Ok(Some(
                 context.field_const(u32::MAX as u64).as_basic_value_enum(),

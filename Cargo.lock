@@ -129,7 +129,7 @@ dependencies = [
 [[package]]
 name = "compiler-common"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#1241e5153fc6fccfa26a54b170bc0e5c51303e93"
+source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#e4e4f13ba5fae15ab8a74e1a6d9165f1f6da9084"
 dependencies = [
  "sha3",
 ]
@@ -137,7 +137,7 @@ dependencies = [
 [[package]]
 name = "compiler-llvm-context"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#96e274b80183319ac3f6ce4108a989d29eb2c976"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#d53bcfdc9f19a138c13229d6a99bddb5fc404efb"
 dependencies = [
  "anyhow",
  "compiler-common",
@@ -387,9 +387,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.123"
+version = "0.2.124"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb691a747a7ab48abc15c5b42066eaafde10dc427e3b6ee2a1cf43db04c763bd"
+checksum = "21a41fed9d98f27ab1c6d161da622a4fa35e8a54a8adc24bbf3ddd0ef70b0e50"
 
 [[package]]
 name = "llvm-sys"
@@ -983,7 +983,7 @@ checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
 [[package]]
 name = "zkevm-assembly"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#4fd1ca9afcdb88433571ed9c414701afab8224dc"
+source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#8f2614a0499601af55f982a4bb34a1767efa63f9"
 dependencies = [
  "env_logger",
  "hex",
@@ -1001,7 +1001,7 @@ dependencies = [
 [[package]]
 name = "zkevm_opcode_defs"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#3330c8af1627baf91d1f8e2313ac2280ab02f495"
+source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#d307aac9c66fd097de2fc0ee33445388b9875b35"
 dependencies = [
  "bitflags",
  "ethereum-types",
