@@ -715,11 +715,44 @@ where
 
                 match original_source {
                     Some(source)
-                        if source != parent && source.len() <= compiler_common::SIZE_FIELD * 2 =>
+                        if !source.chars().all(|char| char.is_ascii_hexdigit())
+                            && source != parent =>
                     {
                         compiler_llvm_context::memory::store(context, [arguments[0], arguments[1]])
                     }
-                    Some(source) if source != parent => {
+                    Some(source)
+                        if !source.chars().all(|char| char.is_ascii_hexdigit())
+                            && source == parent =>
+                    {
+                        match original_destination {
+                            Some(length) if length == "B" => {
+                                if let Some(compiler_llvm_context::CodeType::Deploy) =
+                                    context.code_type
+                                {
+                                    let address = compiler_llvm_context::contract_context::get(
+                                        context,
+                                        compiler_common::ContextValue::Address,
+                                    )?
+                                    .expect("Always exists");
+                                    compiler_llvm_context::immutable::store(
+                                        context,
+                                        EtherealIR::DEPLOY_ADDRESS_STORAGE_KEY.to_owned(),
+                                        address.into_int_value(),
+                                    )?;
+                                }
+
+                                compiler_llvm_context::memory::store_byte(
+                                    context,
+                                    [
+                                        context.field_const_str_hex(length).as_basic_value_enum(),
+                                        context.field_const_str_hex("73").as_basic_value_enum(),
+                                    ],
+                                )
+                            }
+                            _ => Ok(None),
+                        }
+                    }
+                    Some(source) if source.chars().all(|char| char.is_ascii_hexdigit()) => {
                         let mut offset = 0;
                         for (index, chunk) in source
                             .chars()
@@ -750,32 +783,6 @@ where
                         }
                         Ok(None)
                     }
-                    Some(source) if source == parent => match original_destination {
-                        Some(length) if length == "B" => {
-                            if let Some(compiler_llvm_context::CodeType::Deploy) = context.code_type
-                            {
-                                let address = compiler_llvm_context::contract_context::get(
-                                    context,
-                                    compiler_common::ContextValue::Address,
-                                )?
-                                .expect("Always exists");
-                                compiler_llvm_context::immutable::store(
-                                    context,
-                                    EtherealIR::DEPLOY_ADDRESS_STORAGE_KEY.to_owned(),
-                                    address.into_int_value(),
-                                )?;
-                            }
-
-                            compiler_llvm_context::memory::store_byte(
-                                context,
-                                [
-                                    context.field_const_str_hex(length).as_basic_value_enum(),
-                                    context.field_const_str_hex("73").as_basic_value_enum(),
-                                ],
-                            )
-                        }
-                        _ => Ok(None),
-                    },
                     Some(_source) => Ok(None),
                     None => compiler_llvm_context::calldata::copy(
                         context,
