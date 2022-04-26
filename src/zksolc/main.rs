@@ -44,7 +44,7 @@ fn main_inner() -> anyhow::Result<()> {
         }));
     let solc_version = solc.version()?;
 
-    let pipeline = if solc_version.minor > 8 {
+    let pipeline = if solc_version.minor >= 8 {
         compiler_solidity::SolcPipeline::Yul
     } else {
         compiler_solidity::SolcPipeline::EVM
