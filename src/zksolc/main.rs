@@ -91,7 +91,9 @@ fn main_inner() -> anyhow::Result<()> {
                 }
             }
 
-            eprintln!("{}", error);
+            if !arguments.standard_json && arguments.combined_json.is_none() {
+                eprintln!("{}", error);
+            }
         }
 
         if cannot_compile {
