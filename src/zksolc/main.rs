@@ -44,13 +44,19 @@ fn main_inner() -> anyhow::Result<()> {
         }));
     let solc_version = solc.version()?;
 
+    let pipeline = if solc_version.minor > 8 {
+        compiler_solidity::SolcPipeline::Yul
+    } else {
+        compiler_solidity::SolcPipeline::EVM
+    };
+
     let output_selection = compiler_solidity::SolcStandardJsonInputSettings::get_output_selection(
         arguments
             .input_files
             .iter()
             .map(|path| path.to_string_lossy().to_string())
             .collect(),
-        compiler_solidity::SolcPipeline::Yul,
+        pipeline,
     );
     let solc_input = if arguments.standard_json {
         let mut input: compiler_solidity::SolcStandardJsonInput =
