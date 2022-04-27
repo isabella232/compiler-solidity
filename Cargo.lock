@@ -129,7 +129,7 @@ dependencies = [
 [[package]]
 name = "compiler-common"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#e4e4f13ba5fae15ab8a74e1a6d9165f1f6da9084"
+source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#43eb77fa28910a55572f06b13ccf3dfe1e2ccf31"
 dependencies = [
  "sha3",
 ]
@@ -137,7 +137,7 @@ dependencies = [
 [[package]]
 name = "compiler-llvm-context"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#61edd0437108f6468aba4bb6c0308c9ed521f573"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#1724239ca5bc8ca76457878a66559a5243d3df11"
 dependencies = [
  "anyhow",
  "compiler-common",
@@ -1001,7 +1001,7 @@ dependencies = [
 [[package]]
 name = "zkevm_opcode_defs"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#9e6b2769dbdf8894d3a9786880bb5a073c957a20"
+source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#a42fec5512ca1e3d6bf46eebc5440c02f4affb3c"
 dependencies = [
  "bitflags",
  "ethereum-types",

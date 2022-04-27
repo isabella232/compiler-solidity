@@ -69,7 +69,7 @@ impl Project {
         let target_machine = crate::target_machine(optimization_level_back).ok_or_else(|| {
             anyhow::anyhow!(
                 "LLVM target machine `{}` initialization error",
-                compiler_common::VM_TARGET_NAME
+                compiler_llvm_context::TARGET_NAME
             )
         })?;
         let dump_flags = compiler_llvm_context::DumpFlag::initialize(

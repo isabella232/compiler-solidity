@@ -46,5 +46,4 @@ export RUST_MIN_STACK=$(( 64 * 1024 * 1024 ))
 
 cargo fmt --all
 cargo clippy
-cargo test
 cargo build ${CARGO_LOG_LEVEL} ${RELEASE_FLAG}

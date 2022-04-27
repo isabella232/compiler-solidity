@@ -38,8 +38,8 @@ pub fn initialize_target() {
 pub fn target_machine(
     optimization_level: inkwell::OptimizationLevel,
 ) -> Option<inkwell::targets::TargetMachine> {
-    inkwell::targets::Target::from_name(compiler_common::VM_TARGET_NAME)?.create_target_machine(
-        &inkwell::targets::TargetTriple::create(compiler_common::VM_TARGET_NAME),
+    inkwell::targets::Target::from_name(compiler_llvm_context::TARGET_NAME)?.create_target_machine(
+        &inkwell::targets::TargetTriple::create(compiler_llvm_context::TARGET_NAME),
         "",
         "",
         optimization_level,
