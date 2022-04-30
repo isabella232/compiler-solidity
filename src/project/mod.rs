@@ -57,6 +57,7 @@ impl Project {
         contract_path: &str,
         optimization_level_middle: inkwell::OptimizationLevel,
         optimization_level_back: inkwell::OptimizationLevel,
+        run_inliner: bool,
         dump_flags: Vec<DumpFlag>,
     ) -> anyhow::Result<String> {
         if let Some(contract) = self.contracts.get(contract_path) {
@@ -66,12 +67,11 @@ impl Project {
         }
 
         let llvm = inkwell::context::Context::create();
-        let target_machine = crate::target_machine(optimization_level_back).ok_or_else(|| {
-            anyhow::anyhow!(
-                "LLVM target machine `{}` initialization error",
-                compiler_llvm_context::TARGET_NAME
-            )
-        })?;
+        let optimizer = compiler_llvm_context::Optimizer::new(
+            optimization_level_middle,
+            optimization_level_back,
+            run_inliner,
+        )?;
         let dump_flags = compiler_llvm_context::DumpFlag::initialize(
             dump_flags.contains(&DumpFlag::Yul),
             dump_flags.contains(&DumpFlag::EthIR),
@@ -95,10 +95,8 @@ impl Project {
         let mut context = match source {
             Source::Yul(_) => compiler_llvm_context::Context::new(
                 &llvm,
-                &target_machine,
-                optimization_level_middle,
-                optimization_level_back,
                 module_name.as_str(),
+                optimizer,
                 Some(self),
                 dump_flags.clone(),
             ),
@@ -106,10 +104,8 @@ impl Project {
                 let version = self.version.to_owned();
                 compiler_llvm_context::Context::new_evm(
                     &llvm,
-                    &target_machine,
-                    optimization_level_middle,
-                    optimization_level_back,
                     module_name.as_str(),
+                    optimizer,
                     Some(self),
                     dump_flags.clone(),
                     compiler_llvm_context::ContextEVMData::new(version),
@@ -157,7 +153,8 @@ impl Project {
             )
         })?;
 
-        let buffer = target_machine
+        let buffer = context
+            .target_machine()
             .write_to_memory_buffer(context.module(), inkwell::targets::FileType::Assembly)
             .map_err(|error| {
                 anyhow::anyhow!(
@@ -207,10 +204,10 @@ impl Project {
     ///
     #[allow(clippy::needless_collect)]
     pub fn compile_all(&mut self, optimize: bool, dump_flags: Vec<DumpFlag>) -> anyhow::Result<()> {
-        let optimization_level = if optimize {
-            inkwell::OptimizationLevel::Aggressive
+        let (optimization_level, run_inliner) = if optimize {
+            (inkwell::OptimizationLevel::Aggressive, true)
         } else {
-            inkwell::OptimizationLevel::None
+            (inkwell::OptimizationLevel::None, false)
         };
 
         let contract_paths: Vec<String> = self.contracts.keys().cloned().collect();
@@ -219,6 +216,7 @@ impl Project {
                 contract_path.as_str(),
                 optimization_level,
                 optimization_level,
+                run_inliner,
                 dump_flags.clone(),
             )
             .map_err(|error| {
@@ -349,6 +347,7 @@ impl compiler_llvm_context::Dependency for Project {
         parent_identifier: &str,
         optimization_level_middle: inkwell::OptimizationLevel,
         optimization_level_back: inkwell::OptimizationLevel,
+        run_inliner: bool,
         dump_flags: Vec<compiler_llvm_context::DumpFlag>,
     ) -> anyhow::Result<String> {
         let contract_path = self
@@ -383,6 +382,7 @@ impl compiler_llvm_context::Dependency for Project {
                 contract_path.as_str(),
                 optimization_level_middle,
                 optimization_level_back,
+                run_inliner,
                 dump_flags,
             )
             .map_err(|error| {

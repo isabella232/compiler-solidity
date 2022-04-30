@@ -107,9 +107,9 @@ fn main_inner() -> anyhow::Result<()> {
         }
     }
 
-    compiler_solidity::initialize_target();
     let mut project =
         solc_output.try_into_project(libraries, pipeline, solc_version, dump_flags.as_slice())?;
+    compiler_llvm_context::initialize_target();
     project.compile_all(arguments.optimize, dump_flags)?;
 
     if arguments.standard_json {

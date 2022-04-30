@@ -24,26 +24,3 @@ pub use self::solc::standard_json::output::contract::evm::EVM as SolcStandardJso
 pub use self::solc::standard_json::output::contract::Contract as SolcStandardJsonOutputContract;
 pub use self::solc::standard_json::output::Output as SolcStandardJsonOutput;
 pub use self::solc::Compiler as SolcCompiler;
-
-///
-/// Initializes the zkEVM target machine.
-///
-pub fn initialize_target() {
-    inkwell::targets::Target::initialize_syncvm(&inkwell::targets::InitializationConfig::default());
-}
-
-///
-/// Returns the zkEVM target machine instance.
-///
-pub fn target_machine(
-    optimization_level: inkwell::OptimizationLevel,
-) -> Option<inkwell::targets::TargetMachine> {
-    inkwell::targets::Target::from_name(compiler_llvm_context::TARGET_NAME)?.create_target_machine(
-        &inkwell::targets::TargetTriple::create(compiler_llvm_context::TARGET_NAME),
-        "",
-        "",
-        optimization_level,
-        inkwell::targets::RelocMode::Default,
-        inkwell::targets::CodeModel::Default,
-    )
-}
