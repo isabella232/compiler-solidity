@@ -513,7 +513,15 @@ impl FunctionCall {
             }
             Name::DataCopy => {
                 let arguments = self.pop_arguments_llvm::<D, 3>(context)?;
-                compiler_llvm_context::memory::store(context, [arguments[0], arguments[1]])
+                let offset = context.builder().build_int_add(
+                    arguments[0].into_int_value(),
+                    context.field_const(
+                        (compiler_common::SIZE_X32 + compiler_common::SIZE_FIELD) as u64,
+                    ),
+                    "datacopy_contract_hash_offset",
+                );
+                let value = arguments[1];
+                compiler_llvm_context::memory::store(context, [offset.as_basic_value_enum(), value])
             }
 
             Name::LinkerSymbol => {
