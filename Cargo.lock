@@ -129,7 +129,7 @@ dependencies = [
 [[package]]
 name = "compiler-common"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#43eb77fa28910a55572f06b13ccf3dfe1e2ccf31"
+source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#f7f79cc93f12beb630e29bd914d71758e4fa34e0"
 dependencies = [
  "sha3",
 ]
@@ -137,7 +137,7 @@ dependencies = [
 [[package]]
 name = "compiler-llvm-context"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#ca6e2d16a88971801189331f13c466c3a43a44b7"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#60f10dab617608d44521c7ecdd4e51aa7b532bf9"
 dependencies = [
  "anyhow",
  "compiler-common",
@@ -983,7 +983,7 @@ checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
 [[package]]
 name = "zkevm-assembly"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#bfbeefb592bb3792dadeaf9a02bdf1d768c62759"
+source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#9e7b6704128c5684f584092911f64ffc1020c847"
 dependencies = [
  "env_logger",
  "hex",
@@ -1001,7 +1001,7 @@ dependencies = [
 [[package]]
 name = "zkevm_opcode_defs"
 version = "0.1.0"
-source = "git+https://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@github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#a42fec5512ca1e3d6bf46eebc5440c02f4affb3c"
+source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#a42fec5512ca1e3d6bf46eebc5440c02f4affb3c"
 dependencies = [
  "bitflags",
  "ethereum-types",
