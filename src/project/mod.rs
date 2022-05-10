@@ -6,7 +6,6 @@ pub mod contract;
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::str::FromStr;
 
 use compiler_llvm_context::WriteLLVM;
 
@@ -314,14 +313,7 @@ impl Project {
     ///
     /// Only for integration testing purposes.
     ///
-    pub fn try_from_test_yul(yul: &str) -> anyhow::Result<Self> {
-        let version = semver::Version::from_str(
-            std::env::var("CARGO_PKG_VERSION")
-                .expect("Always exists")
-                .as_str(),
-        )
-        .expect("Always valid");
-
+    pub fn try_from_test_yul(yul: &str, version: &semver::Version) -> anyhow::Result<Self> {
         let mut lexer = Lexer::new(yul.to_owned());
         let name = "Test".to_owned();
         let object = Object::parse(&mut lexer, None)
@@ -333,7 +325,7 @@ impl Project {
             Contract::new(name.clone(), name, Source::new_yul(yul.to_owned(), object)),
         );
         Ok(Self {
-            version,
+            version: version.to_owned(),
             contracts: project_contracts,
             libraries: HashMap::new(),
         })
