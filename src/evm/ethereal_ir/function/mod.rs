@@ -523,6 +523,10 @@ impl Function {
                         let offset = offset.to_u64().expect("Always valid");
                         Element::Tag(tag << offset)
                     }
+                    (Some(Element::Constant(constant)), Some(Element::Constant(offset))) => {
+                        let offset = offset.to_u64().expect("Always valid");
+                        Element::Constant(constant << offset)
+                    }
                     _ => Element::Value,
                 };
 
@@ -545,6 +549,10 @@ impl Function {
                     (Some(Element::Tag(tag)), Some(Element::Constant(offset))) => {
                         let offset = offset.to_u64().expect("Always valid");
                         Element::Tag(tag >> offset)
+                    }
+                    (Some(Element::Constant(constant)), Some(Element::Constant(offset))) => {
+                        let offset = offset.to_u64().expect("Always valid");
+                        Element::Constant(constant >> offset)
                     }
                     _ => Element::Value,
                 };
