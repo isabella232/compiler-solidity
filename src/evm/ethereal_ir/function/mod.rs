@@ -10,6 +10,7 @@ use compiler_llvm_context::FunctionBlockKey;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::ops::BitAnd;
 
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
@@ -164,7 +165,7 @@ impl Function {
                 value: Some(ref tag),
             } => {
                 let tag: num::BigUint = tag.parse().expect("Always valid");
-                block_stack.push(Element::Tag(tag));
+                block_stack.push(Element::Tag(tag.bitand(num::BigUint::from(u64::MAX))));
 
                 block_element.stack = block_stack.clone();
             }

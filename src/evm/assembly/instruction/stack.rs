@@ -36,11 +36,6 @@ where
         .field_type()
         .const_int_from_string(value.as_str(), inkwell::types::StringRadix::Decimal)
         .expect("Always valid");
-    let result = context.builder().build_and(
-        result,
-        context.field_const(u64::MAX),
-        format!("tag_{}", value).as_str(),
-    );
     Ok(Some(result.as_basic_value_enum()))
 }
 
