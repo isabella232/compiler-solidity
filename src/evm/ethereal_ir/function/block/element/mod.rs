@@ -362,7 +362,7 @@ where
             InstructionName::POP => crate::evm::assembly::instruction::stack::pop(context),
 
             InstructionName::Tag => {
-                let destination: usize = self
+                let destination: num::BigUint = self
                     .instruction
                     .value
                     .expect("Always exists")

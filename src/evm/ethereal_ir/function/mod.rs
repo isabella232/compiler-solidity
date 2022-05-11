@@ -6,15 +6,22 @@ pub mod block;
 pub mod queue_element;
 pub mod visited_element;
 
-use inkwell::values::BasicValue;
+use compiler_llvm_context::FunctionBlockKey;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
+
+use inkwell::types::BasicType;
+use inkwell::values::BasicValue;
+use num::Num;
+use num::ToPrimitive;
+use num::Zero;
 
 use crate::evm::assembly::instruction::name::Name as InstructionName;
 use crate::evm::assembly::instruction::Instruction;
 use crate::evm::ethereal_ir::function::block::element::stack::element::Element;
 use crate::evm::ethereal_ir::function::block::element::stack::Stack;
+use crate::evm::ethereal_ir::EtherealIR;
 
 use self::block::element::stack::element::Element as StackElement;
 use self::block::element::Element as BlockElement;
@@ -29,10 +36,8 @@ use self::visited_element::VisitedElement;
 pub struct Function {
     /// The Solidity compiler version.
     pub solc_version: semver::Version,
-    /// The contract part where the function belongs.
-    pub code_type: compiler_llvm_context::CodeType,
     /// The separately labelled blocks.
-    pub blocks: BTreeMap<usize, Vec<Block>>,
+    pub blocks: BTreeMap<compiler_llvm_context::FunctionBlockKey, Vec<Block>>,
     /// The function stack size.
     pub stack_size: usize,
 }
@@ -43,17 +48,38 @@ impl Function {
     ///
     pub fn new(
         solc_version: semver::Version,
-        code_type: compiler_llvm_context::CodeType,
-        blocks: &HashMap<usize, Block>,
+        blocks: &HashMap<compiler_llvm_context::FunctionBlockKey, Block>,
         visited: &mut HashSet<VisitedElement>,
     ) -> anyhow::Result<Self> {
         let mut function = Self {
             solc_version,
-            code_type,
             blocks: BTreeMap::new(),
             stack_size: 0,
         };
-        function.consume_block(blocks, visited, QueueElement::new(0, None, Stack::new()))?;
+        function.consume_block(
+            blocks,
+            visited,
+            QueueElement::new(
+                compiler_llvm_context::FunctionBlockKey::new(
+                    compiler_llvm_context::CodeType::Deploy,
+                    num::BigUint::zero(),
+                ),
+                None,
+                Stack::new(),
+            ),
+        )?;
+        function.consume_block(
+            blocks,
+            visited,
+            QueueElement::new(
+                compiler_llvm_context::FunctionBlockKey::new(
+                    compiler_llvm_context::CodeType::Runtime,
+                    num::BigUint::zero(),
+                ),
+                None,
+                Stack::new(),
+            ),
+        )?;
         Ok(function.finalize())
     }
 
@@ -62,7 +88,7 @@ impl Function {
     ///
     fn consume_block(
         &mut self,
-        blocks: &HashMap<usize, Block>,
+        blocks: &HashMap<compiler_llvm_context::FunctionBlockKey, Block>,
         visited: &mut HashSet<VisitedElement>,
         mut queue_element: QueueElement,
     ) -> anyhow::Result<()> {
@@ -70,16 +96,19 @@ impl Function {
 
         let mut queue = vec![];
 
-        let visited_element = VisitedElement::new(queue_element.tag, queue_element.stack.hash());
+        let visited_element =
+            VisitedElement::new(queue_element.block_key.clone(), queue_element.stack.hash());
         if visited.contains(&visited_element) {
             return Ok(());
         }
         visited.insert(visited_element);
 
         let mut block = blocks
-            .get(&queue_element.tag)
+            .get(&queue_element.block_key)
             .cloned()
-            .ok_or_else(|| anyhow::anyhow!("Undeclared destination block {}", queue_element.tag))?;
+            .ok_or_else(|| {
+                anyhow::anyhow!("Undeclared destination block {}", queue_element.block_key)
+            })?;
         block.initial_stack = queue_element.stack.clone();
         let block = self.insert_block(block);
         block.stack = block.initial_stack.clone();
@@ -92,6 +121,7 @@ impl Function {
             block_size += 1;
 
             if Self::handle_instruction(
+                block.key.code_type,
                 &mut block.stack,
                 block_element,
                 &version,
@@ -121,6 +151,7 @@ impl Function {
     /// the invalid part is truncated after terminating with an `INVALID` instruction.
     ///
     fn handle_instruction(
+        code_type: compiler_llvm_context::CodeType,
         block_stack: &mut Stack,
         block_element: &mut BlockElement,
         version: &semver::Version,
@@ -130,16 +161,10 @@ impl Function {
         match block_element.instruction {
             Instruction {
                 name: InstructionName::PUSH_Tag,
-                value: Some(ref mut tag),
+                value: Some(ref tag),
             } => {
-                let element = match tag.parse() {
-                    Ok(tag) => Element::Tag(tag),
-                    Err(_) => {
-                        *tag = "0".to_owned();
-                        Element::Tag(0)
-                    }
-                };
-                block_stack.push(element);
+                let tag: num::BigUint = tag.parse().expect("Always valid");
+                block_stack.push(Element::Tag(tag));
 
                 block_element.stack = block_stack.clone();
             }
@@ -147,13 +172,21 @@ impl Function {
                 name: InstructionName::JUMP,
                 ..
             } => {
-                queue_element.predecessor = Some(queue_element.tag);
+                queue_element.predecessor = Some(queue_element.block_key.clone());
 
                 block_element.stack = block_stack.clone();
                 let destination = block_stack.pop_tag()?;
+                let block_key = if destination > num::BigUint::from(u32::MAX) {
+                    FunctionBlockKey::new(
+                        compiler_llvm_context::CodeType::Runtime,
+                        destination - num::BigUint::from(1u64 << 32),
+                    )
+                } else {
+                    FunctionBlockKey::new(code_type, destination)
+                };
                 queue.push(QueueElement::new(
-                    destination,
-                    queue_element.predecessor,
+                    block_key,
+                    queue_element.predecessor.clone(),
                     block_stack.to_owned(),
                 ));
             }
@@ -161,29 +194,39 @@ impl Function {
                 name: InstructionName::JUMPI,
                 ..
             } => {
-                queue_element.predecessor = Some(queue_element.tag);
+                queue_element.predecessor = Some(queue_element.block_key.clone());
 
                 block_element.stack = block_stack.clone();
                 let destination = block_stack.pop_tag()?;
+                let block_key = if destination > num::BigUint::from(u32::MAX) {
+                    FunctionBlockKey::new(
+                        compiler_llvm_context::CodeType::Runtime,
+                        destination - num::BigUint::from(1u64 << 32),
+                    )
+                } else {
+                    FunctionBlockKey::new(code_type, destination)
+                };
                 block_stack.pop()?;
                 queue.push(QueueElement::new(
-                    destination,
-                    queue_element.predecessor,
+                    block_key,
+                    queue_element.predecessor.clone(),
                     block_stack.to_owned(),
                 ));
             }
             Instruction {
                 name: InstructionName::Tag,
-                value: Some(ref destination),
+                value: Some(ref tag),
             } => {
                 block_element.stack = block_stack.clone();
 
-                let destination: usize = destination.parse().expect("Always valid");
-                queue_element.predecessor = Some(queue_element.tag);
-                queue_element.tag = destination;
+                let tag: num::BigUint = tag.parse().expect("Always valid");
+                let block_key = FunctionBlockKey::new(code_type, tag);
+
+                queue_element.predecessor = Some(queue_element.block_key.clone());
+                queue_element.block_key = block_key.clone();
                 queue.push(QueueElement::new(
-                    destination,
-                    queue_element.predecessor,
+                    block_key,
+                    queue_element.predecessor.clone(),
                     block_stack.to_owned(),
                 ));
             }
@@ -456,20 +499,33 @@ impl Function {
                     | InstructionName::PUSHDEPLOYADDRESS,
                 value: Some(ref constant),
             } => {
-                block_stack.push(StackElement::Constant(constant.to_owned()));
+                let element = match num::BigUint::from_str_radix(
+                    constant.as_str(),
+                    compiler_common::BASE_HEXADECIMAL,
+                ) {
+                    Ok(value) => StackElement::Constant(value),
+                    Err(_error) => StackElement::Path(constant.to_owned()),
+                };
+                block_stack.push(element);
                 block_element.stack = block_stack.clone();
             }
 
             ref instruction @ Instruction {
-                name: InstructionName::SHL | InstructionName::SHR,
+                name: InstructionName::SHL,
                 ..
             } => {
-                block_stack.push(
-                    match block_stack.elements.get(block_stack.elements.len() - 2) {
-                        Some(StackElement::Tag(tag)) => StackElement::Tag(*tag),
-                        _ => StackElement::Value,
-                    },
-                );
+                let value = block_stack.elements.get(block_stack.elements.len() - 2);
+                let offset = block_stack.elements.last();
+
+                let result = match (value, offset) {
+                    (Some(Element::Tag(tag)), Some(Element::Constant(offset))) => {
+                        let offset = offset.to_u64().expect("Always valid");
+                        Element::Tag(tag << offset)
+                    }
+                    _ => Element::Value,
+                };
+
+                block_stack.push(result);
                 block_element.stack = block_stack.clone();
                 let output = block_stack.pop()?;
                 for _ in 0..instruction.input_size(version) {
@@ -478,22 +534,96 @@ impl Function {
                 block_stack.push(output);
             }
             ref instruction @ Instruction {
-                name: InstructionName::OR | InstructionName::XOR | InstructionName::AND,
+                name: InstructionName::SHR,
                 ..
             } => {
-                let input_size = instruction.input_size(version);
-                block_stack.push(
-                    match block_stack
-                        .elements
-                        .iter()
-                        .rev()
-                        .take(input_size)
-                        .find(|element| matches!(element, StackElement::Tag(tag) if *tag != 0))
-                    {
-                        Some(StackElement::Tag(tag)) => StackElement::Tag(*tag),
-                        _ => StackElement::Value,
-                    },
-                );
+                let value = block_stack.elements.get(block_stack.elements.len() - 2);
+                let offset = block_stack.elements.last();
+
+                let result = match (value, offset) {
+                    (Some(Element::Tag(tag)), Some(Element::Constant(offset))) => {
+                        let offset = offset.to_u64().expect("Always valid");
+                        Element::Tag(tag >> offset)
+                    }
+                    _ => Element::Value,
+                };
+
+                block_stack.push(result);
+                block_element.stack = block_stack.clone();
+                let output = block_stack.pop()?;
+                for _ in 0..instruction.input_size(version) {
+                    block_stack.pop()?;
+                }
+                block_stack.push(output);
+            }
+            ref instruction @ Instruction {
+                name: InstructionName::OR,
+                ..
+            } => {
+                let operand_1 = block_stack.elements.get(block_stack.elements.len() - 2);
+                let operand_2 = block_stack.elements.last();
+
+                let result = match (operand_1, operand_2) {
+                    (Some(Element::Tag(operand_1)), Some(Element::Tag(operand_2)))
+                    | (Some(Element::Tag(operand_1)), Some(Element::Constant(operand_2)))
+                    | (Some(Element::Constant(operand_1)), Some(Element::Tag(operand_2)))
+                    | (Some(Element::Constant(operand_1)), Some(Element::Constant(operand_2))) => {
+                        Element::Tag(operand_1 | operand_2)
+                    }
+                    _ => Element::Value,
+                };
+
+                block_stack.push(result);
+                block_element.stack = block_stack.clone();
+                let output = block_stack.pop()?;
+                for _ in 0..instruction.input_size(version) {
+                    block_stack.pop()?;
+                }
+                block_stack.push(output);
+            }
+            ref instruction @ Instruction {
+                name: InstructionName::XOR,
+                ..
+            } => {
+                let operand_1 = block_stack.elements.get(block_stack.elements.len() - 2);
+                let operand_2 = block_stack.elements.last();
+
+                let result = match (operand_1, operand_2) {
+                    (Some(Element::Tag(operand_1)), Some(Element::Tag(operand_2)))
+                    | (Some(Element::Tag(operand_1)), Some(Element::Constant(operand_2)))
+                    | (Some(Element::Constant(operand_1)), Some(Element::Tag(operand_2)))
+                    | (Some(Element::Constant(operand_1)), Some(Element::Constant(operand_2))) => {
+                        Element::Tag(operand_1 ^ operand_2)
+                    }
+                    _ => Element::Value,
+                };
+
+                block_stack.push(result);
+                block_element.stack = block_stack.clone();
+                let output = block_stack.pop()?;
+                for _ in 0..instruction.input_size(version) {
+                    block_stack.pop()?;
+                }
+                block_stack.push(output);
+            }
+            ref instruction @ Instruction {
+                name: InstructionName::AND,
+                ..
+            } => {
+                let operand_1 = block_stack.elements.get(block_stack.elements.len() - 2);
+                let operand_2 = block_stack.elements.last();
+
+                let result = match (operand_1, operand_2) {
+                    (Some(Element::Tag(operand_1)), Some(Element::Tag(operand_2)))
+                    | (Some(Element::Tag(operand_1)), Some(Element::Constant(operand_2)))
+                    | (Some(Element::Constant(operand_1)), Some(Element::Tag(operand_2)))
+                    | (Some(Element::Constant(operand_1)), Some(Element::Constant(operand_2))) => {
+                        Element::Tag(operand_1 & operand_2)
+                    }
+                    _ => Element::Value,
+                };
+
+                block_stack.push(result);
                 block_element.stack = block_stack.clone();
                 let output = block_stack.pop()?;
                 for _ in 0..instruction.input_size(version) {
@@ -527,20 +657,20 @@ impl Function {
     /// Pushes a block into the function.
     ///
     fn insert_block(&mut self, block: Block) -> &mut Block {
-        let tag = block.tag;
+        let key = block.key.clone();
 
-        if let Some(entry) = self.blocks.get_mut(&tag) {
+        if let Some(entry) = self.blocks.get_mut(&key) {
             if entry.iter().all(|existing_block| {
                 existing_block.initial_stack.hash() != block.initial_stack.hash()
             }) {
                 entry.push(block);
             }
         } else {
-            self.blocks.insert(tag, vec![block]);
+            self.blocks.insert(key.clone(), vec![block]);
         }
 
         self.blocks
-            .get_mut(&tag)
+            .get_mut(&key)
             .expect("Always exists")
             .last_mut()
             .expect("Always exists")
@@ -562,13 +692,6 @@ impl Function {
 
         self
     }
-
-    ///
-    /// Returns the function name.
-    ///
-    fn name(&self) -> String {
-        format!("function_{}", self.code_type)
-    }
 }
 
 impl<D> compiler_llvm_context::WriteLLVM<D> for Function
@@ -577,8 +700,13 @@ where
 {
     fn declare(&mut self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         context.add_function_evm(
-            self.name().as_str(),
-            context.void_type().fn_type(&[], false),
+            EtherealIR::DEFAULT_ENTRY_FUNCTION_NAME,
+            context.void_type().fn_type(
+                &[context
+                    .integer_type(compiler_common::BITLENGTH_BOOLEAN as usize)
+                    .as_basic_type_enum()],
+                false,
+            ),
             Some(inkwell::module::Linkage::Private),
             compiler_llvm_context::FunctionEVMData::new(self.stack_size),
         );
@@ -587,22 +715,29 @@ where
     }
 
     fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
-        let name = self.name();
         let function = context
             .functions
-            .get(name.as_str())
+            .get(EtherealIR::DEFAULT_ENTRY_FUNCTION_NAME)
             .cloned()
             .expect("Always exists");
+        let is_constructor_flag = function
+            .value
+            .get_first_param()
+            .expect("Always exists")
+            .into_int_value();
         context.set_function(function);
 
-        for (tag, blocks) in self.blocks.iter() {
+        for (key, blocks) in self.blocks.iter() {
             for (index, block) in blocks.iter().enumerate() {
-                let inner = context.append_basic_block(format!("block_{}/{}", tag, index).as_str());
+                let inner = context.append_basic_block(format!("block_{}/{}", key, index).as_str());
                 let block = compiler_llvm_context::FunctionBlock::new_evm(
                     inner,
                     compiler_llvm_context::FunctionBlockEVMData::new(block.initial_stack.hash()),
                 );
-                context.function_mut().evm_mut().insert_block(*tag, block);
+                context
+                    .function_mut()
+                    .evm_mut()
+                    .insert_block(key.to_owned(), block);
             }
         }
 
@@ -618,20 +753,35 @@ where
             ));
         }
         context.evm_mut().stack = stack_variables;
-        let entry_block = context
-            .function()
-            .evm()
-            .find_block(0, &Stack::default().hash())?;
-        context.build_unconditional_branch(entry_block.inner);
 
-        for (tag, blocks) in self.blocks.into_iter() {
+        let constructor_block = context.function().evm().find_block(
+            &FunctionBlockKey::new(
+                compiler_llvm_context::CodeType::Deploy,
+                num::BigUint::zero(),
+            ),
+            &Stack::default().hash(),
+        )?;
+        let selector_block = context.function().evm().find_block(
+            &FunctionBlockKey::new(
+                compiler_llvm_context::CodeType::Runtime,
+                num::BigUint::zero(),
+            ),
+            &Stack::default().hash(),
+        )?;
+        context.build_conditional_branch(
+            is_constructor_flag,
+            constructor_block.inner,
+            selector_block.inner,
+        );
+
+        for (key, blocks) in self.blocks.into_iter() {
             for (llvm_block, ir_block) in context
                 .function()
                 .evm()
                 .blocks
-                .get(&tag)
+                .get(&key)
                 .cloned()
-                .ok_or_else(|| anyhow::anyhow!("Undeclared function block {}", tag))?
+                .ok_or_else(|| anyhow::anyhow!("Undeclared function block {}", key))?
                 .into_iter()
                 .map(|block| block.inner)
                 .zip(blocks)
@@ -653,19 +803,15 @@ where
 
 impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(
-            f,
-            "function {} (max_sp = {}) {{",
-            self.code_type, self.stack_size,
-        )?;
-        for (tag, blocks) in self.blocks.iter() {
+        writeln!(f, "function main (max_sp = {}) {{", self.stack_size,)?;
+        for (key, blocks) in self.blocks.iter() {
             for (index, block) in blocks.iter().enumerate() {
                 writeln!(
                     f,
                     "{:92}{}",
                     format!(
                         "block_{}/{}: {}",
-                        *tag,
+                        key,
                         index,
                         if block.predecessors.is_empty() {
                             "".to_owned()
