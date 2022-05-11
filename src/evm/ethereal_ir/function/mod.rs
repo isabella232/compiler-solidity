@@ -512,6 +512,72 @@ impl Function {
             }
 
             ref instruction @ Instruction {
+                name: InstructionName::ADD,
+                ..
+            } => {
+                let operand_2 = block_stack.elements.get(block_stack.elements.len() - 2);
+                let operand_1 = block_stack.elements.last();
+
+                let result = match (operand_1, operand_2) {
+                    (Some(Element::Constant(operand_1)), Some(Element::Constant(operand_2))) => {
+                        Element::Constant(operand_1 + operand_2)
+                    }
+                    _ => Element::Value,
+                };
+
+                block_stack.push(result);
+                block_element.stack = block_stack.clone();
+                let output = block_stack.pop()?;
+                for _ in 0..instruction.input_size(version) {
+                    block_stack.pop()?;
+                }
+                block_stack.push(output);
+            }
+            ref instruction @ Instruction {
+                name: InstructionName::SUB,
+                ..
+            } => {
+                let operand_2 = block_stack.elements.get(block_stack.elements.len() - 2);
+                let operand_1 = block_stack.elements.last();
+
+                let result = match (operand_1, operand_2) {
+                    (Some(Element::Constant(operand_1)), Some(Element::Constant(operand_2))) => {
+                        Element::Constant(operand_1 - operand_2)
+                    }
+                    _ => Element::Value,
+                };
+
+                block_stack.push(result);
+                block_element.stack = block_stack.clone();
+                let output = block_stack.pop()?;
+                for _ in 0..instruction.input_size(version) {
+                    block_stack.pop()?;
+                }
+                block_stack.push(output);
+            }
+            ref instruction @ Instruction {
+                name: InstructionName::MUL,
+                ..
+            } => {
+                let operand_2 = block_stack.elements.get(block_stack.elements.len() - 2);
+                let operand_1 = block_stack.elements.last();
+
+                let result = match (operand_1, operand_2) {
+                    (Some(Element::Constant(operand_1)), Some(Element::Constant(operand_2))) => {
+                        Element::Constant(operand_1 * operand_2)
+                    }
+                    _ => Element::Value,
+                };
+
+                block_stack.push(result);
+                block_element.stack = block_stack.clone();
+                let output = block_stack.pop()?;
+                for _ in 0..instruction.input_size(version) {
+                    block_stack.pop()?;
+                }
+                block_stack.push(output);
+            }
+            ref instruction @ Instruction {
                 name: InstructionName::SHL,
                 ..
             } => {
