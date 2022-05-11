@@ -184,7 +184,7 @@ impl Project {
             .flatten()
             .collect();
 
-        let hash = compiler_common::keccak256(bytecode.as_slice());
+        let hash = compiler_llvm_context::bytecode_hash(bytecode.as_slice())?;
 
         let contract = self
             .contracts

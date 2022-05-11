@@ -44,7 +44,7 @@ impl Assembly {
     ///
     pub fn keccak256(&self) -> String {
         let json = serde_json::to_vec(self).expect("Always valid");
-        compiler_common::keccak256(json.as_slice())
+        compiler_llvm_context::keccak256(json.as_slice())
     }
 
     ///
