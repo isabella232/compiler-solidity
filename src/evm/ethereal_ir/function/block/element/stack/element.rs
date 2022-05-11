@@ -10,9 +10,11 @@ pub enum Element {
     /// The unknown runtime value.
     Value,
     /// The known compile-time value.
-    Constant(String),
+    Constant(num::BigUint),
     /// The known compile-time destination tag.
-    Tag(usize),
+    Tag(num::BigUint),
+    /// The known compile-time path.
+    Path(String),
 }
 
 impl std::fmt::Display for Element {
@@ -21,6 +23,7 @@ impl std::fmt::Display for Element {
             Self::Value => write!(f, "VALUE"),
             Self::Constant(value) => write!(f, "{}", value),
             Self::Tag(tag) => write!(f, "TAG_{}", tag),
+            Self::Path(path) => write!(f, "{}", path),
         }
     }
 }

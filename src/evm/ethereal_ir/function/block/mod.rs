@@ -6,6 +6,8 @@ pub mod element;
 
 use std::collections::HashSet;
 
+use num::Zero;
+
 use crate::evm::assembly::instruction::name::Name as InstructionName;
 use crate::evm::assembly::instruction::Instruction;
 
@@ -19,13 +21,12 @@ use self::element::Element;
 pub struct Block {
     /// The Solidity compiler version.
     pub solc_version: semver::Version,
-    /// The block unique identifier, represented by a tag in the bytecode.
-    /// Is 0 in the initial block.
-    pub tag: usize,
+    /// The block key.
+    pub key: compiler_llvm_context::FunctionBlockKey,
     /// The block elements relevant to the stack consistency.
     pub elements: Vec<Element>,
     /// The block predecessors.
-    pub predecessors: HashSet<usize>,
+    pub predecessors: HashSet<compiler_llvm_context::FunctionBlockKey>,
     /// The initial stack state.
     pub initial_stack: ElementStack,
     /// The stack.
@@ -43,11 +44,12 @@ impl Block {
     ///
     pub fn try_from_instructions(
         solc_version: semver::Version,
+        code_type: compiler_llvm_context::CodeType,
         slice: &[Instruction],
     ) -> anyhow::Result<(Self, usize)> {
         let mut cursor = 0;
 
-        let tag: usize = match slice[cursor].name {
+        let tag: num::BigUint = match slice[cursor].name {
             InstructionName::Tag => {
                 let tag = slice[cursor]
                     .value
@@ -58,12 +60,12 @@ impl Block {
                 cursor += 1;
                 tag
             }
-            _ => 0,
+            _ => num::BigUint::zero(),
         };
 
         let mut block = Self {
             solc_version: solc_version.clone(),
-            tag,
+            key: compiler_llvm_context::FunctionBlockKey::new(code_type, tag),
             elements: Vec::with_capacity(Self::ELEMENTS_VECTOR_DEFAULT_CAPACITY),
             predecessors: HashSet::with_capacity(Self::PREDECESSORS_HASHSET_DEFAULT_CAPACITY),
             initial_stack: ElementStack::new(),
@@ -98,8 +100,8 @@ impl Block {
     ///
     /// Inserts a predecessor tag.
     ///
-    pub fn insert_predecessor(&mut self, tag: usize) {
-        self.predecessors.insert(tag);
+    pub fn insert_predecessor(&mut self, key: compiler_llvm_context::FunctionBlockKey) {
+        self.predecessors.insert(key);
     }
 }
 
@@ -108,6 +110,8 @@ where
     D: compiler_llvm_context::Dependency,
 {
     fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
+        context.code_type = Some(self.key.code_type);
+
         for element in self.elements.into_iter() {
             element.into_llvm(context)?;
         }

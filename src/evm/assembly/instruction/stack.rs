@@ -14,12 +14,12 @@ pub fn push<'ctx, 'dep, D>(
 where
     D: compiler_llvm_context::Dependency,
 {
-    let value = context
+    let result = context
         .field_type()
         .const_int_from_string(value.as_str(), inkwell::types::StringRadix::Hexadecimal)
         .expect("Always valid")
         .as_basic_value_enum();
-    Ok(Some(value))
+    Ok(Some(result))
 }
 
 ///
@@ -32,10 +32,16 @@ pub fn push_tag<'ctx, 'dep, D>(
 where
     D: compiler_llvm_context::Dependency,
 {
-    let value: usize = value.parse().expect("Always valid");
-    Ok(Some(
-        context.field_const(value as u64).as_basic_value_enum(),
-    ))
+    let result = context
+        .field_type()
+        .const_int_from_string(value.as_str(), inkwell::types::StringRadix::Decimal)
+        .expect("Always valid");
+    let result = context.builder().build_and(
+        result,
+        context.field_const(u64::MAX),
+        format!("tag_{}", value).as_str(),
+    );
+    Ok(Some(result.as_basic_value_enum()))
 }
 
 ///

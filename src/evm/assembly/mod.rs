@@ -194,32 +194,13 @@ where
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EVM) {
             println!("Contract `{}` constructor EVM:\n\n{}", full_path, self);
         }
-        let mut constructor_ethereal_ir = EtherealIR::new(
+        let constructor_blocks = EtherealIR::get_blocks(
             context.evm().version.to_owned(),
+            compiler_llvm_context::CodeType::Deploy,
             self.code
                 .as_deref()
                 .ok_or_else(|| anyhow::anyhow!("Constructor instructions not found"))?,
-            compiler_llvm_context::CodeType::Deploy,
-        )
-        .map_err(|error| {
-            anyhow::anyhow!(
-                "The contract `{}` constructor Ethereal IR generator error: {}",
-                full_path,
-                error
-            )
-        })?;
-        if context.has_dump_flag(compiler_llvm_context::DumpFlag::EthIR) {
-            println!(
-                "Contract `{}` constructor Ethereal IR:\n\n{}",
-                full_path, constructor_ethereal_ir
-            );
-        }
-        let constructor = compiler_llvm_context::ConstructorFunction::new(EntryLink::new(
-            compiler_llvm_context::CodeType::Deploy,
-        ));
-        constructor_ethereal_ir.declare(context)?;
-        constructor.into_llvm(context)?;
-        constructor_ethereal_ir.into_llvm(context)?;
+        )?;
 
         let data = self
             .data
@@ -240,30 +221,29 @@ where
                 anyhow::bail!("Expected selector instructions, found path `{}`", path)
             }
         };
-        let mut selector_ethereal_ir = EtherealIR::new(
+        let selector_blocks = EtherealIR::get_blocks(
             context.evm().version.to_owned(),
+            compiler_llvm_context::CodeType::Runtime,
             selector_instructions.as_slice(),
-            compiler_llvm_context::CodeType::Runtime,
-        )
-        .map_err(|error| {
-            anyhow::anyhow!(
-                "The contract `{}` selector Ethereal IR generator error: {}",
-                full_path,
-                error
-            )
-        })?;
+        )?;
+
+        let mut blocks = constructor_blocks;
+        blocks.extend(selector_blocks);
+        let mut ethereal_ir = EtherealIR::new(context.evm().version.to_owned(), blocks)?;
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EthIR) {
-            println!(
-                "Contract `{}` selector Ethereal IR:\n\n{}",
-                full_path, selector_ethereal_ir
-            );
+            println!("Contract `{}` Ethereal IR:\n\n{}", full_path, ethereal_ir);
         }
-        let selector = compiler_llvm_context::SelectorFunction::new(EntryLink::new(
+        ethereal_ir.declare(context)?;
+        ethereal_ir.into_llvm(context)?;
+
+        compiler_llvm_context::ConstructorFunction::new(EntryLink::new(
+            compiler_llvm_context::CodeType::Deploy,
+        ))
+        .into_llvm(context)?;
+        compiler_llvm_context::SelectorFunction::new(EntryLink::new(
             compiler_llvm_context::CodeType::Runtime,
-        ));
-        selector_ethereal_ir.declare(context)?;
-        selector.into_llvm(context)?;
-        selector_ethereal_ir.into_llvm(context)?;
+        ))
+        .into_llvm(context)?;
 
         Ok(())
     }

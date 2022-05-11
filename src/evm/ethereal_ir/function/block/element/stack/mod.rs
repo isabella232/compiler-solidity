@@ -44,7 +44,7 @@ impl Stack {
         let mut hash_context = md5::Context::new();
         for element in self.elements.iter() {
             match element {
-                Element::Tag(tag) => hash_context.consume((*tag).to_ne_bytes()),
+                Element::Tag(tag) => hash_context.consume(tag.to_bytes_be()),
                 _ => hash_context.consume([0]),
             }
         }
@@ -70,7 +70,7 @@ impl Stack {
     ///
     /// Pops the tag from the top.
     ///
-    pub fn pop_tag(&mut self) -> anyhow::Result<usize> {
+    pub fn pop_tag(&mut self) -> anyhow::Result<num::BigUint> {
         match self.elements.pop() {
             Some(Element::Tag(tag)) => Ok(tag),
             Some(element) => anyhow::bail!("Expected tag, found {}", element),
