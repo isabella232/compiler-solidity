@@ -14,6 +14,9 @@ use std::ops::BitAnd;
 
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
+use num::CheckedAdd;
+use num::CheckedMul;
+use num::CheckedSub;
 use num::Num;
 use num::ToPrimitive;
 use num::Zero;
@@ -520,7 +523,10 @@ impl Function {
 
                 let result = match (operand_1, operand_2) {
                     (Some(Element::Constant(operand_1)), Some(Element::Constant(operand_2))) => {
-                        Element::Constant(operand_1 + operand_2)
+                        match operand_1.checked_add(operand_2) {
+                            Some(result) => Element::Constant(result),
+                            None => Element::Value,
+                        }
                     }
                     _ => Element::Value,
                 };
@@ -542,7 +548,10 @@ impl Function {
 
                 let result = match (operand_1, operand_2) {
                     (Some(Element::Constant(operand_1)), Some(Element::Constant(operand_2))) => {
-                        Element::Constant(operand_1 - operand_2)
+                        match operand_1.checked_sub(operand_2) {
+                            Some(result) => Element::Constant(result),
+                            None => Element::Value,
+                        }
                     }
                     _ => Element::Value,
                 };
@@ -564,7 +573,10 @@ impl Function {
 
                 let result = match (operand_1, operand_2) {
                     (Some(Element::Constant(operand_1)), Some(Element::Constant(operand_2))) => {
-                        Element::Constant(operand_1 * operand_2)
+                        match operand_1.checked_mul(operand_2) {
+                            Some(result) => Element::Constant(result),
+                            None => Element::Value,
+                        }
                     }
                     _ => Element::Value,
                 };
