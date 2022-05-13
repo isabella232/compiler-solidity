@@ -2,6 +2,7 @@
 //! The EVM instruction.
 //!
 
+pub mod codecopy;
 pub mod jump;
 pub mod name;
 pub mod stack;

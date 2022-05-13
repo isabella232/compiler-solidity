@@ -122,12 +122,12 @@ dependencies = [
 [[package]]
 name = "compiler-common"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#673e5205d1b464d9c106bd8990ec59833769a6fb"
+source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#0fe1717e176fc8b77634e98cd58dd9f43514e97f"
 
 [[package]]
 name = "compiler-llvm-context"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#25c9bf4c49a67adbac789aeeea31087c6705c356"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#809786c08314695aba83e299c8ed587bc84e4f2d"
 dependencies = [
  "anyhow",
  "compiler-common",
@@ -400,7 +400,7 @@ checksum = "5916d2ae698f6de9bfb891ad7a8d65c09d232dc58cc4ac433c7da3b2fd84bc2b"
 [[package]]
 name = "llvm-sys"
 version = "130.0.0"
-source = "git+ssh://git@github.com/matter-labs-forks/llvm-sys.rs#d6dec4ee631e5f58dd7e7ea7dc28ef948215951c"
+source = "git+ssh://git@github.com/matter-labs-forks/llvm-sys.rs#8f6a5e0de8881e4efa3e1c211a556b67f49eda98"
 dependencies = [
  "cc",
  "lazy_static",
@@ -871,9 +871,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.93"
+version = "1.0.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04066589568b72ec65f42d65a1a52436e954b168773148893c020269563decf2"
+checksum = "a07e33e919ebcd69113d5be0e4d70c5707004ff45188910106854f38b960df4a"
 dependencies = [
  "proc-macro2",
  "quote",

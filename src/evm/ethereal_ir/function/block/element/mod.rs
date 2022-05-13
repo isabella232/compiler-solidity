@@ -7,7 +7,7 @@ pub mod stack;
 use inkwell::values::BasicValue;
 
 use crate::evm::assembly::instruction::name::Name as InstructionName;
-use crate::evm::assembly::instruction::Instruction;
+use crate::evm::assembly::instruction::{codecopy, Instruction};
 use crate::evm::ethereal_ir::EtherealIR;
 
 use self::stack::Stack;
@@ -718,7 +718,10 @@ where
                         if !source.chars().all(|char| char.is_ascii_hexdigit())
                             && source != parent =>
                     {
-                        compiler_llvm_context::memory::store(context, [arguments[0], arguments[1]])
+                        codecopy::contract_hash(
+                            context,
+                            arguments.try_into().expect("Always valid"),
+                        )
                     }
                     Some(source)
                         if !source.chars().all(|char| char.is_ascii_hexdigit())
@@ -726,66 +729,17 @@ where
                     {
                         match original_destination {
                             Some(length) if length == "B" => {
-                                if let Some(compiler_llvm_context::CodeType::Deploy) =
-                                    context.code_type
-                                {
-                                    let address = context
-                                        .build_call(
-                                            context.get_intrinsic_function(
-                                                compiler_llvm_context::IntrinsicFunction::Address,
-                                            ),
-                                            &[],
-                                            "address",
-                                        )
-                                        .expect("Always exists");
-                                    compiler_llvm_context::immutable::store(
-                                        context,
-                                        EtherealIR::DEPLOY_ADDRESS_STORAGE_KEY.to_owned(),
-                                        address.into_int_value(),
-                                    )?;
-                                }
-
-                                compiler_llvm_context::memory::store_byte(
-                                    context,
-                                    [
-                                        context.field_const_str_hex(length).as_basic_value_enum(),
-                                        context.field_const_str_hex("73").as_basic_value_enum(),
-                                    ],
-                                )
+                                codecopy::library_marker(context, length, "73")
                             }
                             _ => Ok(None),
                         }
                     }
                     Some(source) if source.chars().all(|char| char.is_ascii_hexdigit()) => {
-                        let mut offset = 0;
-                        for (index, chunk) in source
-                            .chars()
-                            .collect::<Vec<char>>()
-                            .chunks(compiler_common::SIZE_FIELD * 2)
-                            .enumerate()
-                        {
-                            let mut value_string = chunk.iter().collect::<String>();
-                            value_string.push_str(
-                                "0".repeat((compiler_common::SIZE_FIELD * 2) - chunk.len())
-                                    .as_str(),
-                            );
-
-                            let datacopy_destination = context.builder().build_int_add(
-                                arguments[0].into_int_value(),
-                                context.field_const(offset as u64),
-                                format!("datacopy_destination_index_{}", index).as_str(),
-                            );
-                            let datacopy_value = context.field_const_str(value_string.as_str());
-                            compiler_llvm_context::memory::store(
-                                context,
-                                [
-                                    datacopy_destination.as_basic_value_enum(),
-                                    datacopy_value.as_basic_value_enum(),
-                                ],
-                            )?;
-                            offset += chunk.len() / 2;
-                        }
-                        Ok(None)
+                        codecopy::static_data(
+                            context,
+                            arguments.try_into().expect("Always valid"),
+                            source,
+                        )
                     }
                     Some(_source) => Ok(None),
                     None => compiler_llvm_context::calldata::copy(
