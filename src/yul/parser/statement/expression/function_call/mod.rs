@@ -99,11 +99,21 @@ impl FunctionCall {
                     values.insert(0, pointer.as_basic_value_enum());
                 }
 
-                let return_value = context.build_call(
-                    function.value,
-                    values.as_slice(),
-                    format!("{}_return_value", name).as_str(),
-                );
+                let return_value = if name
+                    .starts_with(compiler_llvm_context::Function::ZKSYNC_NEAR_CALL_ABI_PREFIX)
+                {
+                    context.build_invoke_near_call_abi(
+                        function.value,
+                        values.as_slice(),
+                        format!("{}_return_value", name).as_str(),
+                    )
+                } else {
+                    context.build_call(
+                        function.value,
+                        values.as_slice(),
+                        format!("{}_return_value", name).as_str(),
+                    )
+                };
 
                 if let Some(compiler_llvm_context::FunctionReturn::Compound { .. }) =
                     function.r#return
