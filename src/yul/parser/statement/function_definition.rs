@@ -44,7 +44,19 @@ impl FunctionDefinition {
             lexeme => anyhow::bail!("Expected one of {:?}, found `{}`", ["("], lexeme),
         }
 
-        let (arguments, next) = Identifier::parse_typed_list(lexer, None)?;
+        let (mut arguments, next) = Identifier::parse_typed_list(lexer, None)?;
+        if name.starts_with(compiler_llvm_context::Function::ZKSYNC_NEAR_CALL_ABI_PREFIX) {
+            if arguments.is_empty() {
+                anyhow::bail!("The `{}` function must have at least one argument", name);
+            }
+
+            arguments.remove(0);
+        }
+        if name.as_str() == compiler_llvm_context::Function::ZKSYNC_NEAR_CALL_ABI_EXCEPTION_HANDLER
+            && !arguments.is_empty()
+        {
+            anyhow::bail!("The `{}` function cannot have arguments", name);
+        }
 
         match crate::yul::parser::take_or_next(next, lexer)? {
             Lexeme::Symbol(Symbol::ParenthesisRight) => {}
