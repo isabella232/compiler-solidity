@@ -87,27 +87,53 @@ impl FunctionCall {
                     .cloned()
                     .unwrap_or_else(|| panic!("Undeclared function {}", name));
 
-                if let Some(compiler_llvm_context::FunctionReturn::Compound { size, .. }) =
-                    function.r#return
-                {
-                    let r#type =
-                        context
-                            .structure_type(vec![context.field_type().as_basic_type_enum(); size]);
-                    let pointer = context
-                        .build_alloca(r#type, format!("{}_return_pointer_argument", name).as_str());
-                    context.build_store(pointer, r#type.const_zero());
-                    values.insert(0, pointer.as_basic_value_enum());
-                }
+                let return_pointer =
+                    if let Some(compiler_llvm_context::FunctionReturn::Compound { size, .. }) =
+                        function.r#return
+                    {
+                        let r#type =
+                            context.structure_type(vec![
+                                context.field_type().as_basic_type_enum();
+                                size
+                            ]);
+                        let pointer = context.build_alloca(
+                            r#type,
+                            format!("{}_return_pointer_argument", name).as_str(),
+                        );
+                        context.build_store(pointer, r#type.const_zero());
+                        Some(pointer.as_basic_value_enum())
+                    } else {
+                        None
+                    };
 
                 let return_value = if name
                     .starts_with(compiler_llvm_context::Function::ZKSYNC_NEAR_CALL_ABI_PREFIX)
                 {
+                    if let Some(pointer) = return_pointer {
+                        values.insert(1, pointer.as_basic_value_enum());
+                    }
+
+                    let function_pointer = context.builder().build_bitcast(
+                        function.value,
+                        context
+                            .field_type()
+                            .ptr_type(compiler_llvm_context::AddressSpace::Stack.into()),
+                        format!("{}_near_call_function_pointer", name).as_str(),
+                    );
+                    values.insert(
+                        0,
+                        function_pointer.into_pointer_value().as_basic_value_enum(),
+                    );
                     context.build_invoke_near_call_abi(
                         function.value,
-                        values.as_slice(),
+                        values,
                         format!("{}_return_value", name).as_str(),
                     )
                 } else {
+                    if let Some(pointer) = return_pointer {
+                        values.insert(0, pointer.as_basic_value_enum());
+                    }
+
                     context.build_call(
                         function.value,
                         values.as_slice(),
