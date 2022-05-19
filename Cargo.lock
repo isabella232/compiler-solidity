@@ -127,7 +127,7 @@ source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1
 [[package]]
 name = "compiler-llvm-context"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#308761166e0e10c47cade6fc58d1370972c7f508"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#dc4801c0285a43ad5e533b2d791f405cea36b7ac"
 dependencies = [
  "anyhow",
  "compiler-common",
@@ -1079,7 +1079,7 @@ checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
 [[package]]
 name = "zkevm-assembly"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#acf65294b2c89e50618f71a6d249a1d02d1c8812"
+source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=az/remove-pc-overflow-panic#fd7eca90cbbd38ad07f0bc5fcb1aabfd6e31e632"
 dependencies = [
  "env_logger",
  "hex",
