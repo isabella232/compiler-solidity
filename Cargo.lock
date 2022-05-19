@@ -400,7 +400,7 @@ checksum = "349d5a591cd28b49e1d1037471617a32ddcda5731b99419008085f72d5a53836"
 [[package]]
 name = "llvm-sys"
 version = "130.0.0"
-source = "git+ssh://git@github.com/matter-labs-forks/llvm-sys.rs#8f6a5e0de8881e4efa3e1c211a556b67f49eda98"
+source = "git+ssh://git@github.com/matter-labs-forks/llvm-sys.rs#49a40636bb5a83e42a62262b2627c2065f1ba8bc"
 dependencies = [
  "cc",
  "lazy_static",
@@ -534,9 +534,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.10.0"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87f3e037eac156d1775da914196f0f37741a274155e34a0b7e427c35d2a2ecb9"
+checksum = "7b10983b38c53aebdf33f542c6275b0f58a238129d00c4ae0e6fb59738d783ca"
 
 [[package]]
 name = "parity-scale-codec"
@@ -1079,7 +1079,7 @@ checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
 [[package]]
 name = "zkevm-assembly"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=az/remove-pc-overflow-panic#fd7eca90cbbd38ad07f0bc5fcb1aabfd6e31e632"
+source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#0fe20d08ee6ce58ff599afb96e132308a6102eda"
 dependencies = [
  "env_logger",
  "hex",

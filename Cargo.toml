@@ -26,7 +26,7 @@ hex = "0.4"
 num = "0.4"
 md5 = "0.7"
 
-zkevm-assembly = { git = "https://github.com/matter-labs/zkEVM-assembly", branch = "az/remove-pc-overflow-panic" }
+zkevm-assembly = { git = "https://github.com/matter-labs/zkEVM-assembly", branch = "v1.1.1" }
 
 compiler-common = { git = "ssh://git@github.com/matter-labs/compiler-common", branch = "az/vm-v1.1" }
 compiler-llvm-context = { git = "ssh://git@github.com/matter-labs/compiler-llvm-context", branch = "az/vm-v1.1" }
