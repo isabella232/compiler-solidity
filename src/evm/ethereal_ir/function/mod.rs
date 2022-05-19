@@ -6,7 +6,6 @@ pub mod block;
 pub mod queue_element;
 pub mod visited_element;
 
-use compiler_llvm_context::FunctionBlockKey;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -181,12 +180,12 @@ impl Function {
                 block_element.stack = block_stack.clone();
                 let destination = block_stack.pop_tag()?;
                 let block_key = if destination > num::BigUint::from(u32::MAX) {
-                    FunctionBlockKey::new(
+                    compiler_llvm_context::FunctionBlockKey::new(
                         compiler_llvm_context::CodeType::Runtime,
                         destination - num::BigUint::from(1u64 << 32),
                     )
                 } else {
-                    FunctionBlockKey::new(code_type, destination)
+                    compiler_llvm_context::FunctionBlockKey::new(code_type, destination)
                 };
                 queue.push(QueueElement::new(
                     block_key,
@@ -203,12 +202,12 @@ impl Function {
                 block_element.stack = block_stack.clone();
                 let destination = block_stack.pop_tag()?;
                 let block_key = if destination > num::BigUint::from(u32::MAX) {
-                    FunctionBlockKey::new(
+                    compiler_llvm_context::FunctionBlockKey::new(
                         compiler_llvm_context::CodeType::Runtime,
                         destination - num::BigUint::from(1u64 << 32),
                     )
                 } else {
-                    FunctionBlockKey::new(code_type, destination)
+                    compiler_llvm_context::FunctionBlockKey::new(code_type, destination)
                 };
                 block_stack.pop()?;
                 queue.push(QueueElement::new(
@@ -224,7 +223,7 @@ impl Function {
                 block_element.stack = block_stack.clone();
 
                 let tag: num::BigUint = tag.parse().expect("Always valid");
-                let block_key = FunctionBlockKey::new(code_type, tag);
+                let block_key = compiler_llvm_context::FunctionBlockKey::new(code_type, tag);
 
                 queue_element.predecessor = Some(queue_element.block_key.clone());
                 queue_element.block_key = block_key.clone();
@@ -842,14 +841,14 @@ where
         context.evm_mut().stack = stack_variables;
 
         let constructor_block = context.function().evm().find_block(
-            &FunctionBlockKey::new(
+            &compiler_llvm_context::FunctionBlockKey::new(
                 compiler_llvm_context::CodeType::Deploy,
                 num::BigUint::zero(),
             ),
             &Stack::default().hash(),
         )?;
         let selector_block = context.function().evm().find_block(
-            &FunctionBlockKey::new(
+            &compiler_llvm_context::FunctionBlockKey::new(
                 compiler_llvm_context::CodeType::Runtime,
                 num::BigUint::zero(),
             ),
@@ -879,7 +878,6 @@ where
         }
 
         context.build_catch_block();
-        context.build_throw_block();
 
         context.set_basic_block(context.function().return_block);
         context.build_return(None);

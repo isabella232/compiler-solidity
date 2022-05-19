@@ -42,7 +42,7 @@ where
                 .integer_type(compiler_common::BITLENGTH_BOOLEAN)
                 .const_int(0, false),
         };
-        context.build_call(
+        context.build_invoke(
             target,
             &[is_constructor.as_basic_value_enum()],
             format!("call_link_{}", EtherealIR::DEFAULT_ENTRY_FUNCTION_NAME).as_str(),

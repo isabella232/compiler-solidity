@@ -134,7 +134,7 @@ impl FunctionCall {
                         values.insert(0, pointer.as_basic_value_enum());
                     }
 
-                    context.build_call(
+                    context.build_invoke(
                         function.value,
                         values.as_slice(),
                         format!("{}_return_value", name).as_str(),

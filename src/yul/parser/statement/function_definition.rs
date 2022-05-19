@@ -224,7 +224,6 @@ where
             _ => context.build_unconditional_branch(context.function().return_block),
         }
 
-        context.build_throw_block();
         context.build_catch_block();
 
         match r#return {
