@@ -68,8 +68,8 @@ impl Error {
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
 │ Warning: It seems like your code or one of its dependencies uses extcodesize. This      │
 │ opcode is most often used for the following:                                            │
-│     - to detect whether an address belongs to a smart contracts or not                  │
-│     - to detect whether or not the constructor execution has ended                      │
+│     - to detect whether an address belongs to smart contracts                           │
+│     - to detect whether the deploy code execution has ended                             │
 │ zkSync 2.0 will support account abstraction by default (so every account will be a      │
 │ smart contract, even private-key controlled EOAs). So none of the use-cases above will  │
 │ work. Please do your best to avoid differentiating between contracts and non-contracts. │

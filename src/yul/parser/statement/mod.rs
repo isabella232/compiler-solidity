@@ -63,7 +63,7 @@ pub enum Statement {
 
 impl Statement {
     ///
-    /// The element parser, which acts like a constructor.
+    /// The element parser.
     ///
     pub fn parse(
         lexer: &mut Lexer,

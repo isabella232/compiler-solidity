@@ -13,7 +13,7 @@ pub fn unconditional<'ctx, 'dep, D>(
 where
     D: compiler_llvm_context::Dependency,
 {
-    let code_type = context.code_type.expect("Always exists");
+    let code_type = context.code_type();
     let block_key = compiler_llvm_context::FunctionBlockKey::new(code_type, destination);
 
     let block = context
@@ -37,7 +37,7 @@ pub fn conditional<'ctx, 'dep, D>(
 where
     D: compiler_llvm_context::Dependency,
 {
-    let code_type = context.code_type.expect("Always exists");
+    let code_type = context.code_type();
     let block_key = compiler_llvm_context::FunctionBlockKey::new(code_type, destination);
 
     let condition_pointer = context.evm().stack[stack_height]

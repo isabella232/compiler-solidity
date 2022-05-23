@@ -107,13 +107,13 @@ fn main_inner() -> anyhow::Result<()> {
         }
     }
 
-    let mut project =
+    let project =
         solc_output.try_into_project(libraries, pipeline, solc_version, dump_flags.as_slice())?;
     compiler_llvm_context::initialize_target();
-    project.compile_all(arguments.optimize, dump_flags)?;
+    let build = project.compile_all(arguments.optimize, dump_flags)?;
 
     if arguments.standard_json {
-        project.write_to_standard_json(&mut solc_output)?;
+        build.write_to_standard_json(&mut solc_output)?;
         serde_json::to_writer(std::io::stdout(), &solc_output)?;
         return Ok(());
     }
@@ -128,10 +128,10 @@ fn main_inner() -> anyhow::Result<()> {
         std::fs::create_dir_all(&output_directory)?;
 
         if let Some(mut combined_json) = combined_json {
-            project.write_to_combined_json(&mut combined_json)?;
+            build.write_to_combined_json(&mut combined_json)?;
             combined_json.write_to_directory(&output_directory, arguments.overwrite)?;
         } else {
-            project.write_to_directory(
+            build.write_to_directory(
                 &output_directory,
                 arguments.output_assembly,
                 arguments.output_binary,
@@ -144,7 +144,7 @@ fn main_inner() -> anyhow::Result<()> {
             output_directory
         );
     } else if let Some(mut combined_json) = combined_json {
-        project.write_to_combined_json(&mut combined_json)?;
+        build.write_to_combined_json(&mut combined_json)?;
         println!(
             "{}",
             serde_json::to_string(&combined_json).expect("Always valid")
@@ -154,19 +154,18 @@ fn main_inner() -> anyhow::Result<()> {
         || arguments.output_hashes
         || arguments.output_abi
     {
-        for (path, contract) in project.contracts.into_iter() {
+        for (path, contract) in build.contracts.into_iter() {
             if arguments.output_assembly {
                 println!(
                     "Contract `{}` assembly:\n\n{}",
-                    path,
-                    contract.assembly_text.expect("Always exists")
+                    path, contract.build.assembly_text
                 );
             }
             if arguments.output_binary {
                 println!(
                     "Contract `{}` bytecode: 0x{}",
                     path,
-                    hex::encode(contract.bytecode.expect("Always exists").as_slice())
+                    hex::encode(contract.build.bytecode)
                 );
             }
         }

@@ -5,15 +5,11 @@
 pub mod contract;
 
 use std::collections::HashMap;
-use std::path::Path;
 
-use compiler_llvm_context::WriteLLVM;
-
+use crate::build::contract::Contract as ContractBuild;
+use crate::build::Build;
 use crate::dump_flag::DumpFlag;
 use crate::project::contract::source::Source;
-use crate::solc::combined_json::CombinedJson;
-use crate::solc::standard_json::output::contract::evm::EVM as StandardJsonOutputContractEVM;
-use crate::solc::standard_json::output::Output as StandardJsonOutput;
 use crate::yul::lexer::Lexer;
 use crate::yul::parser::statement::object::Object;
 
@@ -34,7 +30,7 @@ pub struct Project {
 
 impl Project {
     ///
-    /// The shortcut constructor.
+    /// A shortcut constructor.
     ///
     pub fn new(
         version: semver::Version,
@@ -49,7 +45,7 @@ impl Project {
     }
 
     ///
-    /// Compiles the specified contract, setting its text assembly and binary bytecode.
+    /// Compiles the specified contract, setting its build artifacts.
     ///
     pub fn compile(
         &mut self,
@@ -58,254 +54,71 @@ impl Project {
         optimization_level_back: inkwell::OptimizationLevel,
         run_inliner: bool,
         dump_flags: Vec<DumpFlag>,
-    ) -> anyhow::Result<String> {
-        if let Some(contract) = self.contracts.get(contract_path) {
-            if let Some(ref hash) = contract.hash {
-                return Ok(hash.to_owned());
-            }
+    ) -> anyhow::Result<ContractBuild> {
+        let contract = self.contracts.get(contract_path).cloned().ok_or_else(|| {
+            anyhow::anyhow!("Contract `{}` not found in the project", contract_path)
+        })?;
+        if let Some(build) = contract.build.as_ref() {
+            return Ok(ContractBuild::new(
+                contract_path.to_owned(),
+                build.to_owned(),
+            ));
         }
 
-        let llvm = inkwell::context::Context::create();
-        let optimizer = compiler_llvm_context::Optimizer::new(
+        let mut build = contract.compile(
+            self,
+            contract_path,
             optimization_level_middle,
             optimization_level_back,
             run_inliner,
+            dump_flags,
         )?;
-        let dump_flags = compiler_llvm_context::DumpFlag::initialize(
-            dump_flags.contains(&DumpFlag::Yul),
-            dump_flags.contains(&DumpFlag::EthIR),
-            dump_flags.contains(&DumpFlag::EVM),
-            false,
-            dump_flags.contains(&DumpFlag::LLVM),
-            dump_flags.contains(&DumpFlag::Assembly),
-        );
-        let mut source = self
-            .contracts
-            .get(contract_path)
-            .ok_or_else(|| {
-                anyhow::anyhow!("Contract `{}` not found in the project", contract_path)
-            })?
-            .source
-            .to_owned();
-        let module_name = match source {
-            Source::Yul(ref yul) => yul.object.identifier.to_owned(),
-            Source::EVM(ref evm) => evm.full_path.to_owned(),
-        };
-        let mut context = match source {
-            Source::Yul(_) => compiler_llvm_context::Context::new(
-                &llvm,
-                module_name.as_str(),
-                optimizer,
-                Some(self),
-                dump_flags.clone(),
-            ),
-            Source::EVM(_) => {
-                let version = self.version.to_owned();
-                compiler_llvm_context::Context::new_evm(
-                    &llvm,
-                    module_name.as_str(),
-                    optimizer,
-                    Some(self),
-                    dump_flags.clone(),
-                    compiler_llvm_context::ContextEVMData::new(version),
-                )
-            }
-        };
-
-        source.declare(&mut context).map_err(|error| {
-            anyhow::anyhow!(
-                "The contract `{}` LLVM IR generator declaration pass error: {}",
-                contract_path,
-                error
-            )
-        })?;
-        source.into_llvm(&mut context).map_err(|error| {
-            anyhow::anyhow!(
-                "The contract `{}` LLVM IR generator definition pass error: {}",
-                contract_path,
-                error
-            )
-        })?;
-        if dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM) {
-            let llvm_code = context.module().print_to_string().to_string();
-            eprintln!("Contract `{}` LLVM IR unoptimized:\n", contract_path);
-            println!("{}", llvm_code);
-        }
-        context.verify().map_err(|error| {
-            anyhow::anyhow!(
-                "The contract `{}` unoptimized LLVM IR verification error: {}",
-                contract_path,
-                error
-            )
-        })?;
-        let is_optimized = context.optimize();
-        if dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM) && is_optimized {
-            let llvm_code = context.module().print_to_string().to_string();
-            eprintln!("Contract `{}` LLVM IR optimized:\n", contract_path);
-            println!("{}", llvm_code);
-        }
-        context.verify().map_err(|error| {
-            anyhow::anyhow!(
-                "The contract `{}` optimized LLVM IR verification error: {}",
-                contract_path,
-                error
-            )
-        })?;
-
-        let buffer = context
-            .target_machine()
-            .write_to_memory_buffer(context.module(), inkwell::targets::FileType::Assembly)
-            .map_err(|error| {
-                anyhow::anyhow!(
-                    "The contract `{}` assembly generating error: {}",
-                    contract_path,
-                    error
-                )
-            })?;
-        let assembly_text = String::from_utf8_lossy(buffer.as_slice()).to_string();
-        if dump_flags.contains(&compiler_llvm_context::DumpFlag::Assembly) {
-            eprintln!("Contract `{}` assembly:\n", contract_path);
-            println!("{}", assembly_text);
-        }
-
-        let assembly =
-            zkevm_assembly::Assembly::try_from(assembly_text.clone()).map_err(|error| {
-                anyhow::anyhow!(
-                    "The contract `{}` assembly parsing error: {}",
-                    contract_path,
-                    error
-                )
-            })?;
-
-        let bytecode: Vec<u8> = assembly
-            .clone()
-            .compile_to_bytecode()?
-            .into_iter()
-            .flatten()
-            .collect();
-
-        let hash = compiler_llvm_context::bytecode_hash(bytecode.as_slice())?;
 
         let contract = self
             .contracts
             .get_mut(contract_path)
             .expect("Always exists");
-        contract.assembly_text = Some(assembly_text);
-        contract.assembly = Some(assembly);
-        contract.bytecode = Some(bytecode);
-        contract.hash = Some(hash.clone());
+        build.factory_dependencies = contract.factory_dependencies.clone();
+        contract.build = Some(build.clone());
 
-        Ok(hash)
+        let build = ContractBuild::new(contract_path.to_owned(), build);
+
+        Ok(build)
     }
 
     ///
-    /// Compiles all contracts, setting their text assembly and binary bytecode.
+    /// Compiles all contracts, returning their build artifacts.
     ///
     #[allow(clippy::needless_collect)]
-    pub fn compile_all(&mut self, optimize: bool, dump_flags: Vec<DumpFlag>) -> anyhow::Result<()> {
+    pub fn compile_all(
+        mut self,
+        optimize: bool,
+        dump_flags: Vec<DumpFlag>,
+    ) -> anyhow::Result<Build> {
         let (optimization_level, run_inliner) = if optimize {
             (inkwell::OptimizationLevel::Aggressive, true)
         } else {
             (inkwell::OptimizationLevel::None, false)
         };
 
+        let mut build = Build::with_capacity(self.contracts.len());
         let contract_paths: Vec<String> = self.contracts.keys().cloned().collect();
-        for contract_path in contract_paths.iter() {
-            self.compile(
-                contract_path.as_str(),
-                optimization_level,
-                optimization_level,
-                run_inliner,
-                dump_flags.clone(),
-            )
-            .map_err(|error| {
-                anyhow::anyhow!("Contract `{}` compiling error: {:?}", contract_path, error)
-            })?;
+        for contract_path in contract_paths.into_iter() {
+            let contract_build = self
+                .compile(
+                    contract_path.as_str(),
+                    optimization_level,
+                    optimization_level,
+                    run_inliner,
+                    dump_flags.clone(),
+                )
+                .map_err(|error| {
+                    anyhow::anyhow!("Contract `{}` compiling error: {:?}", contract_path, error)
+                })?;
+            build.contracts.insert(contract_path, contract_build);
         }
 
-        Ok(())
-    }
-
-    ///
-    /// Writes all contracts to the specified directory.
-    ///
-    pub fn write_to_directory(
-        self,
-        output_directory: &Path,
-        output_assembly: bool,
-        output_binary: bool,
-        overwrite: bool,
-    ) -> anyhow::Result<()> {
-        for (_path, contract) in self.contracts.into_iter() {
-            contract.write_to_directory(
-                output_directory,
-                output_assembly,
-                output_binary,
-                overwrite,
-            )?;
-        }
-
-        Ok(())
-    }
-
-    ///
-    /// Writes all contracts assembly and bytecode to the combined JSON.
-    ///
-    pub fn write_to_combined_json(self, combined_json: &mut CombinedJson) -> anyhow::Result<()> {
-        for (path, contract) in self.contracts.into_iter() {
-            let combined_json_contract = combined_json
-                .contracts
-                .iter_mut()
-                .find_map(|(json_path, contract)| {
-                    if path.ends_with(json_path) {
-                        Some(contract)
-                    } else {
-                        None
-                    }
-                })
-                .ok_or_else(|| anyhow::anyhow!("Contract `{}` not found in the project", path))?;
-
-            contract.write_to_combined_json(combined_json_contract)?;
-        }
-
-        Ok(())
-    }
-
-    ///
-    /// Writes all contracts assembly and bytecode to the standard JSON.
-    ///
-    pub fn write_to_standard_json(
-        self,
-        standard_json: &mut StandardJsonOutput,
-    ) -> anyhow::Result<()> {
-        let contracts = match standard_json.contracts.as_mut() {
-            Some(contracts) => contracts,
-            None => return Ok(()),
-        };
-
-        for (path, contracts) in contracts.iter_mut() {
-            for (name, contract) in contracts.iter_mut() {
-                let full_name = format!("{}:{}", path, name);
-
-                if let Some(contract_data) = self.contracts.get(full_name.as_str()) {
-                    let bytecode = hex::encode(
-                        contract_data
-                            .bytecode
-                            .as_ref()
-                            .expect("Bytecode always exists"),
-                    );
-
-                    contract.ir_optimized = None;
-                    contract.evm =
-                        Some(StandardJsonOutputContractEVM::new_zkevm_bytecode(bytecode));
-                    contract.factory_dependencies =
-                        Some(contract_data.factory_dependencies.to_owned());
-                    contract.hash = contract_data.hash.to_owned();
-                }
-            }
-        }
-
-        Ok(())
+        Ok(build)
     }
 
     ///
@@ -341,7 +154,7 @@ impl compiler_llvm_context::Dependency for Project {
         optimization_level_back: inkwell::OptimizationLevel,
         run_inliner: bool,
         dump_flags: Vec<compiler_llvm_context::DumpFlag>,
-    ) -> anyhow::Result<String> {
+    ) -> anyhow::Result<compiler_llvm_context::Build> {
         let contract_path = self
             .contracts
             .iter()
@@ -369,7 +182,7 @@ impl compiler_llvm_context::Dependency for Project {
             dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM),
             dump_flags.contains(&compiler_llvm_context::DumpFlag::Assembly),
         );
-        let hash = self
+        let build = self
             .compile(
                 contract_path.as_str(),
                 optimization_level_middle,
@@ -405,9 +218,9 @@ impl compiler_llvm_context::Dependency for Project {
                     identifier
                 )
             })?
-            .insert_factory_dependency(hash.clone(), contract_path);
+            .insert_factory_dependency(build.build.hash.clone(), contract_path);
 
-        Ok(hash)
+        Ok(build.build)
     }
 
     fn resolve_library(&self, path: &str) -> anyhow::Result<String> {

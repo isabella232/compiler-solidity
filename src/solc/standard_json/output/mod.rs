@@ -175,25 +175,28 @@ impl Output {
     ) -> anyhow::Result<()> {
         assembly.set_full_path(full_path.to_owned());
 
-        let constructor_index_path_mapping =
-            assembly.constructor_dependencies_pass(full_path, hash_path_mapping)?;
-        if let Some(constructor_instructions) = assembly.code.as_deref_mut() {
+        let deploy_code_index_path_mapping =
+            assembly.deploy_dependencies_pass(full_path, hash_path_mapping)?;
+        if let Some(deploy_code_instructions) = assembly.code.as_deref_mut() {
             Instruction::replace_data_aliases(
-                constructor_instructions,
-                &constructor_index_path_mapping,
+                deploy_code_instructions,
+                &deploy_code_index_path_mapping,
             )?;
         };
 
-        let selector_index_path_mapping =
-            assembly.selector_dependencies_pass(full_path, hash_path_mapping)?;
-        if let Some(selector_instructions) = assembly
+        let runtime_code_index_path_mapping =
+            assembly.runtime_dependencies_pass(full_path, hash_path_mapping)?;
+        if let Some(runtime_code_instructions) = assembly
             .data
             .as_mut()
             .and_then(|data_map| data_map.get_mut("0"))
             .and_then(|data| data.get_assembly_mut())
             .and_then(|assembly| assembly.code.as_deref_mut())
         {
-            Instruction::replace_data_aliases(selector_instructions, &selector_index_path_mapping)?;
+            Instruction::replace_data_aliases(
+                runtime_code_instructions,
+                &runtime_code_index_path_mapping,
+            )?;
         }
 
         Ok(())

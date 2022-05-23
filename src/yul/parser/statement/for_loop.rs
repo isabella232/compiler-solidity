@@ -24,7 +24,7 @@ pub struct ForLoop {
 
 impl ForLoop {
     ///
-    /// The element parser, which acts like a constructor.
+    /// The element parser.
     ///
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> anyhow::Result<Self> {
         let lexeme = crate::yul::parser::take_or_next(initial, lexer)?;

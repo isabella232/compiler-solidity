@@ -127,7 +127,7 @@ source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1
 [[package]]
 name = "compiler-llvm-context"
 version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#10aadb1dae33a7426f4afd249d45675f9bc799ba"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#f4be96e127acb1228352db87dcf912f7ea3be3b6"
 dependencies = [
  "anyhow",
  "compiler-common",
@@ -138,6 +138,7 @@ dependencies = [
  "semver 1.0.9",
  "sha2",
  "sha3",
+ "zkevm-assembly",
 ]
 
 [[package]]
@@ -534,9 +535,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.11.0"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b10983b38c53aebdf33f542c6275b0f58a238129d00c4ae0e6fb59738d783ca"
+checksum = "7709cef83f0c1f58f666e746a08b21e0085f7440fa6a29cc194d68aac97a4225"
 
 [[package]]
 name = "parity-scale-codec"
@@ -714,9 +715,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.5.5"
+version = "1.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a11647b6b25ff05a515cb92c365cec08801e83423a235b51e231e1808747286"
+checksum = "d83f127d94bdbcda4c8cc2e50f6f84f4b611f69c902699ca385a39c3a75f9ff1"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -725,9 +726,9 @@ dependencies = [
 
 [[package]]
 name = "regex-syntax"
-version = "0.6.25"
+version = "0.6.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
+checksum = "49b3de9ec5dc0a3417da371aab17d729997c15010e7fd24ff707773a33bddb64"
 
 [[package]]
 name = "rlp"
@@ -1079,7 +1080,7 @@ checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
 [[package]]
 name = "zkevm-assembly"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#0fe20d08ee6ce58ff599afb96e132308a6102eda"
+source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#f9ce3520a5d893248b7f6d3d4ed561a75830ee60"
 dependencies = [
  "env_logger",
  "hex",
@@ -1089,6 +1090,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "regex",
+ "smallvec",
  "structopt",
  "thiserror",
  "zkevm_opcode_defs",
@@ -1097,7 +1099,7 @@ dependencies = [
 [[package]]
 name = "zkevm_opcode_defs"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#907345ef32bc15970e4aa1c6d51eaacfb12507ac"
+source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#3d9a1d1c5027d3f6271c32c0659f02b1cff55ac0"
 dependencies = [
  "bitflags",
  "ethereum-types",

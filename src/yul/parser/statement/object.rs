@@ -26,7 +26,7 @@ pub struct Object {
 
 impl Object {
     ///
-    /// The element parser, which acts like a constructor.
+    /// The element parser.
     ///
     pub fn parse(lexer: &mut Lexer, initial: Option<Lexeme>) -> anyhow::Result<Self> {
         let lexeme = crate::yul::parser::take_or_next(initial, lexer)?;
@@ -42,7 +42,7 @@ impl Object {
                 anyhow::bail!("Expected one of {:?}, found `{}`", ["{string}"], lexeme);
             }
         };
-        let is_selector = identifier.ends_with("_deployed");
+        let is_runtime_code = identifier.ends_with("_deployed");
 
         match lexer.next()? {
             Lexeme::Symbol(Symbol::BracketCurlyLeft) => {}
@@ -52,7 +52,7 @@ impl Object {
         let code = Code::parse(lexer, None)?;
 
         let mut object = None;
-        if !is_selector {
+        if !is_runtime_code {
             object = match lexer.peek()? {
                 Lexeme::Keyword(Keyword::Object) => Some(Self::parse(lexer, None).map(Box::new)?),
                 _ => None,
@@ -102,11 +102,11 @@ where
         let mut entry = compiler_llvm_context::EntryFunction::default();
         entry.declare(context)?;
 
-        compiler_llvm_context::ConstructorFunction::new(
+        compiler_llvm_context::DeployCodeFunction::new(
             compiler_llvm_context::DummyLLVMWritable::default(),
         )
         .declare(context)?;
-        compiler_llvm_context::SelectorFunction::new(
+        compiler_llvm_context::RuntimeCodeFunction::new(
             compiler_llvm_context::DummyLLVMWritable::default(),
         )
         .declare(context)?;
@@ -118,9 +118,9 @@ where
 
     fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
         if self.identifier.ends_with("_deployed") {
-            compiler_llvm_context::SelectorFunction::new(self.code).into_llvm(context)?;
+            compiler_llvm_context::RuntimeCodeFunction::new(self.code).into_llvm(context)?;
         } else {
-            compiler_llvm_context::ConstructorFunction::new(self.code).into_llvm(context)?;
+            compiler_llvm_context::DeployCodeFunction::new(self.code).into_llvm(context)?;
         }
 
         if let Some(object) = self.object {

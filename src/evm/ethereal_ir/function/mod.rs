@@ -806,7 +806,7 @@ where
             .get(EtherealIR::DEFAULT_ENTRY_FUNCTION_NAME)
             .cloned()
             .expect("Always exists");
-        let is_constructor_flag = function
+        let is_deploy_code_flag = function
             .value
             .get_first_param()
             .expect("Always exists")
@@ -840,14 +840,14 @@ where
         }
         context.evm_mut().stack = stack_variables;
 
-        let constructor_block = context.function().evm().find_block(
+        let deploy_code_block = context.function().evm().find_block(
             &compiler_llvm_context::FunctionBlockKey::new(
                 compiler_llvm_context::CodeType::Deploy,
                 num::BigUint::zero(),
             ),
             &Stack::default().hash(),
         )?;
-        let selector_block = context.function().evm().find_block(
+        let runtime_code_block = context.function().evm().find_block(
             &compiler_llvm_context::FunctionBlockKey::new(
                 compiler_llvm_context::CodeType::Runtime,
                 num::BigUint::zero(),
@@ -855,9 +855,9 @@ where
             &Stack::default().hash(),
         )?;
         context.build_conditional_branch(
-            is_constructor_flag,
-            constructor_block.inner,
-            selector_block.inner,
+            is_deploy_code_flag,
+            deploy_code_block.inner,
+            runtime_code_block.inner,
         );
 
         for (key, blocks) in self.blocks.into_iter() {

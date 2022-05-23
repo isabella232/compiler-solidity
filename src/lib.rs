@@ -2,12 +2,15 @@
 //! Solidity to zkEVM compiler library.
 //!
 
+pub(crate) mod build;
 pub(crate) mod dump_flag;
 pub(crate) mod evm;
 pub(crate) mod project;
 pub(crate) mod solc;
 pub(crate) mod yul;
 
+pub use self::build::contract::Contract as ContractBuild;
+pub use self::build::Build;
 pub use self::dump_flag::DumpFlag;
 pub use self::project::contract::Contract as ProjectContract;
 pub use self::project::Project;

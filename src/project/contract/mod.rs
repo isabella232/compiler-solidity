@@ -5,11 +5,11 @@
 pub mod source;
 
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
 
-use crate::solc::combined_json::contract::Contract as CombinedJsonContract;
+use compiler_llvm_context::WriteLLVM;
+
+use crate::dump_flag::DumpFlag;
+use crate::project::Project;
 
 use self::source::Source;
 
@@ -24,16 +24,10 @@ pub struct Contract {
     pub name: String,
     /// The source code data.
     pub source: Source,
-    /// The zkEVM text assembly.
-    pub assembly_text: Option<String>,
-    /// The zkEVM binary assembly.
-    pub assembly: Option<zkevm_assembly::Assembly>,
-    /// The zkEVM binary bytecode.
-    pub bytecode: Option<Vec<u8>>,
-    /// The zkEVM binary bytecode hash.
-    pub hash: Option<String>,
     /// The factory dependencies.
     pub factory_dependencies: HashMap<String, String>,
+    /// The zkEVM build.
+    pub build: Option<compiler_llvm_context::Build>,
 }
 
 impl Contract {
@@ -45,12 +39,79 @@ impl Contract {
             path,
             name,
             source,
-            assembly_text: None,
-            assembly: None,
-            bytecode: None,
-            hash: None,
             factory_dependencies: HashMap::new(),
+            build: None,
         }
+    }
+
+    ///
+    /// Compiles the specified contract, setting its build artifacts.
+    ///
+    pub fn compile(
+        mut self,
+        project: &mut Project,
+        contract_path: &str,
+        optimization_level_middle: inkwell::OptimizationLevel,
+        optimization_level_back: inkwell::OptimizationLevel,
+        run_inliner: bool,
+        dump_flags: Vec<DumpFlag>,
+    ) -> anyhow::Result<compiler_llvm_context::Build> {
+        let llvm = inkwell::context::Context::create();
+        let optimizer = compiler_llvm_context::Optimizer::new(
+            optimization_level_middle,
+            optimization_level_back,
+            run_inliner,
+        )?;
+        let dump_flags = compiler_llvm_context::DumpFlag::initialize(
+            dump_flags.contains(&DumpFlag::Yul),
+            dump_flags.contains(&DumpFlag::EthIR),
+            dump_flags.contains(&DumpFlag::EVM),
+            false,
+            dump_flags.contains(&DumpFlag::LLVM),
+            dump_flags.contains(&DumpFlag::Assembly),
+        );
+        let module_name = match self.source {
+            Source::Yul(ref yul) => yul.object.identifier.to_owned(),
+            Source::EVM(ref evm) => evm.full_path.to_owned(),
+        };
+        let mut context = match self.source {
+            Source::Yul(_) => compiler_llvm_context::Context::new(
+                &llvm,
+                module_name.as_str(),
+                optimizer,
+                Some(project),
+                dump_flags,
+            ),
+            Source::EVM(_) => {
+                let version = project.version.to_owned();
+                compiler_llvm_context::Context::new_evm(
+                    &llvm,
+                    module_name.as_str(),
+                    optimizer,
+                    Some(project),
+                    dump_flags,
+                    compiler_llvm_context::ContextEVMData::new(version),
+                )
+            }
+        };
+
+        self.source.declare(&mut context).map_err(|error| {
+            anyhow::anyhow!(
+                "The contract `{}` LLVM IR generator declaration pass error: {}",
+                contract_path,
+                error
+            )
+        })?;
+        self.source.into_llvm(&mut context).map_err(|error| {
+            anyhow::anyhow!(
+                "The contract `{}` LLVM IR generator definition pass error: {}",
+                contract_path,
+                error
+            )
+        })?;
+        let build = context.build(contract_path)?;
+
+        Ok(build)
     }
 
     ///
@@ -59,116 +120,9 @@ impl Contract {
     pub fn insert_factory_dependency(&mut self, hash: String, path: String) {
         self.factory_dependencies.insert(hash, path);
     }
-
-    ///
-    /// Writes the contract text assembly and bytecode to files.
-    ///
-    pub fn write_to_directory(
-        self,
-        path: &Path,
-        output_assembly: bool,
-        output_binary: bool,
-        overwrite: bool,
-    ) -> anyhow::Result<()> {
-        let file_name = Self::short_path(self.path.as_str());
-
-        if output_assembly {
-            let file_name = format!(
-                "{}.{}",
-                file_name,
-                compiler_common::EXTENSION_ZKEVM_ASSEMBLY
-            );
-            let mut file_path = path.to_owned();
-            file_path.push(file_name);
-
-            if file_path.exists() && !overwrite {
-                eprintln!(
-                    "Refusing to overwrite an existing file {:?} (use --overwrite to force).",
-                    file_path
-                );
-            } else {
-                File::create(&file_path)
-                    .map_err(|error| {
-                        anyhow::anyhow!("File {:?} creating error: {}", file_path, error)
-                    })?
-                    .write_all(
-                        self.assembly_text
-                            .as_ref()
-                            .expect("Always exists")
-                            .as_bytes(),
-                    )
-                    .map_err(|error| {
-                        anyhow::anyhow!("File {:?} writing error: {}", file_path, error)
-                    })?;
-            }
-        }
-
-        if output_binary {
-            let file_name = format!("{}.{}", file_name, compiler_common::EXTENSION_ZKEVM_BINARY);
-            let mut file_path = path.to_owned();
-            file_path.push(file_name);
-
-            if file_path.exists() && !overwrite {
-                eprintln!(
-                    "Refusing to overwrite an existing file {:?} (use --overwrite to force).",
-                    file_path
-                );
-            } else {
-                File::create(&file_path)
-                    .map_err(|error| {
-                        anyhow::anyhow!("File {:?} creating error: {}", file_path, error)
-                    })?
-                    .write_all(self.bytecode.as_ref().expect("Always exists").as_slice())
-                    .map_err(|error| {
-                        anyhow::anyhow!("File {:?} writing error: {}", file_path, error)
-                    })?;
-            }
-        }
-
-        Ok(())
-    }
-
-    ///
-    /// Writes the contract text assembly and bytecode to the combined JSON.
-    ///
-    pub fn write_to_combined_json(
-        self,
-        combined_json_contract: &mut CombinedJsonContract,
-    ) -> anyhow::Result<()> {
-        let hexadecimal_bytecode = self.bytecode.map(hex::encode).expect("Always exists");
-        match (
-            combined_json_contract.bin.as_mut(),
-            combined_json_contract.bin_runtime.as_mut(),
-        ) {
-            (Some(bin), Some(bin_runtime)) => {
-                *bin = hexadecimal_bytecode;
-                *bin_runtime = bin.clone();
-            }
-            (Some(bin), None) => {
-                *bin = hexadecimal_bytecode;
-            }
-            (None, Some(bin_runtime)) => {
-                *bin_runtime = hexadecimal_bytecode;
-            }
-            (None, None) => {}
-        }
-
-        combined_json_contract.factory_deps = Some(self.factory_dependencies);
-
-        Ok(())
-    }
-
-    ///
-    /// Converts the full path to a short one.
-    ///
-    pub fn short_path(path: &str) -> &str {
-        path.rfind('/')
-            .map(|last_slash| &path[last_slash + 1..])
-            .unwrap_or_else(|| path)
-    }
 }
 
-impl<D> compiler_llvm_context::WriteLLVM<D> for Contract
+impl<D> WriteLLVM<D> for Contract
 where
     D: compiler_llvm_context::Dependency,
 {

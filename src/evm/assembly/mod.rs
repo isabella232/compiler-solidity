@@ -26,10 +26,10 @@ pub struct Assembly {
     /// The metadata string.
     #[serde(rename = ".auxdata")]
     pub auxdata: Option<String>,
-    /// The constructor code instructions.
+    /// The deploy code instructions.
     #[serde(rename = ".code")]
     pub code: Option<Vec<Instruction>>,
-    /// The selector code representation.
+    /// The runtime code representation.
     #[serde(rename = ".data")]
     pub data: Option<BTreeMap<String, Data>>,
 
@@ -64,9 +64,9 @@ impl Assembly {
     }
 
     ///
-    /// Replaces the constructor dependencies with full contract path and returns the list.
+    /// Replaces the deploy code dependencies with full contract path and returns the list.
     ///
-    pub fn constructor_dependencies_pass(
+    pub fn deploy_dependencies_pass(
         &mut self,
         full_path: &str,
         hash_data_mapping: &HashMap<String, String>,
@@ -114,9 +114,9 @@ impl Assembly {
     }
 
     ///
-    /// Replaces the selector dependencies with full contract path and returns the list.
+    /// Replaces the runtime code dependencies with full contract path and returns the list.
     ///
-    pub fn selector_dependencies_pass(
+    pub fn runtime_dependencies_pass(
         &mut self,
         full_path: &str,
         hash_data_mapping: &HashMap<String, String>,
@@ -174,11 +174,11 @@ where
         let mut entry = compiler_llvm_context::EntryFunction::default();
         entry.declare(context)?;
 
-        compiler_llvm_context::ConstructorFunction::new(
+        compiler_llvm_context::DeployCodeFunction::new(
             compiler_llvm_context::DummyLLVMWritable::default(),
         )
         .declare(context)?;
-        compiler_llvm_context::SelectorFunction::new(
+        compiler_llvm_context::RuntimeCodeFunction::new(
             compiler_llvm_context::DummyLLVMWritable::default(),
         )
         .declare(context)?;
@@ -192,43 +192,43 @@ where
         let full_path = self.full_path();
 
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EVM) {
-            println!("Contract `{}` constructor EVM:\n\n{}", full_path, self);
+            println!("Contract `{}` deploy EVM:\n\n{}", full_path, self);
         }
-        let constructor_blocks = EtherealIR::get_blocks(
+        let deploy_code_blocks = EtherealIR::get_blocks(
             context.evm().version.to_owned(),
             compiler_llvm_context::CodeType::Deploy,
             self.code
                 .as_deref()
-                .ok_or_else(|| anyhow::anyhow!("Constructor instructions not found"))?,
+                .ok_or_else(|| anyhow::anyhow!("Deploy code instructions not found"))?,
         )?;
 
         let data = self
             .data
-            .ok_or_else(|| anyhow::anyhow!("Selector data not found"))?
+            .ok_or_else(|| anyhow::anyhow!("Runtime code data not found"))?
             .remove("0")
             .expect("Always exists");
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EVM) {
-            println!("Contract `{}` selector EVM:\n\n{}", full_path, data);
+            println!("Contract `{}` runtime EVM:\n\n{}", full_path, data);
         };
-        let selector_instructions = match data {
+        let runtime_code_instructions = match data {
             Data::Assembly(assembly) => assembly
                 .code
-                .ok_or_else(|| anyhow::anyhow!("Selector instructions not found"))?,
+                .ok_or_else(|| anyhow::anyhow!("Runtime code instructions not found"))?,
             Data::Hash(hash) => {
-                anyhow::bail!("Expected selector instructions, found hash `{}`", hash)
+                anyhow::bail!("Expected runtime code instructions, found hash `{}`", hash)
             }
             Data::Path(path) => {
-                anyhow::bail!("Expected selector instructions, found path `{}`", path)
+                anyhow::bail!("Expected runtime code instructions, found path `{}`", path)
             }
         };
-        let selector_blocks = EtherealIR::get_blocks(
+        let runtime_code_blocks = EtherealIR::get_blocks(
             context.evm().version.to_owned(),
             compiler_llvm_context::CodeType::Runtime,
-            selector_instructions.as_slice(),
+            runtime_code_instructions.as_slice(),
         )?;
 
-        let mut blocks = constructor_blocks;
-        blocks.extend(selector_blocks);
+        let mut blocks = deploy_code_blocks;
+        blocks.extend(runtime_code_blocks);
         let mut ethereal_ir = EtherealIR::new(context.evm().version.to_owned(), blocks)?;
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EthIR) {
             println!("Contract `{}` Ethereal IR:\n\n{}", full_path, ethereal_ir);
@@ -236,11 +236,11 @@ where
         ethereal_ir.declare(context)?;
         ethereal_ir.into_llvm(context)?;
 
-        compiler_llvm_context::ConstructorFunction::new(EntryLink::new(
+        compiler_llvm_context::DeployCodeFunction::new(EntryLink::new(
             compiler_llvm_context::CodeType::Deploy,
         ))
         .into_llvm(context)?;
-        compiler_llvm_context::SelectorFunction::new(EntryLink::new(
+        compiler_llvm_context::RuntimeCodeFunction::new(EntryLink::new(
             compiler_llvm_context::CodeType::Runtime,
         ))
         .into_llvm(context)?;

@@ -34,7 +34,7 @@ where
             .get(EtherealIR::DEFAULT_ENTRY_FUNCTION_NAME)
             .expect("Always exists")
             .value;
-        let is_constructor = match self.code_type {
+        let is_deploy_code = match self.code_type {
             compiler_llvm_context::CodeType::Deploy => context
                 .integer_type(compiler_common::BITLENGTH_BOOLEAN)
                 .const_int(1, false),
@@ -44,7 +44,7 @@ where
         };
         context.build_invoke(
             target,
-            &[is_constructor.as_basic_value_enum()],
+            &[is_deploy_code.as_basic_value_enum()],
             format!("call_link_{}", EtherealIR::DEFAULT_ENTRY_FUNCTION_NAME).as_str(),
         );
 

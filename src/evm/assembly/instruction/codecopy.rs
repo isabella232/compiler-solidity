@@ -42,7 +42,7 @@ pub fn library_marker<'ctx, 'dep, D>(
 where
     D: compiler_llvm_context::Dependency,
 {
-    if let Some(compiler_llvm_context::CodeType::Deploy) = context.code_type {
+    if let compiler_llvm_context::CodeType::Deploy = context.code_type() {
         let address = context
             .build_call(
                 context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::Address),

@@ -24,7 +24,7 @@ pub struct VariableDeclaration {
 
 impl VariableDeclaration {
     ///
-    /// The element parser, which acts like a constructor.
+    /// The element parser.
     ///
     pub fn parse(
         lexer: &mut Lexer,
