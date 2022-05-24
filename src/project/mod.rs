@@ -18,7 +18,7 @@ use self::contract::Contract;
 ///
 /// The processes input data representation.
 ///
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Project {
     /// The Solidity project version.
     pub version: semver::Version,
@@ -26,6 +26,13 @@ pub struct Project {
     pub contracts: HashMap<String, Contract>,
     /// The library addresses.
     pub libraries: HashMap<String, HashMap<String, String>>,
+
+    /// The contract builds.
+    pub builds: HashMap<String, ContractBuild>,
+    /// The mapping of auxiliary identifiers to paths.
+    pub identifier_paths: HashMap<String, String>,
+    /// The factory dependencies.
+    pub factory_dependencies: HashMap<String, HashMap<String, String>>,
 }
 
 impl Project {
@@ -37,10 +44,21 @@ impl Project {
         contracts: HashMap<String, Contract>,
         libraries: HashMap<String, HashMap<String, String>>,
     ) -> Self {
+        let capacity = contracts.len();
+
+        let mut identifier_paths = HashMap::with_capacity(capacity);
+        for (path, contract) in contracts.iter() {
+            identifier_paths.insert(contract.identifier().to_owned(), path.to_owned());
+        }
+
         Self {
             version,
             contracts,
             libraries,
+
+            builds: HashMap::with_capacity(capacity),
+            identifier_paths,
+            factory_dependencies: HashMap::with_capacity(capacity),
         }
     }
 
@@ -50,39 +68,23 @@ impl Project {
     pub fn compile(
         &mut self,
         contract_path: &str,
-        optimization_level_middle: inkwell::OptimizationLevel,
-        optimization_level_back: inkwell::OptimizationLevel,
-        run_inliner: bool,
+        optimizer_settings: compiler_llvm_context::OptimizerSettings,
         dump_flags: Vec<DumpFlag>,
     ) -> anyhow::Result<ContractBuild> {
-        let contract = self.contracts.get(contract_path).cloned().ok_or_else(|| {
-            anyhow::anyhow!("Contract `{}` not found in the project", contract_path)
-        })?;
-        if let Some(build) = contract.build.as_ref() {
-            return Ok(ContractBuild::new(
-                contract_path.to_owned(),
-                build.to_owned(),
-            ));
+        if let Some(build) = self.builds.remove(contract_path) {
+            return Ok(build);
         }
 
-        let mut build = contract.compile(
-            self,
-            contract_path,
-            optimization_level_middle,
-            optimization_level_back,
-            run_inliner,
-            dump_flags,
-        )?;
+        let contract = self.contracts.remove(contract_path).ok_or_else(|| {
+            anyhow::anyhow!("Contract `{}` not found in the project", contract_path)
+        })?;
+        let identifier = contract.identifier().to_owned();
+        let mut build = contract.compile(self, contract_path, optimizer_settings, dump_flags)?;
 
-        let contract = self
-            .contracts
-            .get_mut(contract_path)
-            .expect("Always exists");
-        build.factory_dependencies = contract.factory_dependencies.clone();
-        contract.build = Some(build.clone());
-
-        let build = ContractBuild::new(contract_path.to_owned(), build);
-
+        if let Some(factory_dependencies) = self.factory_dependencies.remove(contract_path) {
+            build.factory_dependencies = factory_dependencies;
+        }
+        let build = ContractBuild::new(contract_path.to_owned(), identifier, build);
         Ok(build)
     }
 
@@ -92,24 +94,16 @@ impl Project {
     #[allow(clippy::needless_collect)]
     pub fn compile_all(
         mut self,
-        optimize: bool,
+        optimizer_settings: compiler_llvm_context::OptimizerSettings,
         dump_flags: Vec<DumpFlag>,
     ) -> anyhow::Result<Build> {
-        let (optimization_level, run_inliner) = if optimize {
-            (inkwell::OptimizationLevel::Aggressive, true)
-        } else {
-            (inkwell::OptimizationLevel::None, false)
-        };
-
         let mut build = Build::with_capacity(self.contracts.len());
         let contract_paths: Vec<String> = self.contracts.keys().cloned().collect();
         for contract_path in contract_paths.into_iter() {
             let contract_build = self
                 .compile(
                     contract_path.as_str(),
-                    optimization_level,
-                    optimization_level,
-                    run_inliner,
+                    optimizer_settings.clone(),
                     dump_flags.clone(),
                 )
                 .map_err(|error| {
@@ -119,6 +113,17 @@ impl Project {
         }
 
         Ok(build)
+    }
+
+    ///
+    /// Returns a clone without the build artifacts.
+    ///
+    pub fn clone_source(&self) -> Self {
+        Self::new(
+            self.version.to_owned(),
+            self.contracts.to_owned(),
+            self.libraries.to_owned(),
+        )
     }
 
     ///
@@ -137,11 +142,11 @@ impl Project {
             name.clone(),
             Contract::new(name.clone(), name, Source::new_yul(yul.to_owned(), object)),
         );
-        Ok(Self {
-            version: version.to_owned(),
-            contracts: project_contracts,
-            libraries: HashMap::new(),
-        })
+        Ok(Self::new(
+            version.to_owned(),
+            project_contracts,
+            HashMap::new(),
+        ))
     }
 }
 
@@ -150,30 +155,22 @@ impl compiler_llvm_context::Dependency for Project {
         &mut self,
         identifier: &str,
         parent_identifier: &str,
-        optimization_level_middle: inkwell::OptimizationLevel,
-        optimization_level_back: inkwell::OptimizationLevel,
-        run_inliner: bool,
+        optimizer_settings: compiler_llvm_context::OptimizerSettings,
         dump_flags: Vec<compiler_llvm_context::DumpFlag>,
-    ) -> anyhow::Result<compiler_llvm_context::Build> {
+    ) -> anyhow::Result<String> {
         let contract_path = self
-            .contracts
-            .iter()
-            .find_map(|(path, contract)| {
-                if match contract.source {
-                    Source::Yul(ref yul) => yul.object.identifier.as_str() == identifier,
-                    Source::EVM(ref evm) => evm.full_path.as_str() == identifier,
-                } {
-                    Some(path.to_owned())
-                } else {
-                    None
-                }
-            })
+            .identifier_paths
+            .get(identifier)
+            .cloned()
             .ok_or_else(|| {
                 anyhow::anyhow!(
                     "Dependency contract `{}` not found in the project",
                     identifier
                 )
             })?;
+        if let Some(build) = self.builds.get(contract_path.as_str()) {
+            return Ok(build.build.hash.to_owned());
+        }
 
         let dump_flags = DumpFlag::initialize(
             dump_flags.contains(&compiler_llvm_context::DumpFlag::Yul),
@@ -182,14 +179,9 @@ impl compiler_llvm_context::Dependency for Project {
             dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM),
             dump_flags.contains(&compiler_llvm_context::DumpFlag::Assembly),
         );
+
         let build = self
-            .compile(
-                contract_path.as_str(),
-                optimization_level_middle,
-                optimization_level_back,
-                run_inliner,
-                dump_flags,
-            )
+            .compile(contract_path.as_str(), optimizer_settings, dump_flags)
             .map_err(|error| {
                 anyhow::anyhow!(
                     "Dependency contract `{}` compiling error: {}",
@@ -197,30 +189,26 @@ impl compiler_llvm_context::Dependency for Project {
                     error
                 )
             })?;
+        let hash = build.build.hash.clone();
+        self.builds.insert(contract_path.clone(), build);
 
-        self.contracts
-            .iter_mut()
-            .find_map(|(_path, contract)| {
-                if match contract.source {
-                    Source::Yul(ref yul) => yul.object.identifier.as_str() == parent_identifier,
-                    Source::EVM(ref evm) => evm.full_path.as_str() == parent_identifier,
-                } {
-                    Some(contract)
-                } else {
-                    None
-                }
-            })
-            .as_mut()
+        let parent_path = self
+            .identifier_paths
+            .get(parent_identifier)
+            .cloned()
             .ok_or_else(|| {
                 anyhow::anyhow!(
-                    "Parent `{}` of the dependency contract `{}` not found in the project",
+                    "Parent contract `{}` of the dependency `{}` not found in the project",
                     parent_identifier,
                     identifier
                 )
-            })?
-            .insert_factory_dependency(build.build.hash.clone(), contract_path);
+            })?;
+        self.factory_dependencies
+            .entry(parent_path)
+            .or_insert_with(HashMap::new)
+            .insert(hash.clone(), contract_path);
 
-        Ok(build.build)
+        Ok(hash)
     }
 
     fn resolve_library(&self, path: &str) -> anyhow::Result<String> {

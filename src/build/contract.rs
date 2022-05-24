@@ -11,10 +11,12 @@ use crate::solc::combined_json::contract::Contract as CombinedJsonContract;
 ///
 /// The Solidity contract build.
 ///
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Contract {
     /// The contract path.
     pub path: String,
+    /// The auxiliary identifier. Used to identify Yul objects.
+    pub identifier: String,
     /// The LLVM module build.
     pub build: compiler_llvm_context::Build,
 }
@@ -23,8 +25,12 @@ impl Contract {
     ///
     /// A shortcut constructor.
     ///
-    pub fn new(path: String, build: compiler_llvm_context::Build) -> Self {
-        Self { path, build }
+    pub fn new(path: String, identifier: String, build: compiler_llvm_context::Build) -> Self {
+        Self {
+            path,
+            identifier,
+            build,
+        }
     }
 
     ///

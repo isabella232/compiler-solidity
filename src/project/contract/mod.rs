@@ -26,8 +26,6 @@ pub struct Contract {
     pub source: Source,
     /// The factory dependencies.
     pub factory_dependencies: HashMap<String, String>,
-    /// The zkEVM build.
-    pub build: Option<compiler_llvm_context::Build>,
 }
 
 impl Contract {
@@ -40,7 +38,18 @@ impl Contract {
             name,
             source,
             factory_dependencies: HashMap::new(),
-            build: None,
+        }
+    }
+
+    ///
+    /// Returns the contract identifier, which is:
+    /// - the Yul object identifier for Yul
+    /// - the full contract path for EVM
+    ///
+    pub fn identifier(&self) -> &str {
+        match self.source {
+            Source::Yul(ref yul) => yul.object.identifier.as_str(),
+            Source::EVM(ref evm) => evm.full_path.as_str(),
         }
     }
 
@@ -51,17 +60,11 @@ impl Contract {
         mut self,
         project: &mut Project,
         contract_path: &str,
-        optimization_level_middle: inkwell::OptimizationLevel,
-        optimization_level_back: inkwell::OptimizationLevel,
-        run_inliner: bool,
+        optimizer_settings: compiler_llvm_context::OptimizerSettings,
         dump_flags: Vec<DumpFlag>,
     ) -> anyhow::Result<compiler_llvm_context::Build> {
         let llvm = inkwell::context::Context::create();
-        let optimizer = compiler_llvm_context::Optimizer::new(
-            optimization_level_middle,
-            optimization_level_back,
-            run_inliner,
-        )?;
+        let optimizer = compiler_llvm_context::Optimizer::new(optimizer_settings)?;
         let dump_flags = compiler_llvm_context::DumpFlag::initialize(
             dump_flags.contains(&DumpFlag::Yul),
             dump_flags.contains(&DumpFlag::EthIR),

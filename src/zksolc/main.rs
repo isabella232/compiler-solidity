@@ -110,7 +110,20 @@ fn main_inner() -> anyhow::Result<()> {
     let project =
         solc_output.try_into_project(libraries, pipeline, solc_version, dump_flags.as_slice())?;
     compiler_llvm_context::initialize_target();
-    let build = project.compile_all(arguments.optimize, dump_flags)?;
+    let optimizer_settings = if arguments.optimize {
+        compiler_llvm_context::OptimizerSettings::new(
+            inkwell::OptimizationLevel::Aggressive,
+            inkwell::OptimizationLevel::Aggressive,
+            true,
+        )
+    } else {
+        compiler_llvm_context::OptimizerSettings::new(
+            inkwell::OptimizationLevel::None,
+            inkwell::OptimizationLevel::None,
+            false,
+        )
+    };
+    let build = project.compile_all(optimizer_settings, dump_flags)?;
 
     if arguments.standard_json {
         build.write_to_standard_json(&mut solc_output)?;

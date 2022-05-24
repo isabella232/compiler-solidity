@@ -121,13 +121,13 @@ dependencies = [
 
 [[package]]
 name = "compiler-common"
-version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#04b3891f99e616413cee28163a6b4c57bec4315d"
+version = "1.1.0"
+source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#e185972ba616b8a6e3afd19dc628e5f700ec6e64"
 
 [[package]]
 name = "compiler-llvm-context"
-version = "1.0.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#f4be96e127acb1228352db87dcf912f7ea3be3b6"
+version = "1.1.0"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#5880cb624fc024916370d1d9338f129e632a903f"
 dependencies = [
  "anyhow",
  "compiler-common",
@@ -143,7 +143,7 @@ dependencies = [
 
 [[package]]
 name = "compiler-solidity"
-version = "0.8.13"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "colored",

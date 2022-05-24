@@ -16,7 +16,7 @@ use self::contract::Contract;
 ///
 /// The Solidity project build.
 ///
-#[derive(Debug, Default, Clone)]
+#[derive(Debug)]
 pub struct Build {
     /// The contract data,
     pub contracts: HashMap<String, Contract>,
