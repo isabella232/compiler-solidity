@@ -127,7 +127,7 @@ source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1
 [[package]]
 name = "compiler-llvm-context"
 version = "1.1.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#5880cb624fc024916370d1d9338f129e632a903f"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#9197f2ce6c0772f14a298464c72cfdabcec0948d"
 dependencies = [
  "anyhow",
  "compiler-common",
@@ -382,9 +382,9 @@ checksum = "112c678d4050afce233f4f2852bb2eb519230b3cf12f33585275537d7e41578d"
 
 [[package]]
 name = "keccak"
-version = "0.1.0"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67c21572b4949434e4fc1e1978b99c5f77064153c59d998bf13ecd96fb5ecba7"
+checksum = "f9b7d56ba4a8344d6be9729995e6b06f928af29998cdf79fe390cbf6b1fee838"
 
 [[package]]
 name = "lazy_static"
@@ -1099,7 +1099,7 @@ dependencies = [
 [[package]]
 name = "zkevm_opcode_defs"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#3d9a1d1c5027d3f6271c32c0659f02b1cff55ac0"
+source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#3230c78447d71c0ea2f869c3c8380c73ac797e3b"
 dependencies = [
  "bitflags",
  "ethereum-types",

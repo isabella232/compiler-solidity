@@ -4,7 +4,7 @@
 
 pub mod source;
 
-use std::collections::HashMap;
+use std::collections::HashSet;
 
 use compiler_llvm_context::WriteLLVM;
 
@@ -20,25 +20,16 @@ use self::source::Source;
 pub struct Contract {
     /// The absolute file path.
     pub path: String,
-    /// The contract type name.
-    pub name: String,
     /// The source code data.
     pub source: Source,
-    /// The factory dependencies.
-    pub factory_dependencies: HashMap<String, String>,
 }
 
 impl Contract {
     ///
     /// A shortcut constructor.
     ///
-    pub fn new(path: String, name: String, source: Source) -> Self {
-        Self {
-            path,
-            name,
-            source,
-            factory_dependencies: HashMap::new(),
-        }
+    pub fn new(path: String, source: Source) -> Self {
+        Self { path, source }
     }
 
     ///
@@ -49,8 +40,19 @@ impl Contract {
     pub fn identifier(&self) -> &str {
         match self.source {
             Source::Yul(ref yul) => yul.object.identifier.as_str(),
-            Source::EVM(ref evm) => evm.full_path.as_str(),
+            Source::EVM(ref evm) => evm.assembly.full_path(),
         }
+    }
+
+    ///
+    /// Extract factory dependencies.
+    ///
+    pub fn drain_factory_dependencies(&mut self) -> HashSet<String> {
+        match self.source {
+            Source::Yul(ref mut yul) => yul.object.factory_dependencies.drain(),
+            Source::EVM(ref mut evm) => evm.assembly.factory_dependencies.drain(),
+        }
+        .collect()
     }
 
     ///
@@ -59,7 +61,6 @@ impl Contract {
     pub fn compile(
         mut self,
         project: &mut Project,
-        contract_path: &str,
         optimizer_settings: compiler_llvm_context::OptimizerSettings,
         dump_flags: Vec<DumpFlag>,
     ) -> anyhow::Result<compiler_llvm_context::Build> {
@@ -73,14 +74,10 @@ impl Contract {
             dump_flags.contains(&DumpFlag::LLVM),
             dump_flags.contains(&DumpFlag::Assembly),
         );
-        let module_name = match self.source {
-            Source::Yul(ref yul) => yul.object.identifier.to_owned(),
-            Source::EVM(ref evm) => evm.full_path.to_owned(),
-        };
         let mut context = match self.source {
             Source::Yul(_) => compiler_llvm_context::Context::new(
                 &llvm,
-                module_name.as_str(),
+                self.identifier(),
                 optimizer,
                 Some(project),
                 dump_flags,
@@ -89,7 +86,7 @@ impl Contract {
                 let version = project.version.to_owned();
                 compiler_llvm_context::Context::new_evm(
                     &llvm,
-                    module_name.as_str(),
+                    self.identifier(),
                     optimizer,
                     Some(project),
                     dump_flags,
@@ -98,30 +95,40 @@ impl Contract {
             }
         };
 
+        let factory_dependencies = self.drain_factory_dependencies();
+
         self.source.declare(&mut context).map_err(|error| {
             anyhow::anyhow!(
                 "The contract `{}` LLVM IR generator declaration pass error: {}",
-                contract_path,
+                self.path,
                 error
             )
         })?;
         self.source.into_llvm(&mut context).map_err(|error| {
             anyhow::anyhow!(
                 "The contract `{}` LLVM IR generator definition pass error: {}",
-                contract_path,
+                self.path,
                 error
             )
         })?;
-        let build = context.build(contract_path)?;
 
+        let mut build = context.build(self.path.as_str())?;
+        for dependency in factory_dependencies.into_iter() {
+            let full_path = project
+                .identifier_paths
+                .get(dependency.as_str())
+                .cloned()
+                .unwrap_or_else(|| panic!("Dependency `{}` full path not found", dependency));
+            let hash = project
+                .builds
+                .get(full_path.as_str())
+                .map(|contract| contract.build.hash.to_owned())
+                .unwrap_or_else(|| {
+                    panic!("Dependency `{}` hash must exist at this point", full_path)
+                });
+            build.factory_dependencies.insert(hash, full_path);
+        }
         Ok(build)
-    }
-
-    ///
-    /// Inserts a factory dependency.
-    ///
-    pub fn insert_factory_dependency(&mut self, hash: String, path: String) {
-        self.factory_dependencies.insert(hash, path);
     }
 }
 

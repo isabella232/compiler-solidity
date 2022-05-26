@@ -7,6 +7,7 @@ pub mod instruction;
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -34,8 +35,11 @@ pub struct Assembly {
     pub data: Option<BTreeMap<String, Data>>,
 
     /// The full contract path.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub full_path: Option<String>,
+    /// The factory dependency paths.
+    #[serde(skip)]
+    pub factory_dependencies: HashSet<String>,
 }
 
 impl Assembly {
@@ -57,10 +61,13 @@ impl Assembly {
     ///
     /// Returns the full contract path if it is set, or `<undefined>` otherwise.
     ///
-    pub fn full_path(&self) -> String {
+    /// # Panics
+    /// If the `full_path` has not been set.
+    ///
+    pub fn full_path(&self) -> &str {
         self.full_path
-            .to_owned()
-            .unwrap_or_else(|| "<undefined>".to_owned())
+            .as_deref()
+            .unwrap_or_else(|| panic!("The full path of some contracts is unset"))
     }
 
     ///
@@ -94,6 +101,7 @@ impl Assembly {
                             .ok_or_else(|| {
                                 anyhow::anyhow!("Contract path not found for hash `{}`", hash)
                             })?;
+                    self.factory_dependencies.insert(full_path.to_owned());
 
                     let mut index_extended =
                         "0".repeat(compiler_common::SIZE_FIELD * 2 - index.len());
@@ -146,6 +154,7 @@ impl Assembly {
                             .ok_or_else(|| {
                                 anyhow::anyhow!("Contract path not found for hash `{}`", hash)
                             })?;
+                    self.factory_dependencies.insert(full_path.to_owned());
 
                     let mut index_extended =
                         "0".repeat(compiler_common::SIZE_FIELD * 2 - index.len());
@@ -189,7 +198,7 @@ where
     }
 
     fn into_llvm(self, context: &mut compiler_llvm_context::Context<D>) -> anyhow::Result<()> {
-        let full_path = self.full_path();
+        let full_path = self.full_path().to_owned();
 
         if context.has_dump_flag(compiler_llvm_context::DumpFlag::EVM) {
             println!("Contract `{}` deploy EVM:\n\n{}", full_path, self);

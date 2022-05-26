@@ -24,15 +24,13 @@ pub struct Project {
     pub version: semver::Version,
     /// The contract data,
     pub contracts: HashMap<String, Contract>,
+    /// The mapping of auxiliary identifiers, e.g. Yul object names, to full contract paths.
+    pub identifier_paths: HashMap<String, String>,
     /// The library addresses.
     pub libraries: HashMap<String, HashMap<String, String>>,
 
     /// The contract builds.
     pub builds: HashMap<String, ContractBuild>,
-    /// The mapping of auxiliary identifiers to paths.
-    pub identifier_paths: HashMap<String, String>,
-    /// The factory dependencies.
-    pub factory_dependencies: HashMap<String, HashMap<String, String>>,
 }
 
 impl Project {
@@ -58,7 +56,6 @@ impl Project {
 
             builds: HashMap::with_capacity(capacity),
             identifier_paths,
-            factory_dependencies: HashMap::with_capacity(capacity),
         }
     }
 
@@ -79,11 +76,7 @@ impl Project {
             anyhow::anyhow!("Contract `{}` not found in the project", contract_path)
         })?;
         let identifier = contract.identifier().to_owned();
-        let mut build = contract.compile(self, contract_path, optimizer_settings, dump_flags)?;
-
-        if let Some(factory_dependencies) = self.factory_dependencies.remove(contract_path) {
-            build.factory_dependencies = factory_dependencies;
-        }
+        let build = contract.compile(self, optimizer_settings, dump_flags)?;
         let build = ContractBuild::new(contract_path.to_owned(), identifier, build);
         Ok(build)
     }
@@ -133,14 +126,14 @@ impl Project {
     ///
     pub fn try_from_test_yul(yul: &str, version: &semver::Version) -> anyhow::Result<Self> {
         let mut lexer = Lexer::new(yul.to_owned());
-        let name = "Test".to_owned();
+        let path = "Test".to_owned();
         let object = Object::parse(&mut lexer, None)
-            .map_err(|error| anyhow::anyhow!("Yul object `{}` parsing error: {}", name, error,))?;
+            .map_err(|error| anyhow::anyhow!("Yul object `{}` parsing error: {}", path, error,))?;
 
         let mut project_contracts = HashMap::with_capacity(1);
         project_contracts.insert(
-            name.clone(),
-            Contract::new(name.clone(), name, Source::new_yul(yul.to_owned(), object)),
+            path.clone(),
+            Contract::new(path, Source::new_yul(yul.to_owned(), object)),
         );
         Ok(Self::new(
             version.to_owned(),
@@ -154,7 +147,6 @@ impl compiler_llvm_context::Dependency for Project {
     fn compile(
         &mut self,
         identifier: &str,
-        parent_identifier: &str,
         optimizer_settings: compiler_llvm_context::OptimizerSettings,
         dump_flags: Vec<compiler_llvm_context::DumpFlag>,
     ) -> anyhow::Result<String> {
@@ -172,16 +164,12 @@ impl compiler_llvm_context::Dependency for Project {
             return Ok(build.build.hash.to_owned());
         }
 
-        let dump_flags = DumpFlag::initialize(
-            dump_flags.contains(&compiler_llvm_context::DumpFlag::Yul),
-            dump_flags.contains(&compiler_llvm_context::DumpFlag::EthIR),
-            dump_flags.contains(&compiler_llvm_context::DumpFlag::EVM),
-            dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM),
-            dump_flags.contains(&compiler_llvm_context::DumpFlag::Assembly),
-        );
-
         let build = self
-            .compile(contract_path.as_str(), optimizer_settings, dump_flags)
+            .compile(
+                contract_path.as_str(),
+                optimizer_settings,
+                DumpFlag::from_context(dump_flags.as_slice()),
+            )
             .map_err(|error| {
                 anyhow::anyhow!(
                     "Dependency contract `{}` compiling error: {}",
@@ -191,22 +179,6 @@ impl compiler_llvm_context::Dependency for Project {
             })?;
         let hash = build.build.hash.clone();
         self.builds.insert(contract_path.clone(), build);
-
-        let parent_path = self
-            .identifier_paths
-            .get(parent_identifier)
-            .cloned()
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Parent contract `{}` of the dependency `{}` not found in the project",
-                    parent_identifier,
-                    identifier
-                )
-            })?;
-        self.factory_dependencies
-            .entry(parent_path)
-            .or_insert_with(HashMap::new)
-            .insert(hash.clone(), contract_path);
 
         Ok(hash)
     }

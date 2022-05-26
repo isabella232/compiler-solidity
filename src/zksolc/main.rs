@@ -26,7 +26,7 @@ fn main_inner() -> anyhow::Result<()> {
     let mut arguments = Arguments::new();
     arguments.validate()?;
 
-    let dump_flags = compiler_solidity::DumpFlag::initialize(
+    let dump_flags = compiler_solidity::DumpFlag::from_booleans(
         arguments.dump_yul,
         arguments.dump_ethir,
         arguments.dump_evm,

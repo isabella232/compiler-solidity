@@ -23,9 +23,15 @@ pub enum DumpFlag {
 
 impl DumpFlag {
     ///
-    /// A shortcut constructor for vector.
+    /// A shortcut constructor for booleans.
     ///
-    pub fn initialize(yul: bool, ethir: bool, evm: bool, llvm: bool, assembly: bool) -> Vec<Self> {
+    pub fn from_booleans(
+        yul: bool,
+        ethir: bool,
+        evm: bool,
+        llvm: bool,
+        assembly: bool,
+    ) -> Vec<Self> {
         let mut vector = Vec::with_capacity(5);
         if yul {
             vector.push(Self::Yul);
@@ -43,5 +49,18 @@ impl DumpFlag {
             vector.push(Self::Assembly);
         }
         vector
+    }
+
+    ///
+    /// A shortcut constructor for the context aggregator.
+    ///
+    pub fn from_context(dump_flags: &[compiler_llvm_context::DumpFlag]) -> Vec<Self> {
+        Self::from_booleans(
+            dump_flags.contains(&compiler_llvm_context::DumpFlag::Yul),
+            dump_flags.contains(&compiler_llvm_context::DumpFlag::EthIR),
+            dump_flags.contains(&compiler_llvm_context::DumpFlag::EVM),
+            dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM),
+            dump_flags.contains(&compiler_llvm_context::DumpFlag::Assembly),
+        )
     }
 }

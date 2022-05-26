@@ -2,6 +2,8 @@
 //! The YUL object.
 //!
 
+use std::collections::HashSet;
+
 use crate::yul::lexer::lexeme::keyword::Keyword;
 use crate::yul::lexer::lexeme::literal::Literal;
 use crate::yul::lexer::lexeme::symbol::Symbol;
@@ -19,9 +21,9 @@ pub struct Object {
     /// The code.
     pub code: Code,
     /// The optional inner object.
-    pub object: Option<Box<Self>>,
-    /// The dependency objects, usually related to factory dependencies.
-    pub dependencies: Vec<Self>,
+    pub inner_object: Option<Box<Self>>,
+    /// The factory dependency objects.
+    pub factory_dependencies: HashSet<String>,
 }
 
 impl Object {
@@ -50,11 +52,16 @@ impl Object {
         }
 
         let code = Code::parse(lexer, None)?;
+        let mut inner_object = None;
+        let mut factory_dependencies = HashSet::new();
 
-        let mut object = None;
         if !is_runtime_code {
-            object = match lexer.peek()? {
-                Lexeme::Keyword(Keyword::Object) => Some(Self::parse(lexer, None).map(Box::new)?),
+            inner_object = match lexer.peek()? {
+                Lexeme::Keyword(Keyword::Object) => {
+                    let mut object = Self::parse(lexer, None)?;
+                    factory_dependencies.extend(object.factory_dependencies.drain());
+                    Some(Box::new(object))
+                }
                 _ => None,
             };
 
@@ -67,13 +74,12 @@ impl Object {
             };
         }
 
-        let mut dependencies = Vec::new();
         loop {
             match lexer.next()? {
                 Lexeme::Symbol(Symbol::BracketCurlyRight) => break,
                 lexeme @ Lexeme::Keyword(Keyword::Object) => {
                     let dependency = Self::parse(lexer, Some(lexeme))?;
-                    dependencies.push(dependency);
+                    factory_dependencies.insert(dependency.identifier);
                 }
                 Lexeme::Identifier(identifier) if identifier.as_str() == "data" => {
                     let _identifier = lexer.next()?;
@@ -88,8 +94,8 @@ impl Object {
         Ok(Self {
             identifier,
             code,
-            object,
-            dependencies,
+            inner_object,
+            factory_dependencies,
         })
     }
 }
@@ -123,7 +129,7 @@ where
             compiler_llvm_context::DeployCodeFunction::new(self.code).into_llvm(context)?;
         }
 
-        if let Some(object) = self.object {
+        if let Some(object) = self.inner_object {
             object.into_llvm(context)?;
         }
 

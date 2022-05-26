@@ -105,12 +105,11 @@ impl Output {
                                 None => continue,
                             };
 
-                        ProjectContractSource::new_evm(full_path.clone(), assembly)
+                        ProjectContractSource::new_evm(assembly)
                     }
                 };
 
-                let project_contract =
-                    ProjectContract::new(full_path.clone(), name.to_owned(), source);
+                let project_contract = ProjectContract::new(full_path.clone(), source);
                 project_contracts.insert(full_path, project_contract);
             }
         }
