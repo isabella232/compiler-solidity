@@ -54,9 +54,9 @@ impl Literal {
     ///
     /// Converts the literal into its LLVM representation.
     ///
-    pub fn into_llvm<'ctx, 'dep, D>(
+    pub fn into_llvm<'ctx, D>(
         self,
-        context: &compiler_llvm_context::Context<'ctx, 'dep, D>,
+        context: &compiler_llvm_context::Context<'ctx, D>,
     ) -> compiler_llvm_context::Argument<'ctx>
     where
         D: compiler_llvm_context::Dependency,

@@ -5,8 +5,8 @@
 ///
 /// Translates the unconditional jump.
 ///
-pub fn unconditional<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+pub fn unconditional<'ctx, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, D>,
     destination: num::BigUint,
     stack_hash: md5::Digest,
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
@@ -28,8 +28,8 @@ where
 ///
 /// Translates the conditional jump.
 ///
-pub fn conditional<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+pub fn conditional<'ctx, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, D>,
     destination: num::BigUint,
     stack_hash: md5::Digest,
     stack_height: usize,

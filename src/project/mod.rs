@@ -7,6 +7,11 @@ pub mod contract;
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
+use std::sync::Arc;
+use std::sync::RwLock;
+
+use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelIterator;
 
 use compiler_llvm_context::WriteLLVM;
 
@@ -53,13 +58,13 @@ impl Project {
     /// Compiles the specified contract, setting its text assembly and binary bytecode.
     ///
     pub fn compile(
-        &mut self,
+        project: Arc<RwLock<Self>>,
         contract_path: &str,
         optimization_level_middle: inkwell::OptimizationLevel,
         optimization_level_back: inkwell::OptimizationLevel,
         dump_flags: Vec<DumpFlag>,
     ) -> anyhow::Result<String> {
-        if let Some(contract) = self.contracts.get(contract_path) {
+        if let Some(contract) = project.read().unwrap().contracts.get(contract_path) {
             if let Some(ref hash) = contract.hash {
                 return Ok(hash.to_owned());
             }
@@ -80,7 +85,9 @@ impl Project {
             dump_flags.contains(&DumpFlag::LLVM),
             dump_flags.contains(&DumpFlag::Assembly),
         );
-        let mut source = self
+        let mut source = project
+            .read()
+            .unwrap()
             .contracts
             .get(contract_path)
             .ok_or_else(|| {
@@ -99,18 +106,18 @@ impl Project {
                 optimization_level_middle,
                 optimization_level_back,
                 module_name.as_str(),
-                Some(self),
+                Some(project.clone()),
                 dump_flags.clone(),
             ),
             Source::EVM(_) => {
-                let version = self.version.to_owned();
+                let version = project.read().unwrap().version.to_owned();
                 compiler_llvm_context::Context::new_evm(
                     &llvm,
                     &target_machine,
                     optimization_level_middle,
                     optimization_level_back,
                     module_name.as_str(),
-                    Some(self),
+                    Some(project.clone()),
                     dump_flags.clone(),
                     compiler_llvm_context::ContextEVMData::new(version),
                 )
@@ -184,7 +191,8 @@ impl Project {
 
         let hash = compiler_common::keccak256(bytecode.as_slice());
 
-        let contract = self
+        let mut project = project.write().unwrap();
+        let contract = project
             .contracts
             .get_mut(contract_path)
             .expect("Always exists");
@@ -199,24 +207,44 @@ impl Project {
     /// Compiles all contracts, setting their text assembly and binary bytecode.
     ///
     #[allow(clippy::needless_collect)]
-    pub fn compile_all(&mut self, optimize: bool, dump_flags: Vec<DumpFlag>) -> anyhow::Result<()> {
+    pub fn compile_all(
+        project: Arc<RwLock<Self>>,
+        optimize: bool,
+        dump_flags: Vec<DumpFlag>,
+    ) -> anyhow::Result<()> {
         let optimization_level = if optimize {
             inkwell::OptimizationLevel::Aggressive
         } else {
             inkwell::OptimizationLevel::None
         };
 
-        let contract_paths: Vec<String> = self.contracts.keys().cloned().collect();
-        for contract_path in contract_paths.iter() {
-            self.compile(
-                contract_path.as_str(),
-                optimization_level,
-                optimization_level,
-                dump_flags.clone(),
-            )
-            .map_err(|error| {
-                anyhow::anyhow!("Contract `{}` compiling error: {:?}", contract_path, error)
-            })?;
+        let contract_paths: Vec<String> =
+            project.read().unwrap().contracts.keys().cloned().collect();
+        let results: Vec<anyhow::Result<String>> = contract_paths
+            .par_iter()
+            .map(|contract_path| {
+                Self::compile(
+                    project.clone(),
+                    contract_path.as_str(),
+                    optimization_level,
+                    optimization_level,
+                    dump_flags.clone(),
+                )
+                .map_err(|error| {
+                    anyhow::anyhow!("Contract `{}` compiling error: {:?}", contract_path, error)
+                })
+            })
+            .collect();
+
+        let mut is_success = true;
+        for result in results.into_iter() {
+            if let Err(error) = result {
+                is_success = false;
+                eprintln!("{}", error);
+            }
+        }
+        if !is_success {
+            anyhow::bail!("Errors found. Aborted");
         }
 
         Ok(())
@@ -337,14 +365,16 @@ impl Project {
 
 impl compiler_llvm_context::Dependency for Project {
     fn compile(
-        &mut self,
+        project: Arc<RwLock<Self>>,
         identifier: &str,
         parent_identifier: &str,
         optimization_level_middle: inkwell::OptimizationLevel,
         optimization_level_back: inkwell::OptimizationLevel,
         dump_flags: Vec<compiler_llvm_context::DumpFlag>,
     ) -> anyhow::Result<String> {
-        let contract_path = self
+        let contract_path = project
+            .read()
+            .unwrap()
             .contracts
             .iter()
             .find_map(|(path, contract)| {
@@ -371,22 +401,25 @@ impl compiler_llvm_context::Dependency for Project {
             dump_flags.contains(&compiler_llvm_context::DumpFlag::LLVM),
             dump_flags.contains(&compiler_llvm_context::DumpFlag::Assembly),
         );
-        let hash = self
-            .compile(
-                contract_path.as_str(),
-                optimization_level_middle,
-                optimization_level_back,
-                dump_flags,
+        let hash = Self::compile(
+            project.clone(),
+            contract_path.as_str(),
+            optimization_level_middle,
+            optimization_level_back,
+            dump_flags,
+        )
+        .map_err(|error| {
+            anyhow::anyhow!(
+                "Dependency contract `{}` compiling error: {}",
+                identifier,
+                error
             )
-            .map_err(|error| {
-                anyhow::anyhow!(
-                    "Dependency contract `{}` compiling error: {}",
-                    identifier,
-                    error
-                )
-            })?;
+        })?;
 
-        self.contracts
+        project
+            .write()
+            .unwrap()
+            .contracts
             .iter_mut()
             .find_map(|(_path, contract)| {
                 if match contract.source {
@@ -411,8 +444,8 @@ impl compiler_llvm_context::Dependency for Project {
         Ok(hash)
     }
 
-    fn resolve_library(&self, path: &str) -> anyhow::Result<String> {
-        for (file_path, contracts) in self.libraries.iter() {
+    fn resolve_library(project: Arc<RwLock<Self>>, path: &str) -> anyhow::Result<String> {
+        for (file_path, contracts) in project.read().unwrap().libraries.iter() {
             for (contract_name, address) in contracts.iter() {
                 let key = format!("{}:{}", file_path, contract_name);
                 if key.as_str() == path {

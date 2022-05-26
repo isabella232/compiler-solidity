@@ -4,6 +4,9 @@
 
 pub mod arguments;
 
+use std::sync::Arc;
+use std::sync::RwLock;
+
 use self::arguments::Arguments;
 
 ///
@@ -108,9 +111,14 @@ fn main_inner() -> anyhow::Result<()> {
     }
 
     compiler_solidity::initialize_target();
-    let mut project =
+    let project =
         solc_output.try_into_project(libraries, pipeline, solc_version, dump_flags.as_slice())?;
-    project.compile_all(arguments.optimize, dump_flags)?;
+    let project = Arc::new(RwLock::new(project));
+    compiler_solidity::Project::compile_all(project.clone(), arguments.optimize, dump_flags)?;
+    let project = Arc::try_unwrap(project)
+        .expect("No other references must exist at this point")
+        .into_inner()
+        .unwrap();
 
     if arguments.standard_json {
         project.write_to_standard_json(&mut solc_output)?;

@@ -59,9 +59,9 @@ impl Expression {
     ///
     /// Converts the expression into an LLVM value.
     ///
-    pub fn into_llvm<'ctx, 'dep, D>(
+    pub fn into_llvm<'ctx, D>(
         self,
-        context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+        context: &mut compiler_llvm_context::Context<'ctx, D>,
     ) -> anyhow::Result<Option<compiler_llvm_context::Argument<'ctx>>>
     where
         D: compiler_llvm_context::Dependency,

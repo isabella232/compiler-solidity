@@ -46,9 +46,9 @@ impl Type {
     ///
     /// Converts the type into its LLVM representation.
     ///
-    pub fn into_llvm<'ctx, 'dep, D>(
+    pub fn into_llvm<'ctx, D>(
         self,
-        context: &compiler_llvm_context::Context<'ctx, 'dep, D>,
+        context: &compiler_llvm_context::Context<'ctx, D>,
     ) -> inkwell::types::IntType<'ctx>
     where
         D: compiler_llvm_context::Dependency,
