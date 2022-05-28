@@ -10,9 +10,11 @@ use crate::build::contract::Contract as ContractBuild;
 use crate::build::Build;
 use crate::dump_flag::DumpFlag;
 use crate::project::contract::source::Source;
+use crate::project::contract::state::State;
 use crate::yul::lexer::Lexer;
 use crate::yul::parser::statement::object::Object;
 
+use self::contract::state::State as ContractState;
 use self::contract::Contract;
 
 ///
@@ -23,14 +25,11 @@ pub struct Project {
     /// The Solidity project version.
     pub version: semver::Version,
     /// The contract data,
-    pub contracts: HashMap<String, Contract>,
+    pub contract_states: HashMap<String, ContractState>,
     /// The mapping of auxiliary identifiers, e.g. Yul object names, to full contract paths.
     pub identifier_paths: HashMap<String, String>,
     /// The library addresses.
     pub libraries: HashMap<String, HashMap<String, String>>,
-
-    /// The contract builds.
-    pub builds: HashMap<String, ContractBuild>,
 }
 
 impl Project {
@@ -51,11 +50,12 @@ impl Project {
 
         Self {
             version,
-            contracts,
-            libraries,
-
-            builds: HashMap::with_capacity(capacity),
+            contract_states: contracts
+                .into_iter()
+                .map(|(path, contract)| (path, ContractState::Source(contract)))
+                .collect(),
             identifier_paths,
+            libraries,
         }
     }
 
@@ -68,13 +68,12 @@ impl Project {
         optimizer_settings: compiler_llvm_context::OptimizerSettings,
         dump_flags: Vec<DumpFlag>,
     ) -> anyhow::Result<ContractBuild> {
-        if let Some(build) = self.builds.remove(contract_path) {
-            return Ok(build);
-        }
+        let contract = match self.contract_states.remove(contract_path) {
+            Some(ContractState::Source(contract)) => contract,
+            Some(ContractState::Build(build)) => return Ok(build),
+            None => anyhow::bail!("Contract `{}` not found in the project", contract_path),
+        };
 
-        let contract = self.contracts.remove(contract_path).ok_or_else(|| {
-            anyhow::anyhow!("Contract `{}` not found in the project", contract_path)
-        })?;
         let identifier = contract.identifier().to_owned();
         let build = contract.compile(self, optimizer_settings, dump_flags)?;
         let build = ContractBuild::new(contract_path.to_owned(), identifier, build);
@@ -90,8 +89,7 @@ impl Project {
         optimizer_settings: compiler_llvm_context::OptimizerSettings,
         dump_flags: Vec<DumpFlag>,
     ) -> anyhow::Result<Build> {
-        let mut build = Build::with_capacity(self.contracts.len());
-        let contract_paths: Vec<String> = self.contracts.keys().cloned().collect();
+        let contract_paths: Vec<String> = self.contract_states.keys().cloned().collect();
         for contract_path in contract_paths.into_iter() {
             let contract_build = self
                 .compile(
@@ -102,9 +100,19 @@ impl Project {
                 .map_err(|error| {
                     anyhow::anyhow!("Contract `{}` compiling error: {:?}", contract_path, error)
                 })?;
-            build.contracts.insert(contract_path, contract_build);
+            self.contract_states
+                .insert(contract_path, ContractState::Build(contract_build));
         }
 
+        let mut build = Build::with_capacity(self.contract_states.len());
+        for (path, state) in self.contract_states.into_iter() {
+            match state {
+                State::Build(contract_build) => {
+                    build.contracts.insert(path, contract_build);
+                }
+                State::Source(_) => panic!("Contract `{}` must be built at this point", path),
+            }
+        }
         Ok(build)
     }
 
@@ -114,7 +122,16 @@ impl Project {
     pub fn clone_source(&self) -> Self {
         Self::new(
             self.version.to_owned(),
-            self.contracts.to_owned(),
+            self.contract_states
+                .iter()
+                .filter_map(|(path, state)| {
+                    if let ContractState::Source(source) = state {
+                        Some((path.to_owned(), source.to_owned()))
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
             self.libraries.to_owned(),
         )
     }
@@ -160,7 +177,8 @@ impl compiler_llvm_context::Dependency for Project {
                     identifier
                 )
             })?;
-        if let Some(build) = self.builds.get(contract_path.as_str()) {
+        if let Some(ContractState::Build(build)) = self.contract_states.get(contract_path.as_str())
+        {
             return Ok(build.build.hash.to_owned());
         }
 
@@ -178,7 +196,8 @@ impl compiler_llvm_context::Dependency for Project {
                 )
             })?;
         let hash = build.build.hash.clone();
-        self.builds.insert(contract_path.clone(), build);
+        self.contract_states
+            .insert(contract_path, ContractState::Build(build));
 
         Ok(hash)
     }

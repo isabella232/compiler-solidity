@@ -127,7 +127,7 @@ source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1
 [[package]]
 name = "compiler-llvm-context"
 version = "1.1.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#9197f2ce6c0772f14a298464c72cfdabcec0948d"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#93773e9eece5332e3d2aaca5c1f2a3ae694eec43"
 dependencies = [
  "anyhow",
  "compiler-common",
@@ -1080,7 +1080,7 @@ checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
 [[package]]
 name = "zkevm-assembly"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#f9ce3520a5d893248b7f6d3d4ed561a75830ee60"
+source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#aca404f74166fc3d8f724ead332d1e1cba99a615"
 dependencies = [
  "env_logger",
  "hex",

@@ -3,6 +3,7 @@
 //!
 
 pub mod source;
+pub mod state;
 
 use std::collections::HashSet;
 
@@ -12,6 +13,7 @@ use crate::dump_flag::DumpFlag;
 use crate::project::Project;
 
 use self::source::Source;
+use self::state::State;
 
 ///
 /// The contract data representation.
@@ -119,13 +121,13 @@ impl Contract {
                 .get(dependency.as_str())
                 .cloned()
                 .unwrap_or_else(|| panic!("Dependency `{}` full path not found", dependency));
-            let hash = project
-                .builds
-                .get(full_path.as_str())
-                .map(|contract| contract.build.hash.to_owned())
-                .unwrap_or_else(|| {
-                    panic!("Dependency `{}` hash must exist at this point", full_path)
-                });
+            let hash = match project.contract_states.get(full_path.as_str()) {
+                Some(State::Source(_)) => {
+                    panic!("Dependency `{}` must be built at this point", full_path)
+                }
+                Some(State::Build(build)) => build.build.hash.to_owned(),
+                None => panic!("Dependency `{}` hash must exist at this point", full_path),
+            };
             build.factory_dependencies.insert(hash, full_path);
         }
         Ok(build)
