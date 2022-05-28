@@ -12,6 +12,7 @@ pub(crate) mod yul;
 pub use self::build::contract::Contract as ContractBuild;
 pub use self::build::Build;
 pub use self::dump_flag::DumpFlag;
+pub use self::project::contract::state::State as ContractState;
 pub use self::project::contract::Contract as ProjectContract;
 pub use self::project::Project;
 pub use self::solc::combined_json::contract::Contract as SolcCombinedJsonContract;
