@@ -75,6 +75,71 @@ impl FunctionCall {
         D: compiler_llvm_context::Dependency,
     {
         match self.name {
+            Name::UserDefined(name)
+                if name
+                    .starts_with(compiler_llvm_context::Function::ZKSYNC_NEAR_CALL_ABI_PREFIX) =>
+            {
+                let mut values = Vec::with_capacity(self.arguments.len());
+                for argument in self.arguments.into_iter() {
+                    let value = argument.into_llvm(context)?.expect("Always exists").value;
+                    values.push(value);
+                }
+                let function = context
+                    .functions
+                    .get(name.as_str())
+                    .cloned()
+                    .unwrap_or_else(|| panic!("Undeclared function {}", name));
+
+                if let Some(compiler_llvm_context::FunctionReturn::Compound { size, .. }) =
+                    function.r#return
+                {
+                    let r#type =
+                        context
+                            .structure_type(vec![context.field_type().as_basic_type_enum(); size]);
+                    let pointer = context
+                        .build_alloca(r#type, format!("{}_return_pointer_argument", name).as_str());
+                    context.build_store(pointer, r#type.const_zero());
+                    values.insert(1, pointer.as_basic_value_enum());
+                }
+
+                let function_pointer = context.builder().build_bitcast(
+                    function.value,
+                    context
+                        .field_type()
+                        .ptr_type(compiler_llvm_context::AddressSpace::Stack.into()),
+                    format!("{}_near_call_function_pointer", name).as_str(),
+                );
+                values.insert(
+                    0,
+                    function_pointer.into_pointer_value().as_basic_value_enum(),
+                );
+
+                let return_value = context.build_invoke_near_call_abi(
+                    function.value,
+                    values,
+                    format!("{}_return_value", name).as_str(),
+                );
+
+                if let Some(compiler_llvm_context::FunctionReturn::Compound { size, .. }) =
+                    function.r#return
+                {
+                    let return_type =
+                        context
+                            .structure_type(vec![context.field_type().as_basic_type_enum(); size]);
+                    let return_pointer = context.builder().build_int_to_ptr(
+                        return_value.expect("Always exists").into_int_value(),
+                        return_type.ptr_type(compiler_llvm_context::AddressSpace::Heap.into()),
+                        format!("{}_return_pointer_casted", name).as_str(),
+                    );
+                    let return_value = context.build_load(
+                        return_pointer,
+                        format!("{}_return_value_loaded", name).as_str(),
+                    );
+                    Ok(Some(return_value))
+                } else {
+                    Ok(return_value)
+                }
+            }
             Name::UserDefined(name) => {
                 let mut values = Vec::with_capacity(self.arguments.len());
                 for argument in self.arguments.into_iter() {
@@ -87,59 +152,23 @@ impl FunctionCall {
                     .cloned()
                     .unwrap_or_else(|| panic!("Undeclared function {}", name));
 
-                let return_pointer =
-                    if let Some(compiler_llvm_context::FunctionReturn::Compound { size, .. }) =
-                        function.r#return
-                    {
-                        let r#type =
-                            context.structure_type(vec![
-                                context.field_type().as_basic_type_enum();
-                                size
-                            ]);
-                        let pointer = context.build_alloca(
-                            r#type,
-                            format!("{}_return_pointer_argument", name).as_str(),
-                        );
-                        context.build_store(pointer, r#type.const_zero());
-                        Some(pointer.as_basic_value_enum())
-                    } else {
-                        None
-                    };
-
-                let return_value = if name
-                    .starts_with(compiler_llvm_context::Function::ZKSYNC_NEAR_CALL_ABI_PREFIX)
+                if let Some(compiler_llvm_context::FunctionReturn::Compound { size, .. }) =
+                    function.r#return
                 {
-                    if let Some(pointer) = return_pointer {
-                        values.insert(1, pointer.as_basic_value_enum());
-                    }
-
-                    let function_pointer = context.builder().build_bitcast(
-                        function.value,
+                    let r#type =
                         context
-                            .field_type()
-                            .ptr_type(compiler_llvm_context::AddressSpace::Stack.into()),
-                        format!("{}_near_call_function_pointer", name).as_str(),
-                    );
-                    values.insert(
-                        0,
-                        function_pointer.into_pointer_value().as_basic_value_enum(),
-                    );
-                    context.build_invoke_near_call_abi(
-                        function.value,
-                        values,
-                        format!("{}_return_value", name).as_str(),
-                    )
-                } else {
-                    if let Some(pointer) = return_pointer {
-                        values.insert(0, pointer.as_basic_value_enum());
-                    }
+                            .structure_type(vec![context.field_type().as_basic_type_enum(); size]);
+                    let pointer = context
+                        .build_alloca(r#type, format!("{}_return_pointer_argument", name).as_str());
+                    context.build_store(pointer, r#type.const_zero());
+                    values.insert(0, pointer.as_basic_value_enum());
+                }
 
-                    context.build_invoke(
-                        function.value,
-                        values.as_slice(),
-                        format!("{}_return_value", name).as_str(),
-                    )
-                };
+                let return_value = context.build_invoke(
+                    function.value,
+                    values.as_slice(),
+                    format!("{}_return_value", name).as_str(),
+                );
 
                 if let Some(compiler_llvm_context::FunctionReturn::Compound { .. }) =
                     function.r#return
