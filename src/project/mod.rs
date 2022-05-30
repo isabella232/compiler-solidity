@@ -5,6 +5,11 @@
 pub mod contract;
 
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::RwLock;
+
+use rayon::iter::IntoParallelIterator;
+use rayon::iter::ParallelIterator;
 
 use crate::build::contract::Contract as ContractBuild;
 use crate::build::Build;
@@ -63,21 +68,46 @@ impl Project {
     /// Compiles the specified contract, setting its build artifacts.
     ///
     pub fn compile(
-        &mut self,
+        project: Arc<RwLock<Self>>,
         contract_path: &str,
         optimizer_settings: compiler_llvm_context::OptimizerSettings,
         dump_flags: Vec<DumpFlag>,
-    ) -> anyhow::Result<ContractBuild> {
-        let contract = match self.contract_states.remove(contract_path) {
-            Some(ContractState::Source(contract)) => contract,
-            Some(ContractState::Build(build)) => return Ok(build),
-            None => anyhow::bail!("Contract `{}` not found in the project", contract_path),
-        };
+    ) -> anyhow::Result<()> {
+        let mut project_guard = project.write().expect("Sync");
+        match project_guard.contract_states.remove(contract_path) {
+            Some(ContractState::Source(contract)) => {
+                let waiter = ContractState::waiter();
+                project_guard.contract_states.insert(
+                    contract_path.to_owned(),
+                    ContractState::Waiter(waiter.clone()),
+                );
+                std::mem::drop(project_guard);
 
-        let identifier = contract.identifier().to_owned();
-        let build = contract.compile(self, optimizer_settings, dump_flags)?;
-        let build = ContractBuild::new(contract_path.to_owned(), identifier, build);
-        Ok(build)
+                let identifier = contract.identifier().to_owned();
+                let build = contract.compile(project.clone(), optimizer_settings, dump_flags)?;
+                let build = ContractBuild::new(contract_path.to_owned(), identifier, build);
+                project
+                    .write()
+                    .expect("Sync")
+                    .contract_states
+                    .insert(contract_path.to_owned(), ContractState::Build(build));
+                waiter.1.notify_all();
+                Ok(())
+            }
+            Some(ContractState::Waiter(waiter)) => {
+                std::mem::drop(project_guard);
+
+                let _guard = waiter.1.wait(waiter.0.lock().expect("Sync"));
+                Ok(())
+            }
+            Some(ContractState::Build(build)) => {
+                project_guard
+                    .contract_states
+                    .insert(contract_path.to_owned(), ContractState::Build(build));
+                Ok(())
+            }
+            None => anyhow::bail!("Contract `{}` not found in the project", contract_path),
+        }
     }
 
     ///
@@ -85,55 +115,53 @@ impl Project {
     ///
     #[allow(clippy::needless_collect)]
     pub fn compile_all(
-        mut self,
+        self,
         optimizer_settings: compiler_llvm_context::OptimizerSettings,
         dump_flags: Vec<DumpFlag>,
     ) -> anyhow::Result<Build> {
-        let contract_paths: Vec<String> = self.contract_states.keys().cloned().collect();
-        for contract_path in contract_paths.into_iter() {
-            let contract_build = self
-                .compile(
+        let project = Arc::new(RwLock::new(self));
+
+        let contract_paths: Vec<String> = project
+            .read()
+            .expect("Sync")
+            .contract_states
+            .keys()
+            .cloned()
+            .collect();
+        let results: Vec<anyhow::Result<()>> = contract_paths
+            .into_par_iter()
+            .map(|contract_path| {
+                Self::compile(
+                    project.clone(),
                     contract_path.as_str(),
                     optimizer_settings.clone(),
                     dump_flags.clone(),
                 )
                 .map_err(|error| {
                     anyhow::anyhow!("Contract `{}` compiling error: {:?}", contract_path, error)
-                })?;
-            self.contract_states
-                .insert(contract_path, ContractState::Build(contract_build));
+                })
+            })
+            .collect();
+        for result in results.into_iter() {
+            if let Err(error) = result {
+                return Err(error);
+            }
         }
 
-        let mut build = Build::with_capacity(self.contract_states.len());
-        for (path, state) in self.contract_states.into_iter() {
+        let project = Arc::try_unwrap(project)
+            .expect("No other references must exist at this point")
+            .into_inner()
+            .expect("Sync");
+        let mut build = Build::with_capacity(project.contract_states.len());
+        for (path, state) in project.contract_states.into_iter() {
             match state {
                 State::Build(contract_build) => {
                     build.contracts.insert(path, contract_build);
                 }
-                State::Source(_) => panic!("Contract `{}` must be built at this point", path),
+                _ => panic!("Contract `{}` must be built at this point", path),
             }
         }
         Ok(build)
-    }
-
-    ///
-    /// Returns a clone without the build artifacts.
-    ///
-    pub fn clone_source(&self) -> Self {
-        Self::new(
-            self.version.to_owned(),
-            self.contract_states
-                .iter()
-                .filter_map(|(path, state)| {
-                    if let ContractState::Source(source) = state {
-                        Some((path.to_owned(), source.to_owned()))
-                    } else {
-                        None
-                    }
-                })
-                .collect(),
-            self.libraries.to_owned(),
-        )
     }
 
     ///
@@ -162,12 +190,14 @@ impl Project {
 
 impl compiler_llvm_context::Dependency for Project {
     fn compile(
-        &mut self,
+        project: Arc<RwLock<Self>>,
         identifier: &str,
         optimizer_settings: compiler_llvm_context::OptimizerSettings,
         dump_flags: Vec<compiler_llvm_context::DumpFlag>,
     ) -> anyhow::Result<String> {
-        let contract_path = self
+        let contract_path = project
+            .read()
+            .expect("Lock")
             .identifier_paths
             .get(identifier)
             .cloned()
@@ -177,29 +207,37 @@ impl compiler_llvm_context::Dependency for Project {
                     identifier
                 )
             })?;
-        if let Some(ContractState::Build(build)) = self.contract_states.get(contract_path.as_str())
-        {
-            return Ok(build.build.hash.to_owned());
-        }
 
-        let build = self
-            .compile(
-                contract_path.as_str(),
-                optimizer_settings,
-                DumpFlag::from_context(dump_flags.as_slice()),
+        Self::compile(
+            project.clone(),
+            contract_path.as_str(),
+            optimizer_settings,
+            DumpFlag::from_context(dump_flags.as_slice()),
+        )
+        .map_err(|error| {
+            anyhow::anyhow!(
+                "Dependency contract `{}` compiling error: {}",
+                identifier,
+                error
             )
-            .map_err(|error| {
-                anyhow::anyhow!(
-                    "Dependency contract `{}` compiling error: {}",
-                    identifier,
-                    error
-                )
-            })?;
-        let hash = build.build.hash.clone();
-        self.contract_states
-            .insert(contract_path, ContractState::Build(build));
+        })?;
 
-        Ok(hash)
+        match project
+            .read()
+            .expect("Lock")
+            .contract_states
+            .get(contract_path.as_str())
+        {
+            Some(ContractState::Build(build)) => Ok(build.build.hash.to_owned()),
+            Some(_) => panic!(
+                "Dependency contract `{}` must be built at this point",
+                contract_path
+            ),
+            None => anyhow::bail!(
+                "Dependency contract `{}` not found in the project",
+                contract_path
+            ),
+        }
     }
 
     fn resolve_library(&self, path: &str) -> anyhow::Result<String> {

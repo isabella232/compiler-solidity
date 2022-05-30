@@ -7,8 +7,8 @@ use inkwell::values::BasicValue;
 ///
 /// Translates the ordinar value push.
 ///
-pub fn push<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+pub fn push<'ctx, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, D>,
     value: String,
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
 where
@@ -25,8 +25,8 @@ where
 ///
 /// Translates the block tag label push.
 ///
-pub fn push_tag<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+pub fn push_tag<'ctx, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, D>,
     value: String,
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
 where
@@ -42,8 +42,8 @@ where
 ///
 /// Translates the stack memory duplicate.
 ///
-pub fn dup<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+pub fn dup<'ctx, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, D>,
     offset: usize,
     height: usize,
     original: &mut Option<String>,
@@ -65,8 +65,8 @@ where
 ///
 /// Translates the stack memory swap.
 ///
-pub fn swap<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+pub fn swap<'ctx, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, D>,
     offset: usize,
     height: usize,
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
@@ -94,8 +94,8 @@ where
 ///
 /// Translates the stack memory pop.
 ///
-pub fn pop<'ctx, 'dep, D>(
-    _context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+pub fn pop<'ctx, D>(
+    _context: &mut compiler_llvm_context::Context<'ctx, D>,
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
 where
     D: compiler_llvm_context::Dependency,

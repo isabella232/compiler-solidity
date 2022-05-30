@@ -6,6 +6,8 @@ pub mod source;
 pub mod state;
 
 use std::collections::HashSet;
+use std::sync::Arc;
+use std::sync::RwLock;
 
 use compiler_llvm_context::WriteLLVM;
 
@@ -62,7 +64,7 @@ impl Contract {
     ///
     pub fn compile(
         mut self,
-        project: &mut Project,
+        project: Arc<RwLock<Project>>,
         optimizer_settings: compiler_llvm_context::OptimizerSettings,
         dump_flags: Vec<DumpFlag>,
     ) -> anyhow::Result<compiler_llvm_context::Build> {
@@ -81,16 +83,16 @@ impl Contract {
                 &llvm,
                 self.identifier(),
                 optimizer,
-                Some(project),
+                Some(project.clone()),
                 dump_flags,
             ),
             Source::EVM(_) => {
-                let version = project.version.to_owned();
+                let version = project.read().expect("Sync").version.to_owned();
                 compiler_llvm_context::Context::new_evm(
                     &llvm,
                     self.identifier(),
                     optimizer,
-                    Some(project),
+                    Some(project.clone()),
                     dump_flags,
                     compiler_llvm_context::ContextEVMData::new(version),
                 )
@@ -117,16 +119,26 @@ impl Contract {
         let mut build = context.build(self.path.as_str())?;
         for dependency in factory_dependencies.into_iter() {
             let full_path = project
+                .read()
+                .expect("Sync")
                 .identifier_paths
                 .get(dependency.as_str())
                 .cloned()
                 .unwrap_or_else(|| panic!("Dependency `{}` full path not found", dependency));
-            let hash = match project.contract_states.get(full_path.as_str()) {
-                Some(State::Source(_)) => {
+            let hash = match project
+                .read()
+                .expect("Sync")
+                .contract_states
+                .get(full_path.as_str())
+            {
+                Some(State::Build(build)) => build.build.hash.to_owned(),
+                Some(_) => {
                     panic!("Dependency `{}` must be built at this point", full_path)
                 }
-                Some(State::Build(build)) => build.build.hash.to_owned(),
-                None => panic!("Dependency `{}` hash must exist at this point", full_path),
+                None => anyhow::bail!(
+                    "Dependency contract `{}` not found in the project",
+                    full_path
+                ),
             };
             build.factory_dependencies.insert(hash, full_path);
         }

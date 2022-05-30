@@ -67,9 +67,9 @@ impl FunctionCall {
     ///
     /// Converts the function call into an LLVM value.
     ///
-    pub fn into_llvm<'ctx, 'dep, D>(
+    pub fn into_llvm<'ctx, D>(
         mut self,
-        context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+        context: &mut compiler_llvm_context::Context<'ctx, D>,
     ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
     where
         D: compiler_llvm_context::Dependency,
@@ -673,9 +673,9 @@ impl FunctionCall {
     ///
     /// Pops the specified number of arguments, converted into their LLVM values.
     ///
-    fn pop_arguments_llvm<'ctx, 'dep, D, const N: usize>(
+    fn pop_arguments_llvm<'ctx, D, const N: usize>(
         &mut self,
-        context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+        context: &mut compiler_llvm_context::Context<'ctx, D>,
     ) -> anyhow::Result<[inkwell::values::BasicValueEnum<'ctx>; N]>
     where
         D: compiler_llvm_context::Dependency,
@@ -691,9 +691,9 @@ impl FunctionCall {
     ///
     /// Pops the specified number of arguments.
     ///
-    fn pop_arguments<'ctx, 'dep, D, const N: usize>(
+    fn pop_arguments<'ctx, D, const N: usize>(
         &mut self,
-        context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+        context: &mut compiler_llvm_context::Context<'ctx, D>,
     ) -> anyhow::Result<[compiler_llvm_context::Argument<'ctx>; N]>
     where
         D: compiler_llvm_context::Dependency,

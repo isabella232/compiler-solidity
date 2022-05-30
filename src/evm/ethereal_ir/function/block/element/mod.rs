@@ -40,9 +40,9 @@ impl Element {
     ///
     /// Pops the specified number of arguments, converted into their LLVM values.
     ///
-    fn pop_arguments_llvm<'ctx, 'dep, D>(
+    fn pop_arguments_llvm<'ctx, D>(
         &mut self,
-        context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+        context: &mut compiler_llvm_context::Context<'ctx, D>,
     ) -> Vec<inkwell::values::BasicValueEnum<'ctx>>
     where
         D: compiler_llvm_context::Dependency,
@@ -63,9 +63,9 @@ impl Element {
     ///
     /// Pops the specified number of arguments.
     ///
-    fn pop_arguments<'ctx, 'dep, D>(
+    fn pop_arguments<'ctx, D>(
         &mut self,
-        context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+        context: &mut compiler_llvm_context::Context<'ctx, D>,
     ) -> Vec<compiler_llvm_context::Argument<'ctx>>
     where
         D: compiler_llvm_context::Dependency,
@@ -88,7 +88,7 @@ where
 {
     fn into_llvm<'ctx, 'dep>(
         mut self,
-        context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+        context: &mut compiler_llvm_context::Context<'ctx, D>,
     ) -> anyhow::Result<()> {
         let input_size = self.instruction.input_size(&context.evm().version);
         let mut original = self.instruction.value.clone();

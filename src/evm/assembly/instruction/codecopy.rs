@@ -9,8 +9,8 @@ use crate::evm::ethereal_ir::EtherealIR;
 ///
 /// Translates the contract hash copying.
 ///
-pub fn contract_hash<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+pub fn contract_hash<'ctx, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, D>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
 where
@@ -34,8 +34,8 @@ where
 ///
 /// Translates the library marker copying.
 ///
-pub fn library_marker<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+pub fn library_marker<'ctx, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, D>,
     offset: &str,
     value: &str,
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
@@ -71,8 +71,8 @@ where
 ///
 /// Translates the static data copying.
 ///
-pub fn static_data<'ctx, 'dep, D>(
-    context: &mut compiler_llvm_context::Context<'ctx, 'dep, D>,
+pub fn static_data<'ctx, D>(
+    context: &mut compiler_llvm_context::Context<'ctx, D>,
     arguments: [inkwell::values::BasicValueEnum<'ctx>; 3],
     source: &str,
 ) -> anyhow::Result<Option<inkwell::values::BasicValueEnum<'ctx>>>
