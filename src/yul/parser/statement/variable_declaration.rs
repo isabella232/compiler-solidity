@@ -117,6 +117,18 @@ where
         match self.expression.take() {
             Some(expression) => {
                 if let Some(value) = expression.into_llvm(context)? {
+                    if value
+                        .value
+                        .get_type()
+                        .ptr_type(compiler_llvm_context::AddressSpace::Stack.into())
+                        != pointer.get_type()
+                    {
+                        anyhow::bail!(
+                            "Assignment to {:?} received an invalid number of arguments",
+                            self.bindings
+                        );
+                    }
+
                     context.build_store(pointer, value.to_llvm());
 
                     for (index, binding) in self.bindings.into_iter().enumerate() {

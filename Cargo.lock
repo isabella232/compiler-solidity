@@ -1188,7 +1188,7 @@ dependencies = [
 [[package]]
 name = "zkevm_opcode_defs"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#2eb28b9e64bb2144719fd6fd60866ab5c9aaed56"
+source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#e185d7f052f323f59d254dc4fdf7549c36e91933"
 dependencies = [
  "bitflags",
  "ethereum-types",
