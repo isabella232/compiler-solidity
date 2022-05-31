@@ -68,11 +68,15 @@ impl Expression {
     {
         match self {
             Self::Literal(inner) => Ok(Some(inner.into_llvm(context))),
-            Self::Identifier(inner) => Ok(Some(
-                context
-                    .build_load(context.function().stack[inner.as_str()], inner.as_str())
-                    .into(),
-            )),
+            Self::Identifier(inner) => {
+                let pointer = context
+                    .function()
+                    .stack
+                    .get(inner.as_str())
+                    .copied()
+                    .ok_or_else(|| anyhow::anyhow!("Undeclared variable `{}`", inner.as_str()))?;
+                Ok(Some(context.build_load(pointer, inner.as_str()).into()))
+            }
             Self::FunctionCall(inner) => Ok(inner
                 .into_llvm(context)?
                 .map(compiler_llvm_context::Argument::new)),

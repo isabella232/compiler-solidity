@@ -122,12 +122,12 @@ dependencies = [
 [[package]]
 name = "compiler-common"
 version = "1.1.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#e185972ba616b8a6e3afd19dc628e5f700ec6e64"
+source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#66a24163226d5a3fdc47b978b4e2cf89ac026a10"
 
 [[package]]
 name = "compiler-llvm-context"
 version = "1.1.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#71d4879187605b42bc871f7126c745853113f4b9"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#1b56edfc8044ffe43a4569dbf914139f5214650c"
 dependencies = [
  "anyhow",
  "compiler-common",
@@ -632,9 +632,9 @@ dependencies = [
 
 [[package]]
 name = "parking_lot"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87f5ec2493a61ac0506c0f4199f99070cbe83857b0337006a30f3e6719b8ef58"
+checksum = "3742b2c103b9f06bc9fff0a37ff4912935851bee6d36f3c02bcc755bcfec228f"
 dependencies = [
  "lock_api",
  "parking_lot_core",
@@ -1169,7 +1169,7 @@ checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
 [[package]]
 name = "zkevm-assembly"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#aca404f74166fc3d8f724ead332d1e1cba99a615"
+source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#903c8359108abee57f3e8c2464a01564875733e7"
 dependencies = [
  "env_logger",
  "hex",
@@ -1188,7 +1188,7 @@ dependencies = [
 [[package]]
 name = "zkevm_opcode_defs"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#3230c78447d71c0ea2f869c3c8380c73ac797e3b"
+source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#2eb28b9e64bb2144719fd6fd60866ab5c9aaed56"
 dependencies = [
  "bitflags",
  "ethereum-types",

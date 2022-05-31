@@ -96,8 +96,10 @@ impl FunctionCall {
                     let r#type =
                         context
                             .structure_type(vec![context.field_type().as_basic_type_enum(); size]);
-                    let pointer = context
-                        .build_alloca(r#type, format!("{}_return_pointer_argument", name).as_str());
+                    let pointer = context.build_alloca(
+                        r#type,
+                        format!("{}_near_call_return_pointer_argument", name).as_str(),
+                    );
                     context.build_store(pointer, r#type.const_zero());
                     values.insert(1, pointer.as_basic_value_enum());
                 }
@@ -117,23 +119,16 @@ impl FunctionCall {
                 let return_value = context.build_invoke_near_call_abi(
                     function.value,
                     values,
-                    format!("{}_return_value", name).as_str(),
+                    format!("{}_near_call", name).as_str(),
                 );
 
-                if let Some(compiler_llvm_context::FunctionReturn::Compound { size, .. }) =
+                if let Some(compiler_llvm_context::FunctionReturn::Compound { .. }) =
                     function.r#return
                 {
-                    let return_type =
-                        context
-                            .structure_type(vec![context.field_type().as_basic_type_enum(); size]);
-                    let return_pointer = context.builder().build_int_to_ptr(
-                        return_value.expect("Always exists").into_int_value(),
-                        return_type.ptr_type(compiler_llvm_context::AddressSpace::Heap.into()),
-                        format!("{}_return_pointer_casted", name).as_str(),
-                    );
+                    let return_pointer = return_value.expect("Always exists").into_pointer_value();
                     let return_value = context.build_load(
                         return_pointer,
-                        format!("{}_return_value_loaded", name).as_str(),
+                        format!("{}_near_call_return_value", name).as_str(),
                     );
                     Ok(Some(return_value))
                 } else {
@@ -167,17 +162,15 @@ impl FunctionCall {
                 let return_value = context.build_invoke(
                     function.value,
                     values.as_slice(),
-                    format!("{}_return_value", name).as_str(),
+                    format!("{}_call", name).as_str(),
                 );
 
                 if let Some(compiler_llvm_context::FunctionReturn::Compound { .. }) =
                     function.r#return
                 {
                     let return_pointer = return_value.expect("Always exists").into_pointer_value();
-                    let return_value = context.build_load(
-                        return_pointer,
-                        format!("{}_return_value_loaded", name).as_str(),
-                    );
+                    let return_value = context
+                        .build_load(return_pointer, format!("{}_return_value", name).as_str());
                     Ok(Some(return_value))
                 } else {
                     Ok(return_value)
