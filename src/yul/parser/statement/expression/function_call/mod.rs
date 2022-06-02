@@ -653,11 +653,29 @@ impl FunctionCall {
                 &[],
                 "tx_origin",
             )),
-            Name::Gas => Ok(context.build_call(
-                context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::ErgsLeft),
-                &[],
-                "ergs_left",
-            )),
+            Name::Gas => compiler_llvm_context::ether_gas::gas(context),
+            Name::CallValue => compiler_llvm_context::ether_gas::value(context),
+
+            Name::Balance => {
+                let arguments = self.pop_arguments_llvm::<D, 1>(context)?;
+
+                let address = arguments[0].into_int_value();
+                compiler_llvm_context::ether_gas::balance(context, address)
+            }
+            Name::SelfBalance => {
+                let address = context
+                    .build_call(
+                        context.get_intrinsic_function(
+                            compiler_llvm_context::IntrinsicFunction::Address,
+                        ),
+                        &[],
+                        "self_balance_address",
+                    )
+                    .expect("Always exists")
+                    .into_int_value();
+
+                compiler_llvm_context::ether_gas::balance(context, address)
+            }
 
             Name::GasLimit => Ok(Some(
                 context.field_const(u32::MAX as u64).as_basic_value_enum(),
@@ -667,14 +685,12 @@ impl FunctionCall {
                     .field_const(((1 << 16) * compiler_common::SIZE_FIELD) as u64)
                     .as_basic_value_enum(),
             )),
+
             Name::GasPrice => Ok(Some(context.field_const(0).as_basic_value_enum())),
-            Name::CallValue => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::ChainId => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::BlockHash => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::Difficulty => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::Pc => Ok(Some(context.field_const(0).as_basic_value_enum())),
-            Name::Balance => Ok(Some(context.field_const(0).as_basic_value_enum())),
-            Name::SelfBalance => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::CoinBase => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::BaseFee => Ok(Some(context.field_const(0).as_basic_value_enum())),
             Name::ExtCodeCopy => {

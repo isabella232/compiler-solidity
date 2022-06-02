@@ -106,6 +106,7 @@ impl Instruction {
             Name::CREATE => 3,
             Name::CREATE2 => 4,
 
+            Name::BALANCE => 1,
             Name::BLOCKHASH => 1,
 
             Name::EXTCODECOPY => 4,

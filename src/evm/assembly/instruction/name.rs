@@ -342,6 +342,8 @@ pub enum Name {
     /// The eponymous EVM instruction.
     GASLIMIT,
     /// The eponymous EVM instruction.
+    GASPRICE,
+    /// The eponymous EVM instruction.
     EXTCODECOPY,
     /// The eponymous EVM instruction.
     EXTCODEHASH,

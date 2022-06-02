@@ -95,6 +95,10 @@ impl Project {
                 Ok(())
             }
             Some(ContractState::Waiter(waiter)) => {
+                project_guard.contract_states.insert(
+                    contract_path.to_owned(),
+                    ContractState::Waiter(waiter.clone()),
+                );
                 std::mem::drop(project_guard);
 
                 let _guard = waiter.1.wait(waiter.0.lock().expect("Sync"));
@@ -106,7 +110,9 @@ impl Project {
                     .insert(contract_path.to_owned(), ContractState::Build(build));
                 Ok(())
             }
-            None => anyhow::bail!("Contract `{}` not found in the project", contract_path),
+            None => {
+                anyhow::bail!("Contract `{}` not found in the project", contract_path);
+            }
         }
     }
 

@@ -88,7 +88,18 @@ impl Compiler {
             );
         }
 
-        let output = serde_json::from_slice(output.stdout.as_slice()).expect("Always valid");
+        let output = serde_json::from_slice(output.stdout.as_slice()).map_err(|error| {
+            anyhow::anyhow!(
+                "{} subprocess output parsing error: {}\n{}",
+                self.executable,
+                error,
+                serde_json::from_slice::<serde_json::Value>(output.stdout.as_slice())
+                    .map(|json| serde_json::to_string_pretty(&json).expect("Always valid"))
+                    .unwrap_or_else(
+                        |_| String::from_utf8_lossy(output.stdout.as_slice()).to_string()
+                    ),
+            )
+        })?;
 
         Ok(output)
     }
@@ -116,7 +127,18 @@ impl Compiler {
             );
         }
 
-        let combined_json = serde_json::from_slice(output.stdout.as_slice()).expect("Always valid");
+        let combined_json = serde_json::from_slice(output.stdout.as_slice()).map_err(|error| {
+            anyhow::anyhow!(
+                "{} subprocess output parsing error: {}\n{}",
+                self.executable,
+                error,
+                serde_json::from_slice::<serde_json::Value>(output.stdout.as_slice())
+                    .map(|json| serde_json::to_string_pretty(&json).expect("Always valid"))
+                    .unwrap_or_else(
+                        |_| String::from_utf8_lossy(output.stdout.as_slice()).to_string()
+                    ),
+            )
+        })?;
 
         Ok(combined_json)
     }

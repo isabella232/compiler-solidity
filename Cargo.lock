@@ -122,12 +122,12 @@ dependencies = [
 [[package]]
 name = "compiler-common"
 version = "1.1.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#66a24163226d5a3fdc47b978b4e2cf89ac026a10"
+source = "git+ssh://git@github.com/matter-labs/compiler-common?branch=az/vm-v1.1#10126b11d3a3bb007f29e12ff48caf21616d9d80"
 
 [[package]]
 name = "compiler-llvm-context"
 version = "1.1.0"
-source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az/vm-v1.1#1b56edfc8044ffe43a4569dbf914139f5214650c"
+source = "git+ssh://git@github.com/matter-labs/compiler-llvm-context?branch=az-cpr-651-implement-the-msgvalue-and#5770ff559e62cc0b44e908a0bcb5698870fece7f"
 dependencies = [
  "anyhow",
  "compiler-common",
@@ -961,9 +961,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.95"
+version = "1.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbaf6116ab8924f39d52792136fb74fd60a80194cf1b1c6ffa6453eef1c3f942"
+checksum = "0748dd251e24453cb8717f0354206b91557e4ec8703673a4b30208f2abaf1ebf"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1169,7 +1169,7 @@ checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
 [[package]]
 name = "zkevm-assembly"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#903c8359108abee57f3e8c2464a01564875733e7"
+source = "git+https://github.com/matter-labs/zkEVM-assembly?branch=v1.1.1#ff77a8e0c6824bcc049ca937e2e3d64c58a8fd00"
 dependencies = [
  "env_logger",
  "hex",
@@ -1188,7 +1188,7 @@ dependencies = [
 [[package]]
 name = "zkevm_opcode_defs"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#e185d7f052f323f59d254dc4fdf7549c36e91933"
+source = "git+https://github.com/matter-labs/zkevm_opcode_defs.git?branch=v1.1.1#b701415976be172f8dfaa6287fc0847dc7247727"
 dependencies = [
  "bitflags",
  "ethereum-types",

@@ -991,11 +991,29 @@ where
                 &[],
                 "tx_origin",
             )),
-            InstructionName::GAS => Ok(context.build_call(
-                context.get_intrinsic_function(compiler_llvm_context::IntrinsicFunction::ErgsLeft),
-                &[],
-                "ergs_left",
-            )),
+            InstructionName::GAS => compiler_llvm_context::ether_gas::gas(context),
+            InstructionName::CALLVALUE => compiler_llvm_context::ether_gas::value(context),
+
+            InstructionName::BALANCE => {
+                let arguments = self.pop_arguments_llvm(context);
+
+                let address = arguments[0].into_int_value();
+                compiler_llvm_context::ether_gas::balance(context, address)
+            }
+            InstructionName::SELFBALANCE => {
+                let address = context
+                    .build_call(
+                        context.get_intrinsic_function(
+                            compiler_llvm_context::IntrinsicFunction::Address,
+                        ),
+                        &[],
+                        "self_balance_address",
+                    )
+                    .expect("Always exists")
+                    .into_int_value();
+
+                compiler_llvm_context::ether_gas::balance(context, address)
+            }
 
             InstructionName::GASLIMIT => Ok(Some(
                 context.field_const(u32::MAX as u64).as_basic_value_enum(),
@@ -1007,12 +1025,10 @@ where
             )),
             InstructionName::BASEFEE => Ok(Some(context.field_const(0).as_basic_value_enum())),
             InstructionName::COINBASE => Ok(Some(context.field_const(0).as_basic_value_enum())),
-            InstructionName::CALLVALUE => Ok(Some(context.field_const(0).as_basic_value_enum())),
-            InstructionName::BALANCE => Ok(Some(context.field_const(0).as_basic_value_enum())),
-            InstructionName::SELFBALANCE => Ok(Some(context.field_const(0).as_basic_value_enum())),
             InstructionName::CHAINID => Ok(Some(context.field_const(0).as_basic_value_enum())),
             InstructionName::BLOCKHASH => Ok(Some(context.field_const(0).as_basic_value_enum())),
             InstructionName::DIFFICULTY => Ok(Some(context.field_const(0).as_basic_value_enum())),
+            InstructionName::GASPRICE => Ok(Some(context.field_const(0).as_basic_value_enum())),
             InstructionName::PC => Ok(Some(context.field_const(0).as_basic_value_enum())),
             InstructionName::EXTCODECOPY => {
                 let _arguments = self.pop_arguments_llvm(context);
