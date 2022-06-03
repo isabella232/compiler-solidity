@@ -126,6 +126,7 @@ fn main_inner() -> anyhow::Result<()> {
     let build = project.compile_all(optimizer_settings, dump_flags)?;
 
     if arguments.standard_json {
+        solc_output.sources = None;
         build.write_to_standard_json(&mut solc_output)?;
         serde_json::to_writer(std::io::stdout(), &solc_output)?;
         return Ok(());
